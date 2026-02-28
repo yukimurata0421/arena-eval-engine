@@ -1,0 +1,6 @@
+services:
+  arena-ci:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    command: ["pytest", "-q"]

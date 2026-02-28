@@ -1,0 +1,40 @@
+# --- python ---
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- OS/IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- arena private ---
+data/
+output/
+scripts/secrets/*
+!scripts/secrets/
+!scripts/secrets/*.example.*
+scripts/master_log.txt
+*.log
+
+# --- large artifacts ---
+*.zip
+*.png
+*.html
+*.csv
+*.jsonl
+!docs/**/*.png
+!docs/**/*.html
+!docs/**/*.csv

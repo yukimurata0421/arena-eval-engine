@@ -1,0 +1,106 @@
+import os
+import sys
+from pathlib import Path
+
+if "JAX_PLATFORMS" not in os.environ and os.getenv("FORCE_CUDA") == "1":
+    os.environ["JAX_PLATFORMS"] = "cuda,cpu"
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+
+def link_nvidia_dlls():
+    if os.name == 'nt':
+        import site
+        packages = site.getsitepackages()
+        if hasattr(site, 'getusersitepackages'):
+            packages.append(site.getusersitepackages())
+        for s in packages:
+            nvidia_base = os.path.join(s, 'nvidia')
+            if os.path.exists(nvidia_base):
+                for root, dirs, files in os.walk(nvidia_base):
+                    if 'bin' in dirs:
+                        bin_path = os.path.abspath(os.path.join(root, 'bin'))
+                        if os.path.exists(bin_path):
+                            os.add_dll_directory(bin_path)
+
+link_nvidia_dlls()
+
+import pandas as pd
+import numpy as np
+import jax
+import jax.numpy as jnp
+from jax import random
+import numpyro
+import numpyro.distributions as dist
+from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
+import matplotlib.pyplot as plt
+
+
+from arena.lib.config import get_quality_thresholds
+from arena.lib.data_loader import load_summary
+
+try:
+    numpyro.set_platform("cuda")
+    print(f">>>  GPU detected: {jax.devices()}")
+except:
+    print(">>> GPU not detected. Running in CPU parallel mode (4 cores).")
+    numpyro.set_platform("cpu")
+    numpyro.set_host_device_count(4)
+
+def run_discovery_analysis():
+    min_auc, _min_minutes = get_quality_thresholds()
+    df = load_summary(min_auc=min_auc, min_minutes=None, require_proxy=True)
+    if df is None or df.empty:
+        print("Data file not found.")
+        return
+    df = df.sort_values('date').reset_index(drop=True)
+    
+    y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
+    log_traffic = jnp.array(df['log_traffic'].values, dtype=jnp.float32)
+    n_days = len(df)
+    
+    print(f">>> Analysis target: {df['date'].min().date()} ～ {df['date'].max().date()} ({n_days} days)")
+
+    def model(y, log_traffic, n_days):
+        tau = numpyro.sample('tau', dist.DiscreteUniform(0, n_days - 1))
+        alpha_before = numpyro.sample('alpha_before', dist.Normal(10., 5.))
+        alpha_after = numpyro.sample('alpha_after', dist.Normal(10., 5.))
+        beta_traffic = numpyro.sample('beta_traffic', dist.Normal(1., 0.5))
+        alpha_inv = numpyro.sample('alpha_inv', dist.Exponential(1.0))
+        
+        idx = jnp.arange(n_days)
+        intercept = jnp.where(idx < tau, alpha_before, alpha_after)
+        mu = jnp.exp(intercept + beta_traffic * log_traffic)
+        
+        numpyro.sample('y_obs', dist.NegativeBinomial2(mu, alpha_inv), obs=y)
+
+    kernel = DiscreteHMCGibbs(NUTS(model))
+    mcmc = MCMC(kernel, num_warmup=1000, num_samples=2000, num_chains=1)
+    
+    print("\n>>> MCMC sampling (inferring change points)...")
+    mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
+    
+    samples = mcmc.get_samples()
+    tau_samples = samples['tau']
+    improvement = (jnp.exp(samples['alpha_after'] - samples['alpha_before']) - 1) * 100
+    
+    vals, counts = np.unique(tau_samples, return_counts=True)
+    best_tau_idx = vals[np.argmax(counts)]
+    detected_date = df.iloc[int(best_tau_idx)]['date']
+    
+    print("\n" + "="*40)
+    print(f" Analysis complete")
+    print(f"[Detected structural change date]: {detected_date.strftime('%Y-%m-%d')}")
+    print(f"[Estimated improvement (mean)]: {jnp.mean(improvement):+.2f}%")
+    print(f"[Confidence]: {np.max(counts)/len(tau_samples)*100:.1f}%")
+    print("="*40)
+
+    plt.figure(figsize=(10, 6))
+    plt.subplot(2, 1, 1)
+    plt.plot(df['date'], df['auc_n_used'], label='AUC', color='black', alpha=0.3)
+    plt.axvline(detected_date, color='red', linestyle='--', label='Structural Break')
+    plt.legend()
+    plt.subplot(2, 1, 2)
+    plt.hist(df['date'].values[tau_samples.astype(int)], bins=n_days, color='orange')
+    plt.show()
+
+if __name__ == "__main__":
+    run_discovery_analysis()

@@ -1,0 +1,35 @@
+# ====================================================
+# ADS-B Evaluation Framework — Runtime Settings
+# ====================================================
+#
+#
+# ====================================================
+
+[paths]
+# Use "auto" to infer project root from the scripts location.
+# root = "auto"
+# Override individual paths if needed:
+# data_dir = ""
+# output_dir = ""
+# scripts_dir = ""
+
+[site]
+# Receiver location (approx). Set these to your station.
+lat = 0.0
+lon = 0.0
+
+[quality]
+# Minimum thresholds for quality filtering
+min_auc_n_used = 5000
+min_minutes_covered = 1380
+
+[distance_bins]
+# Distance bins in km for evaluation
+km = [0, 50, 100, 150, 200, 9999]
+
+
+# post_change_date = "2026-01-14"
+# alt_baseline_date = "2026-01-29"
+# intervention_date = "2026-02-14"
+# report_start_date = "2026-01-14"
+# fringe_boundary = "2026-01-29,2026-02-14"

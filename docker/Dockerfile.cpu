@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY pyproject.toml README.md /app/
+COPY scripts /app/scripts
+COPY src /app/src
+COPY tests /app/tests
+
+RUN python -m pip install -U pip \
+ && pip install -e ".[dev]"
+
+CMD ["bash", "-lc", "arena validate && pytest -q"]

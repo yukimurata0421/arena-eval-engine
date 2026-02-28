@@ -1,0 +1,241 @@
+AEME
+
+Aerial Evaluation & Measurement Engine
+
+# scripts overview
+
+## Directory layout
+scripts/
+├─ adsb/
+│  ├─ aggregators/
+│  ├─ analysis/
+│  ├─ data_fetch/
+│  └─ heatmap/
+├─ config/
+├─ plao/
+├─ secrets/
+├─ signals/
+├─ tools/
+├─ master.py
+├─ phase_config.py
+└─ structure
+
+---
+
+## Scripts (purpose / outputs)
+
+### ADS-B aggregation
+- `scripts/adsb/aggregators/adsb_aggregator.py`
+  Purpose: daily AUC aggregation from past_log JSONL (max per day)
+  Output: `output/adsb_daily_summary_raw.csv` (CSV)
+
+- `scripts/adsb/aggregators/adsb_eval_pk_aggregator.py`
+  Purpose: merge dist_1m + pos + movements into daily summary
+  Output: `output/adsb_daily_summary.csv` (CSV)
+
+- `scripts/adsb/aggregators/adsb_csv_patcher.py`
+  Purpose: patch/extend columns in `adsb_daily_summary.csv`
+  Output: overwrites input CSV
+
+- `scripts/adsb/aggregators/adsb_local_traffic_proxy_gen.py`
+  Purpose: generate local_traffic_proxy and merge into summary
+  Output: `output/adsb_daily_summary_v2.csv` (CSV)
+
+---
+
+### ADS-B statistical evaluation (statsmodels)
+- `scripts/adsb/analysis/stats/adsb_stats_eval.py`
+  Purpose: effect evaluation using local_traffic_proxy
+  Output: console only
+
+- `scripts/adsb/analysis/stats/adsb_dynamic_eval.py`
+  Purpose: effect estimation for an arbitrary intervention date
+  Output: console only
+
+- `scripts/adsb/analysis/stats/adsb_baseline_nb_eval.py`
+  Purpose: baseline negative binomial model
+  Output: `output/performance/baseline_nb_summary.txt`, `output/performance/baseline_nb_results.json`
+
+- `scripts/adsb/analysis/stats/adsb_distance_nb_eval.py`
+  Purpose: distance-bin comparison (MWU + bootstrap)
+  Output: `output/performance/distance_performance_summary.csv`
+
+- `scripts/adsb/analysis/stats/adsb_distance_binomial_eval.py`
+  Purpose: distance-bin binomial model
+  Output: `output/performance/distance_binomial_summary.csv`
+
+---
+
+### ADS-B Bayesian evaluation (PyMC/NumPyro)
+- `scripts/adsb/analysis/bayesian/adsb_bayesian_eval.py`
+  Purpose: Bayesian phase estimation
+  Output: `output/performance/bayesian_phase_results.csv`
+
+- `scripts/adsb/analysis/bayesian/adsb_bayesian_dynamic_eval.py`
+  Purpose: Bayesian estimation for an arbitrary intervention date
+  Output: console only
+
+- `scripts/adsb/analysis/bayesian/adsb_bayesian_advi_eval.py`
+  Purpose: ADVI-based Bayesian estimation
+  Output: console only
+
+- `scripts/adsb/analysis/bayesian/adsb_bayesian_cuda_eval.py`
+  Purpose: CUDA wrapper for phase comparison
+  Output: `output/performance/bayesian_phase_results_cuda.csv`
+
+---
+
+### ADS-B change point detection (NumPyro/JAX)
+- `scripts/adsb/analysis/change_points/adsb_detect_change_point.py`
+  Purpose: single change point estimation
+  Output: console/plots
+
+- `scripts/adsb/analysis/change_points/adsb_detect_discovery_gpu.py`
+  Purpose: change point detection with GPU/CPU switching
+  Output: console/plots
+
+- `scripts/adsb/analysis/change_points/adsb_detect_multi_change_points.py`
+  Purpose: multi change point estimation (K=3)
+  Output: console/plots
+
+- `scripts/adsb/analysis/change_points/adsb_multi_discovery.py`
+  Purpose: CPU-only multi change point estimation
+  Output: console/plots
+
+- `scripts/adsb/analysis/change_points/adsb_performance_discovery.py`
+  Purpose: GPU/WSL multi change point estimation
+  Output: console/plots
+
+---
+
+### ADS-B GPU evaluation (NumPyro/JAX)
+- `scripts/adsb/analysis/gpu/adsb_bayesian_phase_cuda_eval.py`
+  Purpose: GPU Bayesian phase estimation
+  Output: `output/performance/bayesian_phase_results_cuda.csv`
+
+- `scripts/adsb/analysis/gpu/adsb_cuda_evaluator.py`
+  Purpose: GPU change point visualization
+  Output: `output/performance/adsb_cuda_evaluator_change_point.png`
+
+- `scripts/adsb/analysis/gpu/adsb_cuda_processor.py`
+  Purpose: alternate GPU change point visualization
+  Output: `output/performance/adsb_cuda_processor_change_point.png`
+
+---
+
+### ADS-B pipeline
+- `scripts/master.py`
+  Purpose: orchestration of the ADS-B evaluation pipeline
+  Output: `output/performance/pipeline_runs.jsonl`
+
+---
+
+### ADS-B phase evaluation
+- `scripts/adsb/analysis/phase/adsb_phase_evaluator.py`
+  Purpose: phase-level improvement evaluation
+  Output: `output/performance/phase_evaluator_results.csv`,
+          `output/performance/phase_evaluator_report.txt`,
+          `output/performance/phase_evaluator_boxplot.png`
+
+- `scripts/adsb/analysis/phase/adsb_manual_evaluator.py`
+  Purpose: manual phase evaluation
+  Output: console/plots
+
+---
+
+### ADS-B data fetch
+- `scripts/adsb/data_fetch/get_opensky_traffic.py`
+  Purpose: fetch OpenSky traffic data
+  Output: `data/flight_data/airport_movements.csv`
+
+---
+
+### ADS-B heatmaps
+- `scripts/adsb/heatmap/adsb_heatmap_generator.py`
+  Purpose: single-day heatmap
+  Output: `output/adsb_coverage_heatmap.html`
+
+- `scripts/adsb/heatmap/adsb_daily_heatmap.py`
+  Purpose: batch daily heatmaps
+  Output: `output/heatmaps/*_heatmap.html`
+
+- `scripts/adsb/heatmap/adsb_daily_heatmap_alt.py`
+  Purpose: altitude-band heatmaps
+  Output: `output/heatmaps/*_alt_heatmap.html`
+
+---
+
+### Consolidated report / coverage
+- `scripts/adsb/analysis/reports/adsb_total_performance_reporter.py`
+  Purpose: time-series report for AUC and signal
+  Output: `output/tsuchiura_master_log_report.png`
+
+- `scripts/adsb/analysis/reports/adsb_polar_coverage_evaluator.py`
+  Purpose: azimuth P95 distance trends
+  Output: `output/coverage/coverage_trend.csv`, `output/coverage/coverage_trend_report.png`, `output/coverage/*_polar_p95.png`
+
+- `scripts/adsb/analysis/reports/adsb_vertical_profile_evaluator.py`
+  Purpose: LOS efficiency trends
+  Output: `output/vertical_profile/los_efficiency_trend.csv`, `output/vertical_profile/los_efficiency_trend_report.png`
+
+- `scripts/adsb/analysis/reports/adsb_fringe_decoding_evaluator.py`
+  Purpose: long-range decoding statistics
+  Output: `output/fringe_decoding/fringe_decoding_stats.csv`
+
+- `scripts/adsb/analysis/reports/adsb_fringe_decoding_quality_stats.py`
+  Purpose: long-range decoding quality stats
+  Output: console only
+
+---
+
+### Time-resolved
+- `scripts/adsb/analysis/time_resolved/adsb_time_resolved_aggregator.py`
+  Purpose: time-bin AUC/traffic aggregation
+  Output: `output/time_resolved/adsb_timebin_summary.csv`
+
+- `scripts/adsb/analysis/time_resolved/adsb_time_resolved_mixed_eval.py`
+  Purpose: mixed model analysis by time bin
+  Output: `output/performance/time_resolved_performance.png`
+
+- `scripts/adsb/analysis/time_resolved/adsb_time_resolved_detailed_report.py`
+  Purpose: detailed time-bin report
+  Output: `output/performance/time_bin_detailed_stats.csv`, `output/performance/time_resolved_detailed_plot.png`
+
+---
+
+### Signals
+- `scripts/signals/collectors/signal_stats_aggregator.py`
+  Purpose: signal strength aggregation
+  Output: `output/adsb_signal_range_summary.csv`
+
+- `scripts/signals/analysis/signal_range_evaluator.py`
+  Purpose: distance-bin signal strength comparison
+  Output: console only
+
+- `scripts/signals/analysis/signal_quality_evaluator.py`
+  Purpose: signal quality analysis
+  Output: console only
+
+---
+
+### PLAO
+- `scripts/plao/analysis/plao_distance_auc_eval.py`
+  Purpose: PLAO pos distance-bin AUC aggregation/stats/plots
+  Output: `output/plao/distance_auc/plao_daily_distance_auc_summary.csv`,
+          `output/plao/distance_auc/plao_daily_distance_auc_long.csv`,
+          `output/plao/distance_auc/plao_skipped_days.csv`,
+          `output/plao/distance_auc/plao_distance_auc_stats_report.txt`
+
+---
+
+### Tools
+- `scripts/tools/merge_output_for_ai/merge_output_for_ai.py`
+  Purpose: merge text outputs under `output/` into a single Markdown
+  Output: `<out_dir>/manifest.csv`, `<out_dir>/merged_for_ai.md`, `<out_dir>/merged_for_ai.zip`
+
+---
+
+## Notes
+- Shared library code lives under `src/arena/lib` (import as `arena.lib`).
+- `scripts/phase_config.py` is a compatibility shim for `arena.lib.phase_config`.
+- Settings are in `scripts/config/phases.txt` and `scripts/config/settings.toml`.

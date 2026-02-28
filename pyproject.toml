@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arena-eval-engine"
+version = "0.1.0"
+description = "ARENA: reproducible statistical validation engine for ADS-B performance optimization."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Murata"}]
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "scipy>=1.11",
+  "statsmodels>=0.14",
+  "matplotlib>=3.8",
+  "seaborn>=0.13",
+  "folium>=0.16",
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+bayes = [
+  "pymc>=5.16",
+  "arviz>=0.18",
+]
+gpu = [
+  "jax>=0.4.30",
+  "jaxlib>=0.4.30",
+  "numpyro>=0.15",
+]
+all = [
+  "arena-eval-engine[dev,bayes,gpu]",
+]
+
+[project.scripts]
+arena = "arena.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["arena*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["src", "."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  "scripts",
+  "data",
+  "output",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501"]
