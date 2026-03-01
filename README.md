@@ -1,5 +1,7 @@
 # ARENA --- powered by AEME
 
+![CI](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml/badge.svg)
+
 > A reproducible evaluation engine to detect and quantify real
 > improvements under uncertainty.
 
