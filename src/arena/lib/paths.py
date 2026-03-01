@@ -103,6 +103,7 @@ def _resolve_root() -> Path:
     except Exception:
         return Path("/")
 
+
 ROOT = _resolve_root()
 _ENV_DATA = os.getenv("ARENA_DATA_DIR") or os.getenv("ADSB_DATA_DIR")
 _ENV_OUTPUT = os.getenv("ARENA_OUTPUT_DIR") or os.getenv("ADSB_OUTPUT_DIR")
@@ -110,7 +111,9 @@ _ENV_OUTPUT = os.getenv("ARENA_OUTPUT_DIR") or os.getenv("ADSB_OUTPUT_DIR")
 DATA_DIR = Path(_ENV_DATA) if _ENV_DATA else (_settings_path_value("data_dir") or (ROOT / "data"))
 RAW_DIR = DATA_DIR / "raw"
 PAST_LOG_DIR = RAW_DIR / "past_log"
-OUTPUT_DIR = Path(_ENV_OUTPUT) if _ENV_OUTPUT else (_settings_path_value("output_dir") or (ROOT / "output"))
+OUTPUT_DIR = (
+    Path(_ENV_OUTPUT) if _ENV_OUTPUT else (_settings_path_value("output_dir") or (ROOT / "output"))
+)
 
 ADSB_DAILY_SUMMARY = OUTPUT_DIR / "adsb_daily_summary.csv"
 ADSB_DAILY_SUMMARY_V2 = OUTPUT_DIR / "adsb_daily_summary_v2.csv"

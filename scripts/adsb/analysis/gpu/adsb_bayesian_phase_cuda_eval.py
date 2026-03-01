@@ -59,6 +59,13 @@ def run_bayesian_phase_cuda_analysis():
     df["phase_idx"] = df["phase_idx"].astype(int)
     df["is_weekend"] = df["date"].dt.dayofweek.isin([5, 6]).astype(int)
 
+    df["auc_n_used"] = pd.to_numeric(df["auc_n_used"], errors="coerce").fillna(0).clip(lower=0)
+    df["log_traffic"] = pd.to_numeric(df["log_traffic"], errors="coerce")
+    df = df[np.isfinite(df["auc_n_used"]) & np.isfinite(df["log_traffic"])].copy()
+    if df.empty:
+        print("  No valid rows after filtering (auc_n_used/log_traffic).")
+        return
+
     y = df["auc_n_used"].values.astype(float)
     log_traffic = df["log_traffic"].values.astype(float)
     phase_idx = df["phase_idx"].values

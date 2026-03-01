@@ -126,19 +126,31 @@ def run_fringe_quality_analysis():
             [fringe_first, total_first - fringe_first],
             [fringe_last,  total_last  - fringe_last]
         ]
-        chi2, p_chi2, _, _ = sp_stats.chi2_contingency(table)
+        if total_first <= 0 or total_last <= 0:
+            print("  Chi2: skipped (insufficient totals)")
+            report_lines.append("  Chi2: skipped (insufficient totals)")
+        else:
+            rate_first = fringe_first / total_first * 100
+            rate_last  = fringe_last  / total_last  * 100
+            try:
+                chi2, p_chi2, _, _ = sp_stats.chi2_contingency(table)
+                print(f"  {p_first}: {rate_first:.4f}% (n={total_first:,})")
+                print(f"  {p_last}:  {rate_last:.4f}% (n={total_last:,})")
+                print(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
+                print(f"  ※ Note: with very large N, even small differences become significant.")
 
-        rate_first = fringe_first / total_first * 100
-        rate_last  = fringe_last  / total_last  * 100
-
-        print(f"  {p_first}: {rate_first:.4f}% (n={total_first:,})")
-        print(f"  {p_last}:  {rate_last:.4f}% (n={total_last:,})")
-        print(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
-        print(f"  ※ Note: with very large N, even small differences become significant.")
-
-        report_lines.append(f"  {p_first}: {rate_first:.4f}% (N={total_first})")
-        report_lines.append(f"  {p_last}: {rate_last:.4f}% (N={total_last})")
-        report_lines.append(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
+                report_lines.append(f"  {p_first}: {rate_first:.4f}% (N={total_first})")
+                report_lines.append(f"  {p_last}: {rate_last:.4f}% (N={total_last})")
+                report_lines.append(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
+            except ValueError:
+                # fallback when expected table has zero elements
+                odds, p_fisher = sp_stats.fisher_exact(table, alternative="two-sided")
+                print(f"  {p_first}: {rate_first:.4f}% (n={total_first:,})")
+                print(f"  {p_last}:  {rate_last:.4f}% (n={total_last:,})")
+                print(f"  Fisher exact: OR={odds:.4f}, P={p_fisher:.2e}")
+                report_lines.append(f"  {p_first}: {rate_first:.4f}% (N={total_first})")
+                report_lines.append(f"  {p_last}: {rate_last:.4f}% (N={total_last})")
+                report_lines.append(f"  Fisher exact: OR={odds:.4f}, P={p_fisher:.2e}")
 
     print("=" * 70)
 

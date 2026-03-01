@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-import numpy as np
-import pandas as pd
 import jax.numpy as jnp
+import numpy as np
 import numpyro
 import numpyro.distributions as dist
+import pandas as pd
 
 
 @dataclass

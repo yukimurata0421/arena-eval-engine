@@ -11,6 +11,7 @@ os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
 import pandas as pd
 import numpy as np
 from jax import random
+import jax.numpy as jnp
 import numpyro
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import matplotlib.pyplot as plt

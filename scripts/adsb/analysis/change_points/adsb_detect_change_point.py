@@ -37,6 +37,7 @@ def run_discovery_analysis():
         print("  警告: 有効データが不足しているため、変化点検出をスキップします。")
         return
     inputs = prepare_nb2_inputs(df)
+    n_days = inputs.n_days
     model = make_single_change_point_model(alpha_name="alpha_inv")
 
     kernel = DiscreteHMCGibbs(NUTS(model))

@@ -47,6 +47,7 @@ def _link_nvidia_dlls():
     else:
         try:
             import site
+
             lib_paths, bin_paths = [], []
             nvcc_base = None
             for base in site.getsitepackages():
@@ -72,13 +73,9 @@ def _link_nvidia_dlls():
                 )
             if bin_paths:
                 existing = os.environ.get("PATH", "")
-                os.environ["PATH"] = ":".join(
-                    bin_paths + ([existing] if existing else [])
-                )
+                os.environ["PATH"] = ":".join(bin_paths + ([existing] if existing else []))
             if nvcc_base and os.path.isdir(nvcc_base):
-                os.environ["XLA_FLAGS"] = (
-                    "--xla_gpu_cuda_data_dir=" + nvcc_base
-                )
+                os.environ["XLA_FLAGS"] = "--xla_gpu_cuda_data_dir=" + nvcc_base
         except Exception:
             pass
 

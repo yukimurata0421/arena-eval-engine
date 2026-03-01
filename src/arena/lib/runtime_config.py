@@ -31,6 +31,7 @@ def find_settings_path() -> Path:
     ]
     try:
         from arena.lib.paths import SCRIPTS_ROOT
+
         candidates.insert(0, SCRIPTS_ROOT / "config" / "settings.toml")
     except Exception:
         pass

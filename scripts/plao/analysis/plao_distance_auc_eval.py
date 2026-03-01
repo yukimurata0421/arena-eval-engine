@@ -555,9 +555,14 @@ def main():
                 groups.append(v)
                 group_names.append(f"{wd}(n={len(v)})")
         if len(groups) >= 2:
-            st = kruskal(*groups)
-            lines.append(f"groups: {', '.join(group_names)}")
-            lines.append(f"H={st.statistic:.4f} p={st.pvalue:.6g}")
+            all_vals = np.concatenate(groups) if groups else np.array([])
+            if len(all_vals) == 0 or np.unique(all_vals).size <= 1:
+                lines.append(f"groups: {', '.join(group_names)}")
+                lines.append("Kruskal-Wallis skipped: all numbers are identical.")
+            else:
+                st = kruskal(*groups)
+                lines.append(f"groups: {', '.join(group_names)}")
+                lines.append(f"H={st.statistic:.4f} p={st.pvalue:.6g}")
         else:
             lines.append("Not enough weekday groups with n>=2.")
         lines.append("")

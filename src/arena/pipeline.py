@@ -195,7 +195,9 @@ class Backend:
         for d in subdirs:
             (self.output_root_native / d).mkdir(parents=True, exist_ok=True)
 
-    def run_python_snippet(self, code: str, env: dict[str, str], timeout_s: int = 30) -> subprocess.CompletedProcess:
+    def run_python_snippet(
+        self, code: str, env: dict[str, str], timeout_s: int = 30
+    ) -> subprocess.CompletedProcess:
         """
         Run a python -c snippet in the execution environment (native or wsl).
         """
@@ -208,7 +210,9 @@ class Backend:
         cmd = ["wsl", "-e", "bash", "-lc", f"python3 -c {code_q}"]
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, env=env)
 
-    def build_script_cmd(self, script_rel_posix: str, extra_args: list[str] | None = None) -> tuple[list[str], Optional[str]]:
+    def build_script_cmd(
+        self, script_rel_posix: str, extra_args: list[str] | None = None
+    ) -> tuple[list[str], Optional[str]]:
         """
         Return (cmd, cwd) for subprocess.run.
         - script_rel_posix must be posix-style relative path, e.g. "adsb/aggregators/adsb_aggregator.py"
@@ -325,9 +329,9 @@ def validate_outputs(
 # Dependency checks
 # =========================
 BASE_MODULES = ["numpy", "pandas", "scipy", "statsmodels", "matplotlib", "folium", "requests"]
-STAGE4_MODULES = ["jax", "numpyro"]         # phase eval (NumPyro NUTS)
-STAGE5_MODULES = ["jax", "numpyro"]         # change point / numpyro
-STAGE5_PYMC = ["pymc", "arviz"]             # PyMC bayesian scripts
+STAGE4_MODULES = ["jax", "numpyro"]  # phase eval (NumPyro NUTS)
+STAGE5_MODULES = ["jax", "numpyro"]  # change point / numpyro
+STAGE5_PYMC = ["pymc", "arviz"]  # PyMC bayesian scripts
 
 
 def missing_modules(backend: Backend, modules: Sequence[str], env: dict[str, str]) -> list[str]:
@@ -364,7 +368,9 @@ def detect_gpu_jax(backend: Backend, env: dict[str, str]) -> dict:
         "print(gpu[0].device_kind if gpu else 'none')"
     )
     try:
-        proc = backend.run_python_snippet(code, env={**env, "JAX_PLATFORMS": "cuda,cpu"}, timeout_s=30)
+        proc = backend.run_python_snippet(
+            code, env={**env, "JAX_PLATFORMS": "cuda,cpu"}, timeout_s=30
+        )
         lines = (proc.stdout or "").strip().splitlines()
         if lines and lines[0].strip() == "1":
             info["available"] = True
@@ -459,7 +465,9 @@ def build_pipeline(dynamic_date: str, full_mode: bool, skip_plao: bool = False) 
         label="Fetch OpenSky movements (→ data/flight_data/airport_movements.csv)",
         timeout_s=300,
         est_s=30,
-        expected_outputs=[str((default_roots_native()[2] / "flight_data" / "airport_movements.csv"))],
+        expected_outputs=[
+            str((default_roots_native()[2] / "flight_data" / "airport_movements.csv"))
+        ],
         expected_min_bytes=200,
     )
     add(
@@ -881,7 +889,9 @@ class PipelineRunner:
     def _should_skip_existing(self, step: Step) -> bool:
         if not self.skip_existing or not step.expected_outputs:
             return False
-        ok, _missing = validate_outputs(self.backend.output_root_native, step.expected_outputs, step.expected_min_bytes)
+        ok, _missing = validate_outputs(
+            self.backend.output_root_native, step.expected_outputs, step.expected_min_bytes
+        )
         return ok
 
     def run_step(self, step: Step) -> bool:
@@ -1071,7 +1081,7 @@ class PipelineRunner:
                 for m in missing[:3]:
                     print(f"      - {m}")
                 if len(missing) > 3:
-                    print(f"      ... (+{len(missing)-3} more)")
+                    print(f"      ... (+{len(missing) - 3} more)")
             if proc.stderr:
                 lines = proc.stderr.strip().splitlines()
                 for line in lines[-3:]:
@@ -1163,7 +1173,7 @@ class PipelineRunner:
             if key in counts:
                 parts.append(f"{counts[key]} {key}")
         print("  " + " / ".join(parts))
-        print(f"  Total time: {total:.0f}s ({total/60:.1f} min)")
+        print(f"  Total time: {total:.0f}s ({total / 60:.1f} min)")
         print(f"  Log: {self.jsonl_log_path}")
         print("=" * 78)
 
@@ -1281,9 +1291,9 @@ def run(cfg: RunConfig) -> int:
             print(f"  - {m}")
         print("\nFix:")
         if backend.kind == "native":
-            print("  pip install -e \".[dev]\"  (or install modules listed above)")
+            print('  pip install -e ".[dev]"  (or install modules listed above)')
         else:
-            print("  In WSL: pip3 install -e \".[dev]\"  (or install modules listed above)")
+            print('  In WSL: pip3 install -e ".[dev]"  (or install modules listed above)')
         return 1
 
     # GPU detect (in execution environment)
@@ -1347,7 +1357,9 @@ def run(cfg: RunConfig) -> int:
                 if not step.expected_outputs:
                     print(f"    - {step.label}: (no expected outputs)")
                     continue
-                ok, missing = validate_outputs(output_root_native, step.expected_outputs, step.expected_min_bytes)
+                ok, missing = validate_outputs(
+                    output_root_native, step.expected_outputs, step.expected_min_bytes
+                )
                 if ok:
                     print(f"    OK  {step.label}")
                 else:
@@ -1356,7 +1368,7 @@ def run(cfg: RunConfig) -> int:
                     for m in missing[:3]:
                         print(f"       - {m}")
                     if len(missing) > 3:
-                        print(f"       ... (+{len(missing)-3} more)")
+                        print(f"       ... (+{len(missing) - 3} more)")
         return 0 if all_ok else 1
 
     # execution plan filter
@@ -1386,14 +1398,18 @@ def run(cfg: RunConfig) -> int:
 
     runner.print_summary()
     elapsed = time.time() - start
-    print(f"\nTotal elapsed: {elapsed:.0f}s ({elapsed/60:.1f} min)")
+    print(f"\nTotal elapsed: {elapsed:.0f}s ({elapsed / 60:.1f} min)")
 
     # exit code
     if not ok_all:
         return 1
 
     # treat any NG as non-zero
-    ng = [r for r in runner.records if r.status in ("FAIL", "FAIL_OUTPUT", "TIMEOUT", "ERROR", "NOT_FOUND")]
+    ng = [
+        r
+        for r in runner.records
+        if r.status in ("FAIL", "FAIL_OUTPUT", "TIMEOUT", "ERROR", "NOT_FOUND")
+    ]
     if ng:
         print(f"\nWARN: {len(ng)} failures exist. See log: {log_jsonl}")
         return 1

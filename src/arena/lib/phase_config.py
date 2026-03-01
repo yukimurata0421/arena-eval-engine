@@ -43,19 +43,31 @@ from typing import Optional
 # ============================================================
 @dataclass
 class Event:
-    date: str       # "2026-01-14"
-    label: str      # "Airspy Mini Intro"
-    hardware: str   # "airspy_mini" or "" (no change)
-    color: str      # "#e74c3c"
+    date: str  # "2026-01-14"
+    label: str  # "Airspy Mini Intro"
+    hardware: str  # "airspy_mini" or "" (no change)
+    color: str  # "#e74c3c"
 
 
 # ============================================================
 # Default colors (when not specified)
 # ============================================================
 _DEFAULT_COLORS = [
-    "#2c3e50", "#e74c3c", "#2980b9", "#27ae60", "#8e44ad",
-    "#d35400", "#16a085", "#f39c12", "#c0392b", "#7f8c8d",
-    "#1abc9c", "#3498db", "#9b59b6", "#e67e22", "#34495e",
+    "#2c3e50",
+    "#e74c3c",
+    "#2980b9",
+    "#27ae60",
+    "#8e44ad",
+    "#d35400",
+    "#16a085",
+    "#f39c12",
+    "#c0392b",
+    "#7f8c8d",
+    "#1abc9c",
+    "#3498db",
+    "#9b59b6",
+    "#e67e22",
+    "#34495e",
 ]
 
 _PRETTY_HW = {
@@ -73,9 +85,10 @@ def _find_config() -> Path:
     if env_path and Path(env_path).exists():
         return Path(env_path)
 
-    here = Path(__file__).resolve().parent   # lib/
+    here = Path(__file__).resolve().parent  # lib/
     try:
         from arena.lib.paths import SCRIPTS_ROOT
+
         preferred = SCRIPTS_ROOT / "config" / "phases.txt"
         if preferred.exists():
             return preferred
@@ -220,7 +233,7 @@ class PhaseConfig:
         names = ["1_Old_Settings", "2_New_Filter", "3_Post_Cable_Fix"]
         for i, bd in enumerate(boundaries):
             if date_str <= bd:
-                return names[i] if i < len(names) else f"Phase{i+1}"
+                return names[i] if i < len(names) else f"Phase{i + 1}"
         return names[-1] if names else "Unknown"
 
     @property
@@ -263,9 +276,15 @@ def load_phase_config(path: Optional[str] = None) -> PhaseConfig:
 
     # [settings]
     if cp.has_section("settings"):
-        cfg.post_change_date = cp.get("settings", "post_change_date", fallback=cfg.post_change_date).strip()
-        cfg.intervention_date = cp.get("settings", "intervention_date", fallback=cfg.intervention_date).strip()
-        cfg.report_start_date = cp.get("settings", "report_start_date", fallback=cfg.report_start_date).strip()
+        cfg.post_change_date = cp.get(
+            "settings", "post_change_date", fallback=cfg.post_change_date
+        ).strip()
+        cfg.intervention_date = cp.get(
+            "settings", "intervention_date", fallback=cfg.intervention_date
+        ).strip()
+        cfg.report_start_date = cp.get(
+            "settings", "report_start_date", fallback=cfg.report_start_date
+        ).strip()
         fb = cp.get("settings", "fringe_boundary", fallback="").strip()
         if fb:
             cfg._fringe_boundary = [d.strip() for d in fb.split(",")]

@@ -24,8 +24,9 @@ def run_bayesian_analysis():
     cutoff = prompt_intervention_date(_get_cfg().time_resolved_date)
 
     df['post'] = (df['date'] >= cutoff).astype(int)
-    df['auc_n_used'] = df['auc_n_used'].fillna(0).clip(lower=0)
-    df = df.dropna(subset=['auc_n_used', 'local_traffic_proxy', 'post'])
+    df['auc_n_used'] = pd.to_numeric(df['auc_n_used'], errors='coerce').fillna(0).clip(lower=0)
+    df['log_traffic'] = pd.to_numeric(df['log_traffic'], errors='coerce')
+    df = df.dropna(subset=['auc_n_used', 'log_traffic', 'post'])
     
     y = df['auc_n_used'].values.astype(float)
     post_flag = df['post'].values

@@ -42,6 +42,7 @@ def run_multi_discovery_analysis():
         return
 
     inputs = prepare_nb2_inputs(df)
+    n_days = inputs.n_days
 
     K = 3
 

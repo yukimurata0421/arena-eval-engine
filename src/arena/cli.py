@@ -58,15 +58,21 @@ def cmd_validate(args: argparse.Namespace) -> int:
     else:
         print(f"[OK] settings.toml: {settings_path}")
         data = settings_snapshot.data or {}
-        site_ok = "site" in data and isinstance(data["site"], dict) and {"lat", "lon"}.issubset(
-            set(data["site"].keys())
+        site_ok = (
+            "site" in data
+            and isinstance(data["site"], dict)
+            and {"lat", "lon"}.issubset(set(data["site"].keys()))
         )
         quality_ok = (
             "quality" in data
             and isinstance(data["quality"], dict)
             and {"min_auc_n_used", "min_minutes_covered"}.issubset(set(data["quality"].keys()))
         )
-        bins_ok = "distance_bins" in data and isinstance(data["distance_bins"], dict) and "km" in data["distance_bins"]
+        bins_ok = (
+            "distance_bins" in data
+            and isinstance(data["distance_bins"], dict)
+            and "km" in data["distance_bins"]
+        )
         if not (site_ok and quality_ok and bins_ok):
             print("[NG] settings.toml missing required keys (site/quality/distance_bins)")
             ok = False
@@ -75,7 +81,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 lat = float(data["site"]["lat"])
                 lon = float(data["site"]["lon"])
                 if lat == 0.0 and lon == 0.0:
-                    print("WARNING: site.lat/lon is 0.0 (not configured). Set it in settings.toml [site].")
+                    print(
+                        "WARNING: site.lat/lon is 0.0 (not configured). Set it in settings.toml [site]."
+                    )
             except (TypeError, ValueError):
                 print("[NG] settings.toml [site] lat/lon must be numeric")
                 ok = False
@@ -134,7 +142,12 @@ def cmd_run(args: argparse.Namespace) -> int:
 def cmd_fetch_opensky(args: argparse.Namespace) -> int:
     _apply_path_overrides(args)
 
-    script = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(SCRIPTS_ROOT))) / "adsb" / "data_fetch" / "get_opensky_traffic.py"
+    script = (
+        Path(os.getenv("ARENA_SCRIPTS_ROOT", str(SCRIPTS_ROOT)))
+        / "adsb"
+        / "data_fetch"
+        / "get_opensky_traffic.py"
+    )
     if not script.exists():
         print(f"[NG] OpenSky script not found: {script}")
         return 1

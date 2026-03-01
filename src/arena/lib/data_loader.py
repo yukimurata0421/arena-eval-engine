@@ -32,6 +32,8 @@ def load_summary(
 
     df = pd.read_csv(csv_path)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    if "auc_n_used" in df.columns:
+        df["auc_n_used"] = pd.to_numeric(df["auc_n_used"], errors="coerce")
 
     if min_auc is None or min_minutes is None:
         cfg_min_auc, cfg_min_minutes = get_quality_thresholds()
@@ -53,10 +55,14 @@ def load_summary(
     if "local_traffic_proxy" in df.columns:
         df["local_traffic_proxy"] = pd.to_numeric(df["local_traffic_proxy"], errors="coerce")
         med_proxy = df["local_traffic_proxy"].median()
-        fill_val = med_proxy if pd.notna(med_proxy) else 1
+        fill_val = med_proxy if pd.notna(med_proxy) and med_proxy > 0 else 1.0
         df["local_traffic_proxy"] = df["local_traffic_proxy"].fillna(fill_val)
-        df["local_traffic_proxy"] = df["local_traffic_proxy"].replace(0, fill_val)
+        df["local_traffic_proxy"] = df["local_traffic_proxy"].where(
+            df["local_traffic_proxy"] > 0, fill_val
+        )
         df["log_traffic"] = np.log(df["local_traffic_proxy"])
+        if not np.isfinite(df["log_traffic"]).all():
+            df.loc[~np.isfinite(df["log_traffic"]), "log_traffic"] = np.log(fill_val)
 
     # post flag
     if post_date is not None:
