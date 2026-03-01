@@ -16,13 +16,13 @@ import jax
 import jax.numpy as jnp
 from jax import random
 import numpyro
-import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import matplotlib.pyplot as plt
 
 
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
+from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_multi_change_point_model
 
 numpyro.set_platform("cpu")
 numpyro.set_host_device_count(4)
@@ -36,34 +36,22 @@ def run_multi_discovery_analysis():
         print("Data file not found.")
         return
     df = df.sort_values("date").reset_index(drop=True)
+    df = clean_nb2_df(df, require_log_traffic=True)
+    if len(df) < 5:
+        print("  警告: 有効データが不足しているため、変化点検出をスキップします。")
+        return
 
-    y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
-    log_traffic = jnp.array(df["log_traffic"].values, dtype=jnp.float32)
-    n_days = len(df)
+    inputs = prepare_nb2_inputs(df)
 
     K = 3
 
-    def model(y, log_traffic, n_days, K):
-        beta_traffic = numpyro.sample("beta_traffic", dist.Normal(1.0, 0.5))
-        alpha_inv = numpyro.sample("alpha_inv", dist.Exponential(1.0))
-        taus = numpyro.sample(
-            "taus", dist.DiscreteUniform(0, n_days - 1).expand([K])
-        )
-        alphas = numpyro.sample("alphas", dist.Normal(10.0, 5.0).expand([K + 1]))
-
-        idx = jnp.arange(n_days)[:, None]
-        phase_idx = jnp.sum(idx >= jnp.sort(taus), axis=-1)
-
-        intercept = alphas[phase_idx]
-        mu = jnp.exp(intercept + beta_traffic * log_traffic)
-
-        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, alpha_inv), obs=y)
+    model = make_multi_change_point_model(K)
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     mcmc = MCMC(kernel, num_warmup=1500, num_samples=3000, num_chains=1)
 
     print(f"\n>>> {K} change points being inferred (CPU)...")
-    mcmc.run(random.PRNGKey(0), y, log_traffic, n_days, K)
+    mcmc.run(random.PRNGKey(0), inputs.y, inputs.log_traffic, inputs.n_days, K)
 
     samples = mcmc.get_samples()
     tau_samples = jnp.sort(samples["taus"], axis=-1)

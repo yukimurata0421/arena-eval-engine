@@ -10,10 +10,8 @@ os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
 
 import pandas as pd
 import numpy as np
-import jax.numpy as jnp
 from jax import random
 import numpyro
-import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -22,6 +20,7 @@ import matplotlib.dates as mdates
 from arena.lib.paths import OUTPUT_DIR
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
+from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_single_change_point_model
 
 numpyro.set_platform("cpu")
 numpyro.set_host_device_count(4)
@@ -34,27 +33,18 @@ def run_cuda_analysis():
         print("  Error: input data is missing.")
         return
     df = df.sort_values("date").reset_index(drop=True)
+    df = clean_nb2_df(df, require_log_traffic=True)
+    if len(df) < 5:
+        print("  警告: 有効データが不足しているため、変化点評価をスキップします。")
+        return
 
     n_days = len(df)
     dates = df["date"].values
 
     print(f"  Analysis target: {n_days}  days ({df['date'].min().date()} ~ {df['date'].max().date()})")
 
-    y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
-    log_traffic = jnp.array(df["log_traffic"].values, dtype=jnp.float32)
-
-    def model(y, log_traffic, n_days):
-        tau = numpyro.sample("tau", dist.DiscreteUniform(0, n_days - 1))
-        alpha_before = numpyro.sample("alpha_before", dist.Normal(10.0, 5.0))
-        alpha_after = numpyro.sample("alpha_after", dist.Normal(10.0, 5.0))
-        beta_traffic = numpyro.sample("beta_traffic", dist.Normal(1.0, 0.5))
-        phi = numpyro.sample("phi", dist.Exponential(1.0))
-
-        idx = jnp.arange(n_days)
-        intercept = jnp.where(idx < tau, alpha_before, alpha_after)
-        mu = jnp.exp(intercept + beta_traffic * log_traffic)
-
-        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, phi), obs=y)
+    inputs = prepare_nb2_inputs(df)
+    model = make_single_change_point_model(alpha_name="phi")
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     if os.getenv("MCMC_FULL") == "1":
@@ -64,7 +54,7 @@ def run_cuda_analysis():
 
     mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=1)
     print(f"  Starting MCMC (warmup={num_warmup}, samples={num_samples}, CPU)...")
-    mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
+    mcmc.run(random.PRNGKey(42), inputs.y, inputs.log_traffic, inputs.n_days)
 
     samples = mcmc.get_samples()
     tau_samples = np.array(samples["tau"])

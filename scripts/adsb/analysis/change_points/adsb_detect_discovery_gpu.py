@@ -29,13 +29,13 @@ import jax
 import jax.numpy as jnp
 from jax import random
 import numpyro
-import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import matplotlib.pyplot as plt
 
 
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
+from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_single_change_point_model
 
 try:
     numpyro.set_platform("cuda")
@@ -52,31 +52,22 @@ def run_discovery_analysis():
         print("Data file not found.")
         return
     df = df.sort_values('date').reset_index(drop=True)
-    
-    y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
-    log_traffic = jnp.array(df['log_traffic'].values, dtype=jnp.float32)
-    n_days = len(df)
-    
-    print(f">>> Analysis target: {df['date'].min().date()} ～ {df['date'].max().date()} ({n_days} days)")
+    df = clean_nb2_df(df, require_log_traffic=True)
+    if len(df) < 5:
+        print("  警告: 有効データが不足しているため、変化点検出をスキップします。")
+        return
 
-    def model(y, log_traffic, n_days):
-        tau = numpyro.sample('tau', dist.DiscreteUniform(0, n_days - 1))
-        alpha_before = numpyro.sample('alpha_before', dist.Normal(10., 5.))
-        alpha_after = numpyro.sample('alpha_after', dist.Normal(10., 5.))
-        beta_traffic = numpyro.sample('beta_traffic', dist.Normal(1., 0.5))
-        alpha_inv = numpyro.sample('alpha_inv', dist.Exponential(1.0))
-        
-        idx = jnp.arange(n_days)
-        intercept = jnp.where(idx < tau, alpha_before, alpha_after)
-        mu = jnp.exp(intercept + beta_traffic * log_traffic)
-        
-        numpyro.sample('y_obs', dist.NegativeBinomial2(mu, alpha_inv), obs=y)
+    inputs = prepare_nb2_inputs(df)
+    
+    print(f">>> Analysis target: {df['date'].min().date()} ～ {df['date'].max().date()} ({inputs.n_days} days)")
+
+    model = make_single_change_point_model(alpha_name="alpha_inv")
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     mcmc = MCMC(kernel, num_warmup=1000, num_samples=2000, num_chains=1)
     
     print("\n>>> MCMC sampling (inferring change points)...")
-    mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
+    mcmc.run(random.PRNGKey(42), inputs.y, inputs.log_traffic, inputs.n_days)
     
     samples = mcmc.get_samples()
     tau_samples = samples['tau']
@@ -99,7 +90,7 @@ def run_discovery_analysis():
     plt.axvline(detected_date, color='red', linestyle='--', label='Structural Break')
     plt.legend()
     plt.subplot(2, 1, 2)
-    plt.hist(df['date'].values[tau_samples.astype(int)], bins=n_days, color='orange')
+    plt.hist(df['date'].values[tau_samples.astype(int)], bins=inputs.n_days, color='orange')
     plt.show()
 
 if __name__ == "__main__":

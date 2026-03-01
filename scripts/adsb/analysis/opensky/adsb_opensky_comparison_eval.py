@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 
 
 from arena.lib.config import get_distance_bins_km, get_site_latlon
+from arena.lib.stats_utils import bootstrap_mean_diff
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR, ensure_dir
 from arena.lib.phase_config import get_config
 
@@ -110,21 +111,6 @@ def iter_jsonl(path: str):
                 yield json.loads(line)
             except Exception:
                 continue
-
-
-def bootstrap_mean_diff(
-    a: np.ndarray, b: np.ndarray, n: int = 20000, seed: int = 42
-) -> Tuple[float, float, float]:
-    rng = np.random.default_rng(seed)
-    if len(a) == 0 or len(b) == 0:
-        return (np.nan, np.nan, np.nan)
-    diffs = []
-    for _ in range(n):
-        aa = rng.choice(a, size=len(a), replace=True)
-        bb = rng.choice(b, size=len(b), replace=True)
-        diffs.append(float(np.mean(bb) - np.mean(aa)))
-    diffs = np.asarray(diffs)
-    return (float(np.mean(diffs)), float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975)))
 
 
 # ════════════════════════════════════════════════
