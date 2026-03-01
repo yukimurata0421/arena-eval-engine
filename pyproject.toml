@@ -23,9 +23,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.0",
-  "ruff>=0.6",
-  "pre-commit>=3.7",
+  "pytest==8.2.2",
+  "ruff==0.6.9",
+  "pre-commit==3.7.1",
 ]
 bayes = [
   "pymc>=5.16",
