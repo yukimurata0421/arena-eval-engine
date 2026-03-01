@@ -8,8 +8,8 @@ version = "0.1.0"
 description = "ARENA: reproducible statistical validation engine for ADS-B performance optimization."
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
-authors = [{name = "Murata"}]
+license = { text = "MIT" }
+authors = [{ name = "Murata" }]
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
@@ -25,6 +25,7 @@ dependencies = [
 dev = [
   "pytest>=8.0",
   "ruff>=0.6",
+  "pre-commit>=3.7",
 ]
 bayes = [
   "pymc>=5.16",
@@ -43,7 +44,7 @@ all = [
 arena = "arena.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

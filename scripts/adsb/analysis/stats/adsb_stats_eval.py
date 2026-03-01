@@ -12,16 +12,16 @@ from arena.lib.data_loader import load_summary
 
 def run_analysis():
     print(" ADS-B Statistical Evaluation Engine start(statsmodels 64-bit)")
-    
+
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes)
     if df is None:
         return
-    
+
     print("Step: Running negative binomial regression...")
-    
+
     formula = "auc_n_used ~ post + np.log(local_traffic_proxy)"
-    
+
     try:
         model = smf.glm(
             formula=formula,
@@ -40,7 +40,7 @@ def run_analysis():
 
     gamma = model.params['post']
     p_value = model.pvalues['post']
-    
+
     improvement_rate = (np.exp(gamma) - 1) * 100
 
     print("\n" + "="*60)

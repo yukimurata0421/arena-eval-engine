@@ -1,112 +1,128 @@
-# ARENA — powered by AEME
+# ARENA --- powered by AEME
 
-> A reproducible evaluation engine to detect and quantify real improvements under uncertainty.
+> A reproducible evaluation engine to detect and quantify real
+> improvements under uncertainty.
 
-ARENA is a CLI-first evaluation framework built to answer a fundamental engineering question:
+ARENA is a CLI-first evaluation framework built to answer a fundamental
+engineering question:
 
-> Did the system truly improve — and by how much?
+> Did the system truly improve --- and by how much?
 
-At its core lies **AEME (Aerial Evaluation & Measurement Engine)** —  
-a statistical engine designed to validate improvement claims using reproducible, uncertainty-aware methods.
+At its core lies **AEME (Aerial Evaluation & Measurement Engine)** ---\
+a statistical engine designed to validate improvement claims using
+reproducible, uncertainty-aware methods.
 
----
+------------------------------------------------------------------------
 
 ## What Is ARENA?
 
-ARENA is not a data collector.  
-It is not a dashboard.  
+ARENA is not a data collector.\
+It is not a dashboard.
 
 It is an **evaluation engine**.
 
 It is built for environments where:
 
-- Metrics fluctuate daily
-- Noise masks real effects
-- External factors distort results
-- Proxy variables introduce bias
+-   Metrics fluctuate daily
+-   Noise masks real effects
+-   External factors distort results
+-   Proxy variables introduce bias
 
 ARENA quantifies change rigorously and reproducibly.
 
----
+------------------------------------------------------------------------
 
 ## What Is AEME?
 
-AEME (Aerial Evaluation & Measurement Engine) is the statistical core of ARENA.
+AEME (Aerial Evaluation & Measurement Engine) is the statistical core of
+ARENA.
 
 It integrates:
 
-- Frequentist testing (MWU, Bootstrap, GLM)
-- Bayesian posterior inference (NumPyro / NUTS)
-- Change-point detection
-- Proxy endogeneity checks
-- External dataset validation
+-   Frequentist testing (MWU, Bootstrap, GLM)
+-   Bayesian posterior inference (NumPyro / NUTS)
+-   Change-point detection
+-   Proxy endogeneity checks
+-   External dataset validation
 
 AEME focuses on:
 
-- Effect size
-- Uncertainty bounds
-- Robustness across models
-- Reproducibility
+-   Effect size
+-   Uncertainty bounds
+-   Robustness across models
+-   Reproducibility
 
-ARENA is the orchestration layer.  
+ARENA is the orchestration layer.\
 AEME is the analytical engine.
 
----
+------------------------------------------------------------------------
 
 ## Core Philosophy
 
 ARENA is designed around four principles:
 
-1. **Failure-first architecture**
-   - Pipelines assume partial failure.
-   - Validation precedes execution.
+1.  **Failure-first architecture**
+    -   Pipelines assume partial failure.
+    -   Validation precedes execution.
+2.  **Single source of truth**
+    -   All parameters are configuration-driven (`settings.toml`).
+3.  **Uncertainty-aware evaluation**
+    -   Outputs emphasize magnitude and confidence, not binary
+        significance.
+4.  **Reproducible experimentation**
+    -   Improvements must survive re-analysis under multiple statistical
+        assumptions.
 
-2. **Single source of truth**
-   - All parameters are configuration-driven (`settings.toml`).
-
-3. **Uncertainty-aware evaluation**
-   - Outputs emphasize magnitude and confidence, not binary significance.
-
-4. **Reproducible experimentation**
-   - Improvements must survive re-analysis under multiple statistical assumptions.
+------------------------------------------------------------------------
 
 ## Error Accounting & Skips
-ARENA never drops bad records silently. When parsers encounter invalid rows or exceptions:
-- Counts are tracked (`n_total`, `n_ok`, `n_skip`, `n_err`) and reported at INFO level.
-- A reason histogram is logged (e.g., `parse_error`, `missing_key`, `bad_filename_date`).
-- The first error sample is retained for debugging.
 
-Typical skip reasons include malformed JSON, missing keys, or stale position data.
+ARENA never drops bad records silently. When parsers encounter invalid
+rows or exceptions:
+
+-   Counts are tracked (`n_total`, `n_ok`, `n_skip`, `n_err`) and
+    reported at INFO level.
+-   A reason histogram is logged (e.g., `parse_error`, `missing_key`,
+    `bad_filename_date`).
+-   The first error sample is retained for debugging.
+
+Typical skip reasons include malformed JSON, missing keys, or stale
+position data.
+
+------------------------------------------------------------------------
 
 ## Model Reuse
-Change-point and GPU scripts share core NegativeBinomial2 model definitions via
-`src/arena/lib/nb2_models.py` to keep statistical assumptions consistent while
+
+Change-point and GPU scripts share core NegativeBinomial2 model
+definitions via\
+`src/arena/lib/nb2_models.py` to keep statistical assumptions consistent
+while\
 preserving script-level entry points.
+
+------------------------------------------------------------------------
 
 ## Test Execution
 
 Normal run (fast / CI):
-```
-pytest -q
-```
+
+    pytest -q
 
 Diagnose slow tests:
-```
-pytest -q --durations=20
-```
+
+    pytest -q --durations=20
 
 Verbose with timings:
-```
-pytest -vv --durations=20
-```
 
-`--durations` is for diagnostics and is not enabled by default to avoid noisy CI logs.
+    pytest -vv --durations=20
 
----
+`--durations` is for diagnostics and is not enabled by default to avoid
+noisy CI logs.
+
+------------------------------------------------------------------------
 
 ## Architecture Overview
 
-```mermaid
+``` mermaid
 flowchart TD
     A[Raw Logs] --> B[Aggregation]
     B --> C[Metric Extraction]
@@ -117,20 +133,18 @@ flowchart TD
     G --> H[Final Report]
 ```
 
-ARENA orchestrates the pipeline.  
+ARENA orchestrates the pipeline.\
 AEME performs the evaluation.
 
----
+------------------------------------------------------------------------
 
 ## Installation
 
 Python 3.11+ required.
 
-```bash
-pip install -e ".[dev]"
-```
+    pip install -e ".[dev]"
 
----
+------------------------------------------------------------------------
 
 ## Configuration
 
@@ -138,7 +152,7 @@ All runtime parameters are defined in `settings.toml`.
 
 ### Site Configuration
 
-```toml
+``` toml
 [site]
 lat = 36.123456
 lon = 140.123456
@@ -148,7 +162,7 @@ If left as `0.0`, `arena validate` will issue a warning.
 
 ### Quality Gates
 
-```toml
+``` toml
 [quality]
 min_auc_n_used = 5000
 min_minutes_covered = 1296
@@ -156,12 +170,12 @@ min_minutes_covered = 1296
 
 ### Distance Bins
 
-```toml
+``` toml
 [distance_bins]
 km = [0, 25, 50, 100, 150, 200]
 ```
 
----
+------------------------------------------------------------------------
 
 ## CLI Usage
 
@@ -169,79 +183,103 @@ ARENA is CLI-first.
 
 ### Validate configuration
 
-```bash
-arena validate
-```
+    arena validate
 
 ### Run full evaluation
 
-```bash
-arena run
-```
+    arena run
 
 ### Dry run
 
-```bash
-arena run --dry-run
-```
+    arena run --dry-run
 
 ### Fetch external comparison data
 
-```bash
-arena fetch-opensky
-```
+    arena fetch-opensky
 
 Direct script execution is not supported.
 
----
+------------------------------------------------------------------------
 
 ## Statistical Methods
 
 AEME integrates:
 
-- Mann–Whitney U Test
-- Bootstrap Confidence Intervals
-- Negative Binomial GLM
-- Bayesian Inference (NUTS)
-- Change-Point Detection
-- Proxy Bias Diagnostics
+-   Mann--Whitney U Test
+-   Bootstrap Confidence Intervals
+-   Negative Binomial GLM
+-   Bayesian Inference (NUTS)
+-   Change-Point Detection
+-   Proxy Bias Diagnostics
 
 Outputs prioritize:
 
-- Effect size
-- Credible/confidence intervals
-- Model robustness
+-   Effect size
+-   Credible/confidence intervals
+-   Model robustness
 
----
+------------------------------------------------------------------------
 
 ## Use Cases
 
-Originally developed for ADS-B receiver optimization, ARENA can generalize to:
+Originally developed for ADS-B receiver optimization, ARENA can
+generalize to:
 
-- Sensor performance validation
-- Infrastructure change evaluation
-- Network observability experiments
-- A/B testing with noisy metrics
-- Any improvement verification problem
+-   Sensor performance validation
+-   Infrastructure change evaluation
+-   Network observability experiments
+-   A/B testing with noisy metrics
+-   Any improvement verification problem
 
----
+------------------------------------------------------------------------
 
 ## Why This Exists
 
-Improvement claims are cheap.  
-Validated improvements are rare.  
+Improvement claims are cheap.\
+Validated improvements are rare.
 
 ARENA exists to close that gap.
 
----
+------------------------------------------------------------------------
+
+## Development: pre-commit (recommended)
+
+To prevent CI failures, run the same checks locally before every commit.
+
+1)  Install dev dependencies:
+
+```{=html}
+<!-- -->
+```
+    pip install -e ".[dev]"
+
+2)  Install git hooks:
+
+```{=html}
+<!-- -->
+```
+    pre-commit install
+
+3)  (Optional) Run once against all files:
+
+```{=html}
+<!-- -->
+```
+    pre-commit run --all-files
+
+After this, `ruff check` and `ruff format` (and basic TOML/YAML sanity
+checks)\
+will run automatically on `git commit`.
+
+------------------------------------------------------------------------
 
 ## License
 
 MIT License
 
----
+------------------------------------------------------------------------
 
 ## Author
 
-Yuki Murata  
+Yuki Murata\
 Building systems that measure reality, not impressions.

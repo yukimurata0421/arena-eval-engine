@@ -87,32 +87,32 @@ def run_multi_point_analysis():
     df = pd.read_csv(input_file)
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date').reset_index(drop=True)
-    
+
     y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
     n_days = len(df)
-    
+
     K = 3
 
     def model(y, n_days, K):
         taus = numpyro.sample('taus', dist.DiscreteUniform(0, n_days - 1).expand([K]))
         alphas = numpyro.sample('alphas', dist.Normal(10., 5.).expand([K + 1]))
         phi = numpyro.sample('phi', dist.Exponential(1.0))
-        
+
         idx = jnp.arange(n_days)[:, None]
         phase_idx = jnp.sum(idx >= jnp.sort(taus), axis=-1)
         mu = jnp.exp(alphas[phase_idx])
-        
+
         numpyro.sample('y_obs', dist.NegativeBinomial2(mu, phi), obs=y)
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     mcmc = MCMC(kernel, num_warmup=1000, num_samples=2000, num_chains=1)
-    
+
     print(f"\n>>> From all past data, {K}  change points being inferred...")
     mcmc.run(random.PRNGKey(42), y, n_days, K)
-    
+
     samples = mcmc.get_samples()
     tau_samples = jnp.sort(samples['taus'], axis=-1)
-    
+
     print("\n" + "="*45)
     print(" Estimated performance change points")
     print("-" * 45)

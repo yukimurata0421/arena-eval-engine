@@ -13,7 +13,7 @@ from arena.lib.data_loader import load_summary
 
 def run_analysis():
     print(" ADS-B Dynamic Evaluation Engine")
-    
+
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes)
     if df is None:
@@ -27,9 +27,9 @@ def run_analysis():
 
 
     print(f"--- {cutoff.date()} Estimating effect with cutoff at ---")
-    
+
     formula = "auc_n_used ~ post + np.log(local_traffic_proxy)"
-    
+
     try:
         model = smf.glm(
             formula=formula,
@@ -56,7 +56,7 @@ def run_analysis():
     else:
         res = "[No significant difference]"
         status = " Observed difference is within noise/traffic variation."
-    
+
     print(f"{res}\n{status}")
 
 if __name__ == "__main__":

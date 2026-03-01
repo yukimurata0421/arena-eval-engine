@@ -19,7 +19,7 @@ SITE_LAT, SITE_LON = get_site_latlon()
 def generate_heatmap():
     print(">>> Loading data...")
     coordinates = []
-    
+
     if not os.path.exists(INPUT_JSONL):
         print(f"❌ File not found: {INPUT_JSONL}")
         return

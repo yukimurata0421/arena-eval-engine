@@ -23,21 +23,21 @@ def generate_detailed_report():
 
     report_data = []
     bins = sorted(df['time_bin'].unique())
-    
+
     print(f"{'Time Bin':<10} | {'Old Mean':>10} | {'New Mean':>10} | {'Change %':>10} | {'P-Value'}")
     print("-" * 65)
 
     for b in bins:
         group1 = df[(df['time_bin'] == b) & (df['post'] == 0)]['auc_sum']
         group2 = df[(df['time_bin'] == b) & (df['post'] == 1)]['auc_sum']
-        
+
         m1, m2 = group1.mean(), group2.mean()
         change = ((m2 / m1) - 1) * 100
-        
+
         t_stat, p_val = stats.ttest_ind(group1, group2, equal_var=False)
-        
+
         print(f"{b:<10} | {m1:>10.1f} | {m2:>10.1f} | {change:>+9.2f}% | {p_val:.4f}")
-        
+
         report_data.append({
             'time_bin': b, 'old_mean': m1, 'new_mean': m2, 'improvement_pct': change, 'p_value': p_val
         })
@@ -47,7 +47,7 @@ def generate_detailed_report():
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
 
-    sns.pointplot(data=df, x='time_bin', y='auc_sum', hue='post', 
+    sns.pointplot(data=df, x='time_bin', y='auc_sum', hue='post',
                   dodge=True, join=False, capsize=.1, palette="Set1", ax=ax1)
     ax1.set_title("AUC Raw Performance Comparison by Time Bin", fontsize=14)
     ax1.set_ylabel("Mean AUC (n_used sum)")
@@ -56,7 +56,7 @@ def generate_detailed_report():
 
     colors = ['#2ecc71' if x > 0 else '#e74c3c' for x in report_df['improvement_pct']]
     sns.barplot(data=report_df, x='time_bin', y='improvement_pct', palette=colors, ax=ax2)
-    
+
     for i, p in enumerate(report_df['p_value']):
         if p < 0.05:
             ax2.text(i, report_df['improvement_pct'][i], '★', ha='center', va='bottom', fontsize=15, color='gold')

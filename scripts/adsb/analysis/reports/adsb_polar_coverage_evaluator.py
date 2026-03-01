@@ -31,19 +31,19 @@ adsb_polar_coverage_evaluator.py module.
     R = 6371.0
     lat1_rad, lon1_rad = np.radians(lat1), np.radians(lon1)
     lat2_rad, lon2_rad = np.radians(lat2), np.radians(lon2)
-    
+
     dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
-    
+
     a = np.sin(dlat / 2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2)**2
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
     dist = R * c
-    
+
     y = np.sin(dlon) * np.cos(lat2_rad)
     x = np.cos(lat1_rad) * np.sin(lat2_rad) - np.sin(lat1_rad) * np.cos(lat2_rad) * np.cos(dlon)
     bearing = np.degrees(np.arctan2(y, x))
     bearing = (bearing + 360) % 360
-    
+
     return dist, bearing
 
 def process_one_file(f_path: str):
@@ -126,13 +126,13 @@ def process_polar_coverage():
                     trend_data.append(result)
             except Exception:
                 continue
-    
+
     if not trend_data:
         print("No valid data.")
         return
 
     df_trend = pd.DataFrame(trend_data).sort_values('date').reset_index(drop=True)
-    
+
     if len(df_trend) > 2:
         df_trend = df_trend.iloc[1:-1].copy()
         print(f"\n Dropped first/last day data. Valid days: {len(df_trend)}")
@@ -142,7 +142,7 @@ def process_polar_coverage():
     df_trend.to_csv(TREND_CSV, index=False)
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    
+
     x_positions = np.arange(len(df_trend))
     x_labels = df_trend['date'].apply(lambda d: d.strftime('%Y-%m-%d')).tolist()
 
@@ -154,7 +154,7 @@ def process_polar_coverage():
     ax.set_xlabel("Date")
     ax.set_ylabel("Avg P95 Distance (km)")
     ax2.set_ylabel("P95 Area Score")
-    
+
     ax.set_xticks(x_positions)
     ax.set_xticklabels(x_labels, rotation=45, ha='right')
 

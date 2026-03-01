@@ -36,14 +36,14 @@ def run_manual_eval():
 
     median_val = df['auc_n_used'].median()
     df.loc[df['auc_n_used'] > 1000000, 'auc_n_used'] = median_val
-    
+
     df = df[df['date'] < df['date'].max()].copy()
 
     phases = get_user_phases()
     df['phase_idx'] = -1
     for i, p in enumerate(phases):
         df.loc[df['date'] >= pd.Timestamp(p['date']), 'phase_idx'] = i
-    
+
     df = df[df['phase_idx'] >= 0].reset_index(drop=True)
     y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
     phase_idx = jnp.array(df['phase_idx'].values)
@@ -57,10 +57,10 @@ def run_manual_eval():
 
     mcmc = MCMC(NUTS(model), num_warmup=1000, num_samples=2000, num_chains=1)
     mcmc.run(random.PRNGKey(42), y, phase_idx, num_phases)
-    
+
     samples = mcmc.get_samples()
     alphas = samples['alphas']
-    
+
     print("\n" + "="*80)
     print(f"{'Phase':<20} | {'Start date':<12} | {'Avg aircraft/day':<18} | {'Improvement'}")
     print("-" * 80)

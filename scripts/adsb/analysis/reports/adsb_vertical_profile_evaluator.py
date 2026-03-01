@@ -111,14 +111,14 @@ def process_los_efficiency_trend():
         return
 
     df_trend = pd.DataFrame(trend_data).sort_values('date').reset_index(drop=True)
-    
+
     if len(df_trend) > 2:
         df_trend = df_trend.iloc[1:-1].copy()
 
     df_trend.to_csv(TREND_CSV, index=False)
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    
+
     x_positions = np.arange(len(df_trend))
     x_labels = df_trend['date'].apply(lambda d: d.strftime('%Y-%m-%d')).tolist()
 
@@ -134,17 +134,17 @@ def process_los_efficiency_trend():
             idx = df_trend.index[df_trend['date'] == d_val].tolist()[0]
             pos = x_positions[list(df_trend['date']).index(d_val)]
             ax.axvline(pos, color=p['color'], linestyle='--', lw=1.5, alpha=0.8)
-            ax.text(pos, ax.get_ylim()[0] + (ax.get_ylim()[1] - ax.get_ylim()[0]) * 0.05, 
+            ax.text(pos, ax.get_ylim()[0] + (ax.get_ylim()[1] - ax.get_ylim()[0]) * 0.05,
                      f" {p['name']}", color=p['color'], fontweight='bold', va='bottom', ha='left', rotation=30, fontsize=10)
 
     ax.set_title("Theoretical Limit (Line of Sight) vs Actual P95 Achievement Rate (%)", fontsize=15, fontweight='bold')
     ax.set_xlabel("Date", fontsize=12)
     ax.set_ylabel("LOS Achievement Rate (%)", fontsize=12, fontweight='bold')
-    
+
     min_y = np.floor(df_trend['los_efficiency'].min() / 5) * 5
     max_y = np.ceil(df_trend['los_efficiency'].max() / 5) * 5
     ax.set_ylim(min_y, max(100, max_y))
-    
+
     ax.axhline(90, color='gray', linestyle=':', lw=1.5, label='90% Excellence Line')
 
     ax.set_xticks(x_positions)

@@ -13,12 +13,12 @@ from arena.lib.data_loader import load_summary
 
 def run_bayesian_analysis():
     print(" ADS-B Bayesian evaluation engine (Multi-Core Optimized)")
-    
+
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes)
     if df is None:
         return
-    
+
     print("\nEnter the configuration change date to evaluate")
     from arena.lib.phase_config import get_config as _get_cfg
     cutoff = prompt_intervention_date(_get_cfg().time_resolved_date)
@@ -27,11 +27,11 @@ def run_bayesian_analysis():
     df['auc_n_used'] = pd.to_numeric(df['auc_n_used'], errors='coerce').fillna(0).clip(lower=0)
     df['log_traffic'] = pd.to_numeric(df['log_traffic'], errors='coerce')
     df = df.dropna(subset=['auc_n_used', 'log_traffic', 'post'])
-    
+
     y = df['auc_n_used'].values.astype(float)
     post_flag = df['post'].values
     log_traffic = df['log_traffic'].values
-    
+
     print(f"--- {cutoff.date()} Calculating improvement probability with cutoff at (6-core parallel) ---")
 
     with pm.Model() as model:
@@ -39,14 +39,14 @@ def run_bayesian_analysis():
         beta_traffic = pm.Normal('beta_traffic', mu=1, sigma=1)
         gamma = pm.Normal('gamma', mu=0, sigma=1)
         alpha_inv = pm.Exponential('alpha_inv', 1.0)
-        
+
         mu = pm.math.exp(intercept + beta_traffic * log_traffic + gamma * post_flag)
-        
+
         y_obs = pm.NegativeBinomial('y_obs', mu=mu, alpha=alpha_inv, observed=y)
-        
+
         trace = pm.sample(
-            draws=1000, 
-            tune=1000, 
+            draws=1000,
+            tune=1000,
             chains=6,
             cores=6,
             random_seed=42,

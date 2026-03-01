@@ -15,7 +15,7 @@ def aggregate_data_v3():
     output_dir = str(OUT_ROOT)
     # Avoid overwriting eval_pk_aggregator output
     output_file = os.path.join(output_dir, "adsb_daily_summary_raw.csv")
-    
+
     files = []
     # current dist_1m
     dist_current = str(Path(RAW_DIR).parent / "dist_1m.jsonl")
@@ -23,7 +23,7 @@ def aggregate_data_v3():
         files.append(dist_current)
     # archived jsonl
     files.extend(glob.glob(os.path.join(raw_dir, "*jsonl*")))
-    
+
     if not files:
         print(f"❌ File not found: {raw_dir}")
         return
@@ -104,10 +104,10 @@ def aggregate_data_v3():
         [{"date": dt, "auc_n_used": val} for dt, val in global_max.items()]
     )
     df_daily = df_daily.sort_values("date").reset_index(drop=True)
-    
-    df_daily['hnd_nrt_movements'] = 1000 
+
+    df_daily['hnd_nrt_movements'] = 1000
     df_daily['day_of_week'] = pd.to_datetime(df_daily['date']).dt.day_name().str[:3]
-    
+
     os.makedirs(output_dir, exist_ok=True)
     df_daily.to_csv(output_file, index=False)
     print(f"✅ Aggregation complete: {output_file} ({len(df_daily)} days)")

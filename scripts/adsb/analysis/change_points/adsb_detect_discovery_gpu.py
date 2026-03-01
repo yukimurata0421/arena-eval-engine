@@ -58,25 +58,25 @@ def run_discovery_analysis():
         return
 
     inputs = prepare_nb2_inputs(df)
-    
+
     print(f">>> Analysis target: {df['date'].min().date()} ～ {df['date'].max().date()} ({inputs.n_days} days)")
 
     model = make_single_change_point_model(alpha_name="alpha_inv")
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     mcmc = MCMC(kernel, num_warmup=1000, num_samples=2000, num_chains=1)
-    
+
     print("\n>>> MCMC sampling (inferring change points)...")
     mcmc.run(random.PRNGKey(42), inputs.y, inputs.log_traffic, inputs.n_days)
-    
+
     samples = mcmc.get_samples()
     tau_samples = samples['tau']
     improvement = (jnp.exp(samples['alpha_after'] - samples['alpha_before']) - 1) * 100
-    
+
     vals, counts = np.unique(tau_samples, return_counts=True)
     best_tau_idx = vals[np.argmax(counts)]
     detected_date = df.iloc[int(best_tau_idx)]['date']
-    
+
     print("\n" + "="*40)
     print(f" Analysis complete")
     print(f"[Detected structural change date]: {detected_date.strftime('%Y-%m-%d')}")

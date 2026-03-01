@@ -25,12 +25,12 @@ def generate_report():
     df_sig = pd.read_csv(SIG_CSV)
     df_auc['date'] = pd.to_datetime(df_auc['date'])
     df_sig['date'] = pd.to_datetime(df_sig['date'])
-    
+
     df = pd.merge(df_auc, df_sig, on='date', how='inner').sort_values('date')
     if df.empty:
         print("  Merged data is empty; skipping report.")
         return
-    
+
     df = df[df['date'] >= pd.Timestamp(cfg.report_start_date)].copy()
     df = df[df['date'] < df['date'].max()]
 
@@ -56,15 +56,15 @@ def generate_report():
         d = pd.Timestamp(p['date'])
         for ax in [ax1, ax2]:
             ax.axvline(d, color=p['color'], linestyle='--', lw=1.5, alpha=0.7)
-        
+
         y_pos = ax1.get_ylim()[1] - (i % 3) * (ax1.get_ylim()[1] * 0.1)
-        ax1.text(d, y_pos, f" {p['name']}", color=p['color'], 
+        ax1.text(d, y_pos, f" {p['name']}", color=p['color'],
                  fontweight='bold', va='top', ha='left', rotation=30, fontsize=9)
 
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
     ax2.xaxis.set_major_locator(mdates.DayLocator(interval=2))
     plt.suptitle("Tsuchiura ADS-B Station Master Log Analysis", fontsize=18, fontweight='bold')
-    
+
     plt.savefig(REPORT_IMG, bbox_inches='tight', dpi=150)
     print(f" Saved report image: {REPORT_IMG}")
 
@@ -76,17 +76,17 @@ def generate_report():
         mask = (df['date'] >= pd.Timestamp(p['date']))
         if i+1 < len(phases):
             mask &= (df['date'] < pd.Timestamp(phases[i+1]['date']))
-        
+
         phase_df = df[mask]
         days = len(phase_df)
-        
+
         if days == 0:
             print(f"{p['name']:<25} | {days:>4}d | {'---':>12} | {'---'}")
             continue
 
         avg_auc = phase_df['auc_n_used'].mean()
         avg_sig = phase_df['sig_150_175'].mean()
-        
+
         sig_str = f"{avg_sig:>8.2f}" if not pd.isna(avg_sig) else "---"
         print(f"{p['name']:<25} | {days:>4}d | {int(avg_auc):>12,} | {sig_str:>10}")
     print("="*85)

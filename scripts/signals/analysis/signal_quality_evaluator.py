@@ -33,12 +33,12 @@ def run_signal_analysis():
         mask = (df['date'] >= pd.Timestamp(p['date']))
         if i + 1 < len(phases):
             mask &= (df['date'] < pd.Timestamp(phases[i+1]['date']))
-        
+
         sig_data = df[mask]['sig_150_175'].dropna()
         if not sig_data.empty:
             avg_db = sig_data.mean()
             diff_str = "---" if prev_avg is None else f"{avg_db - prev_avg:>+6.2f} dB"
-            
+
             print(f"{p['name']:<20} | {avg_db:>15.2f} dBFS | {diff_str}")
             prev_avg = avg_db
 

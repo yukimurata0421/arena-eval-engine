@@ -59,7 +59,7 @@ def open_file(path):
 
 def process_aggregator():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     print(f">>> Aggregating AUC data...")
     dist_rows = []
     dist_counters = _init_counters()
@@ -88,7 +88,7 @@ def process_aggregator():
                     dist_counters["n_err"] += 1
                     _count_drop(dist_counters, "parse_error", sample={"error": repr(e), "line": line[:200]})
                     continue
-    
+
     if not dist_rows:
         output_path = os.path.join(OUTPUT_DIR, "adsb_timebin_summary.csv")
         pd.DataFrame(columns=["date", "time_bin", "auc_sum", "total_packets", "minutes",
@@ -115,11 +115,11 @@ def process_aggregator():
             pos_counters["n_err"] += 1
             _count_drop(pos_counters, "bad_filename_date", sample={"file": base, "error": repr(e)})
             continue
-        
+
         print(f"  [{i+1}/{len(POS_FILES)}] Processing: {base} ...", end="\r")
-        
+
         hourly_hex = {f"{h:02d}-{(h+BIN_HOURS):02d}": set() for h in range(0, 24, BIN_HOURS)}
-        
+
         try:
             with open_file(pf) as f:
                 for line in f:
@@ -142,7 +142,7 @@ def process_aggregator():
             pos_counters["n_err"] += 1
             _count_drop(pos_counters, "file_read_error", sample={"file": base, "error": repr(e)})
             continue
-        
+
         for t_bin, hex_set in hourly_hex.items():
             traffic_rows.append({'date': target_date, 'time_bin': t_bin, 'traffic_proxy': len(hex_set)})
     print("\n>>> Aircraft density computation complete.")
@@ -169,14 +169,14 @@ def process_aggregator():
         df_traffic = pd.DataFrame(traffic_rows)
     else:
         df_traffic = pd.DataFrame(columns=["date", "time_bin", "traffic_proxy"])
-    
+
     final_df = pd.merge(df_auc, df_traffic, on=['date', 'time_bin'], how='left')
     final_df['traffic_proxy'] = final_df['traffic_proxy'].fillna(final_df['traffic_proxy'].median() or 1)
     final_df['post'] = (pd.to_datetime(final_df['date']) >= pd.Timestamp(INTERVENTION_DATE)).astype(int)
-    
+
     expected_mins = BIN_HOURS * 60
     final_df = final_df[final_df['minutes'] >= expected_mins * 0.9]
-    
+
     output_path = os.path.join(OUTPUT_DIR, "adsb_timebin_summary.csv")
     final_df.to_csv(output_path, index=False)
     print(f"✅ Aggregation complete: {output_path} ({len(final_df)} samples)")
