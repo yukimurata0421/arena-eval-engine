@@ -70,6 +70,38 @@ ARENA is designed around four principles:
 4. **Reproducible experimentation**
    - Improvements must survive re-analysis under multiple statistical assumptions.
 
+## Error Accounting & Skips
+ARENA never drops bad records silently. When parsers encounter invalid rows or exceptions:
+- Counts are tracked (`n_total`, `n_ok`, `n_skip`, `n_err`) and reported at INFO level.
+- A reason histogram is logged (e.g., `parse_error`, `missing_key`, `bad_filename_date`).
+- The first error sample is retained for debugging.
+
+Typical skip reasons include malformed JSON, missing keys, or stale position data.
+
+## Model Reuse
+Change-point and GPU scripts share core NegativeBinomial2 model definitions via
+`src/arena/lib/nb2_models.py` to keep statistical assumptions consistent while
+preserving script-level entry points.
+
+## Test Execution
+
+Normal run (fast / CI):
+```
+pytest -q
+```
+
+Diagnose slow tests:
+```
+pytest -q --durations=20
+```
+
+Verbose with timings:
+```
+pytest -vv --durations=20
+```
+
+`--durations` is for diagnostics and is not enabled by default to avoid noisy CI logs.
+
 ---
 
 ## Architecture Overview
