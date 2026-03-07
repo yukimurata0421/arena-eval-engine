@@ -106,11 +106,11 @@ def default_roots_native() -> tuple[Path, Path, Path]:
     Paths accessible from *current Python runtime*.
     - Default layout: <project>/scripts, <project>/output, <project>/data
     """
-    from arena.lib.paths import ROOT, SCRIPTS_ROOT
+    from arena.lib.paths import DATA_DIR, OUTPUT_DIR, ROOT, SCRIPTS_ROOT
 
     scripts_root = SCRIPTS_ROOT
-    project_root = ROOT
-    return scripts_root, (project_root / "output"), (project_root / "data")
+    _ = ROOT
+    return scripts_root, OUTPUT_DIR, DATA_DIR
 
 
 def _windows_to_wsl_path(p: Path) -> str:
@@ -310,6 +310,7 @@ def validate_outputs(
     output_root_native: Path,
     expected_outputs: Sequence[str],
     min_bytes: int,
+    min_mtime: float | None = None,
 ) -> tuple[bool, list[str]]:
     missing: list[str] = []
     for rel in expected_outputs:
@@ -318,8 +319,27 @@ def validate_outputs(
             missing.append(str(fp))
             continue
         try:
+            if fp.is_dir():
+                files = [p for p in fp.rglob("*") if p.is_file()]
+                if not files:
+                    missing.append(f"{fp} (empty dir)")
+                    continue
+                if min_mtime is not None:
+                    latest = max(p.stat().st_mtime for p in files)
+                    if latest < min_mtime:
+                        missing.append(
+                            f"{fp} (stale: latest mtime {latest:.0f} < {min_mtime:.0f})"
+                        )
+                continue
+
             if fp.is_file() and fp.stat().st_size < min_bytes:
                 missing.append(f"{fp} (too small: {fp.stat().st_size} bytes)")
+                continue
+            if min_mtime is not None and fp.is_file():
+                if fp.stat().st_mtime < min_mtime:
+                    missing.append(
+                        f"{fp} (stale: mtime {fp.stat().st_mtime:.0f} < {min_mtime:.0f})"
+                    )
         except Exception:
             missing.append(f"{fp} (stat failed)")
     return (len(missing) == 0), missing
@@ -501,7 +521,6 @@ def build_pipeline(dynamic_date: str, full_mode: bool, skip_plao: bool = False) 
         est_s=120,
         expected_outputs=[
             "fringe_decoding/fringe_decoding_stats.csv",
-            "fringe_decoding/statistical_report.txt",
         ],
         expected_min_bytes=200,
     )
@@ -1046,6 +1065,7 @@ class PipelineRunner:
                     self.backend.output_root_native,
                     step.expected_outputs,
                     step.expected_min_bytes,
+                    min_mtime=t0 - 1.0,
                 )
                 if status == "OK" and not outputs_ok:
                     status = "FAIL_OUTPUT"

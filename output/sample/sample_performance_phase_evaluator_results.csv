@@ -1,0 +1,6 @@
+phase_idx,phase_name,phase_date,n_days,reliability,vs_baseline_mean_pct,vs_baseline_hdi94_lo,vs_baseline_hdi94_hi,vs_baseline_prob_positive_pct,vs_previous_mean_pct,vs_previous_hdi94_lo,vs_previous_hdi94_hi,vs_previous_prob_positive_pct,alt_baseline_idx,alt_baseline_name,vs_alt_mean_pct,vs_alt_hdi94_lo,vs_alt_hdi94_hi,vs_alt_prob_positive_pct
+0,Baseline,2026-01-06,8,definitive,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1,Airspy Mini Intro + Gain 13-18,-32.71,-45.64,-14.5,0.0
+1,Airspy Mini Intro + Gain 13-18,2026-01-14,31,definitive,51.86,16.96,83.96,100.0,51.86,16.96,83.96,100.0,1,Airspy Mini Intro + Gain 13-18,0.0,0.0,0.0,0.0
+2,5D-FB Cable & N-P,2026-02-14,12,definitive,209.49,16.92,701.43,99.9,86.39,-11.87,335.66,71.4,1,Airspy Mini Intro + Gain 13-18,86.39,-11.87,335.66,71.4
+3,Indoor cable change (2.5DS-QFB),2026-02-26,2,reference,41.74,-10.54,128.07,74.0,-14.71,-88.84,55.51,47.4,1,Airspy Mini Intro + Gain 13-18,-3.09,-51.37,57.73,51.7
+4,Adapter change (NM-SM50+),2026-02-28,0,reference,5017727488.0,-99.5,107835928.0,84.3,3658311936.0,-99.67,68153368.0,82.3,1,Airspy Mini Intro + Gain 13-18,3476296960.0,-99.64,78535416.0,57.9

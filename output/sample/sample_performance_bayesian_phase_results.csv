@@ -1,0 +1,4 @@
+comparison,mean_improvement_pct,hdi_94_lower,hdi_94_upper,prob_positive_pct
+Airspy Mini vs RTL-SDR,69.33,44.18,96.9,100.0
+Airspy+Cable vs RTL-SDR,72.42,38.37,104.56,100.0
+Airspy+Cable vs Airspy Mini,2.09,-15.31,20.54,57.1

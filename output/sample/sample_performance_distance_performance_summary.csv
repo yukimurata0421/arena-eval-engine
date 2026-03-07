@@ -1,0 +1,9 @@
+Phase,Distance_Band,Baseline_Mean_Pct,Target_Mean_Pct,Relative_Change_Pct,Mann_Whitney_P,Target_95CI,Significance
+Phase1_Filter,0-100km (Near),0.0,0.0,,1.0,"[0.00, 0.00]",not significant
+Phase1_Filter,100-200km (Mid),0.0,0.0,,1.0,"[0.00, 0.00]",not significant
+Phase1_Filter,200-300km (Far),0.0,0.0,,1.0,"[0.00, 0.00]",not significant
+Phase1_Filter,300km+ (Extreme),100.0,100.0,0.0,1.0,"[100.00, 100.00]",not significant
+Phase2_Cable,0-100km (Near),0.0,0.0,,1.0,"[0.00, 0.00]",not significant
+Phase2_Cable,100-200km (Mid),0.0,0.0,,1.0,"[0.00, 0.00]",not significant
+Phase2_Cable,200-300km (Far),0.0,0.0,,1.0,"[0.00, 0.00]",not significant
+Phase2_Cable,300km+ (Extreme),100.0,100.0,0.0,1.0,"[100.00, 100.00]",not significant

@@ -21,8 +21,12 @@ Thumbs.db
 .idea/
 
 # --- arena private ---
-data/
-output/
+data/*
+output/*
+!data/sample/
+!output/sample/
+!data/sample/**
+!output/sample/**
 scripts/secrets/*
 !scripts/secrets/
 !scripts/secrets/*.example.*
@@ -35,6 +39,12 @@ scripts/master_log.txt
 *.html
 *.csv
 *.jsonl
+!data/sample/**/*.csv
+!data/sample/**/*.jsonl
+!data/sample/**/*.txt
+!output/sample/**/*.csv
+!output/sample/**/*.jsonl
+!output/sample/**/*.txt
 !docs/**/*.png
 !docs/**/*.html
 !docs/**/*.csv

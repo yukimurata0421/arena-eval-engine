@@ -1,0 +1,23 @@
+PLAO Distance-bin AUC Evaluator (pos schema_ver=1)
+input_dir=/mnt/e/arena_public/data/plao_pos pattern=pos_*.jsonl
+files=23 days=23
+site_latlon=(0.0,0.0)
+jax_backend=jax-gpu
+bin_edges=[0, 25, 50, 75, 100, 125, 150, 175, 200, 250, 9999]
+
+Quality rules
+min_minutes_covered=60
+mean_auc_norm_total(hard_ok)=0.000
+skip_threshold_ratio=0.8 => threshold=0.000
+
+Counts
+hard_ok_days=23/23
+skipped_low_quality_days=0/23
+use_for_stats_days=23/23
+
+Weekday effect test (Kruskal-Wallis) on auc_norm_total
+groups: Mon(n=3), Tue(n=3), Wed(n=4), Thu(n=3), Fri(n=3), Sat(n=4), Sun(n=3)
+Kruskal-Wallis skipped: all numbers are identical.
+
+Negative Binomial GLM on auc_total with offset log(minutes_covered)
+[ERROR] NB-GLM failed: ValueError('The first guess on the deviance function returned a nan.  This could be a boundary  problem and should be reported.')

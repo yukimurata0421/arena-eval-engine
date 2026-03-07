@@ -8,7 +8,31 @@ from typing import Any
 try:
     import tomllib  # py3.11+
 except ModuleNotFoundError:  # pragma: no cover
-    tomllib = None
+    try:
+        import tomli as tomllib  # type: ignore
+    except ModuleNotFoundError:
+        tomllib = None
+
+
+def _parse_settings_fallback(text: str) -> dict:
+    settings: dict = {}
+    section = ""
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            settings.setdefault(section, {})
+            continue
+        if "=" in line and section:
+            k, v = line.split("=", 1)
+            key = k.strip()
+            val = v.strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+            settings.setdefault(section, {})[key] = val
+    return settings
 
 
 @dataclass
@@ -44,7 +68,14 @@ def find_settings_path() -> Path:
 def load_settings() -> SettingsSnapshot:
     path = find_settings_path()
     if tomllib is None:
-        return SettingsSnapshot(path=str(path), data={"error": "tomllib not available"})
+        if path.exists():
+            try:
+                return SettingsSnapshot(
+                    path=str(path), data=_parse_settings_fallback(path.read_text(encoding="utf-8"))
+                )
+            except Exception:
+                return SettingsSnapshot(path=str(path), data={})
+        return SettingsSnapshot(path=str(path), data={})
     if not path.exists():
         return SettingsSnapshot(path=str(path), data={})
     try:

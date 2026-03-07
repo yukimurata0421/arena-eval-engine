@@ -1,0 +1,28 @@
+=== ADS-B Fringe Decoding Statistical Report (v2) ===
+
+--- Phase Summary (Fringe Ratio %) ---
+  1_Old_Settings: mean=100.0000%, std=0.0000%, n=4
+  2_New_Filter: mean=100.0000%, std=0.0000%, n=4
+  3_Post_Cable_Fix: mean=100.0000%, std=0.0000%, n=13
+
+--- Pairwise Comparisons ---
+
+1_Old_Settings vs 2_New_Filter:
+  Delta: +0.0000 pp (+0.00%)
+  P-value: 1.000000
+  Result: Not Significant
+
+1_Old_Settings vs 3_Post_Cable_Fix:
+  Delta: +0.0000 pp (+0.00%)
+  P-value: 1.000000
+  Result: Not Significant
+
+2_New_Filter vs 3_Post_Cable_Fix:
+  Delta: +0.0000 pp (+0.00%)
+  P-value: 1.000000
+  Result: Not Significant
+
+--- Aggregate Chi-squared Test ---
+  1_Old_Settings: 100.0000% (N=4016360)
+  3_Post_Cable_Fix: 100.0000% (N=648426)
+  Fisher exact: OR=nan, P=1.00e+00

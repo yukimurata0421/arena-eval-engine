@@ -45,6 +45,12 @@ def get_quality_config() -> QualityConfig:
 def get_distance_bins_config() -> DistanceBinsConfig:
     data = _get_settings().get("distance_bins", {})
     raw = data.get("km", [0, 50, 100, 150, 200, 9999])
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.startswith("[") and s.endswith("]"):
+            s = s[1:-1]
+        parts = [p.strip() for p in s.split(",") if p.strip()]
+        raw = parts
     km = [float(x) for x in raw]
     return DistanceBinsConfig(km=km)
 

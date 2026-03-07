@@ -71,7 +71,7 @@ try:
 except Exception as e:
     print(f" GPU detection error: {e}\nRunning in CPU mode.")
     numpyro.set_platform("cpu")
-    numpyro.set_host_device_count(4)
+    numpyro.set_host_device_count(min(6, os.cpu_count() or 6))
 
 def normalize_path(path):
     if os.name != "nt" and len(path) >= 2 and path[1] == ":":

@@ -1,0 +1,186 @@
+OpenSky vs Local ADS-B Comparison Report v2
+Generated: 2026-03-05T21:00:20
+OpenSky dir: /mnt/e/arena_public/data
+Local dir: /mnt/e/arena_public/data/plao_pos
+Site: (0.0, 0.0)
+
+Quality thresholds:
+  os_min_n_used:     3
+  os_max_km_max:     600.0
+  os_min_minutes:    60
+  local_min_minutes: 60
+  cr_cap:            5.0
+
+OpenSky data quality:
+  raw_records: 91627
+  accepted: 85772
+  rejected_low_n_used: 5853
+  rejected_high_km_max: 2
+  min_n_used_threshold: 3
+  max_km_max_threshold: 600.0
+
+Total minute records: 85772
+Minutes with local data: 28476
+Days total: 66  used: 21  skipped: 45
+Phases (all): ['Airspy Mini', 'Airspy+Cable', 'RTL-SDR', 'airspy_adapter', 'airspy_cable_v2']
+Phases (used): ['Airspy Mini', 'Airspy+Cable', 'airspy_cable_v2']
+Distance bins (km): ['0-50', '50-100', '100-150', '150-200', '200-9999']
+
+======================================================================
+DATA QUALITY SUMMARY
+======================================================================
+Total days in data:       66
+Days with pos file:       23
+Days used for stats:      21
+Days skipped:             45
+Total minutes (all):      85772
+Total minutes (used):     29399
+Phases in used data:      ['Airspy Mini', 'Airspy+Cable', 'airspy_cable_v2']
+
+  skip: local_nonzero<60 = 1 days
+  skip: no_pos_file = 43 days
+  skip: os_minutes<60 = 1 days
+
+======================================================================
+1. Descriptive Statistics (used days only)
+======================================================================
+
+-- Phase: Airspy Mini (n_days=7, n_minutes=9825) --
+  OpenSky  n_used:  mean=29.6  median=34.0
+  Local    n_unique: mean=30.4  median=34.0
+  Capture ratio:     mean=1.0933  median=1.1714  std=0.3854
+  Reach: os_km_max=358.6  local_km_max=14546.3
+  Capture     0-50 km:  mean=0.0000  median=0.0000  n=9825
+  Capture   50-100 km:  mean=0.0000  median=0.0000  n=9209
+  Capture  100-150 km:  mean=0.0000  median=0.0000  n=9202
+  Capture  150-200 km:  mean=0.0000  median=0.0000  n=9087
+  Capture 200-9999 km:  mean=0.0000  median=0.0000  n=8072
+
+-- Phase: Airspy+Cable (n_days=12, n_minutes=16727) --
+  OpenSky  n_used:  mean=30.9  median=34.0
+  Local    n_unique: mean=35.7  median=40.0
+  Capture ratio:     mean=1.1658  median=1.1500  std=0.1381
+  Reach: os_km_max=570.5  local_km_max=14841.7
+  Capture     0-50 km:  mean=0.0000  median=0.0000  n=16726
+  Capture   50-100 km:  mean=0.0000  median=0.0000  n=15801
+  Capture  100-150 km:  mean=0.0000  median=0.0000  n=15791
+  Capture  150-200 km:  mean=0.0000  median=0.0000  n=15557
+  Capture 200-9999 km:  mean=0.0000  median=0.0000  n=13247
+
+-- Phase: airspy_cable_v2 (n_days=2, n_minutes=2847) --
+  OpenSky  n_used:  mean=31.6  median=36.0
+  Local    n_unique: mean=36.9  median=43.0
+  Capture ratio:     mean=1.1739  median=1.1622  std=0.1485
+  Reach: os_km_max=457.0  local_km_max=14738.7
+  Capture     0-50 km:  mean=0.0000  median=0.0000  n=2847
+  Capture   50-100 km:  mean=0.0000  median=0.0000  n=2689
+  Capture  100-150 km:  mean=0.0000  median=0.0000  n=2688
+  Capture  150-200 km:  mean=0.0000  median=0.0000  n=2657
+  Capture 200-9999 km:  mean=0.0000  median=0.0000  n=2389
+
+======================================================================
+2. Phase comparison: Mann-Whitney U (capture_ratio, minute-level)
+======================================================================
+
+  Airspy Mini (n=9825) vs Airspy+Cable (n=16727)
+    MWU: U=88452669.0  p=1.96657e-25
+    Bootstrap delta_mean(Airspy+Cable-Airspy Mini): 0.0724  95%CI[0.0646, 0.0804]
+
+  Airspy Mini (n=9825) vs airspy_cable_v2 (n=2847)
+    MWU: U=14470386.0  p=0.00479007
+    Bootstrap delta_mean(airspy_cable_v2-Airspy Mini): 0.0806  95%CI[0.0713, 0.0902]
+
+  Airspy+Cable (n=16727) vs airspy_cable_v2 (n=2847)
+    MWU: U=22496913.5  p=2.39055e-06
+    Bootstrap delta_mean(airspy_cable_v2-Airspy+Cable): 0.0081  95%CI[0.0024, 0.0143]
+
+======================================================================
+3. Distance-bin phase comparison (Mann-Whitney U on capture_bin)
+======================================================================
+
+-- 0-50 km --
+  Airspy Mini vs Airspy+Cable: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy Mini vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy+Cable vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+
+-- 50-100 km --
+  Airspy Mini vs Airspy+Cable: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy Mini vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy+Cable vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+
+-- 100-150 km --
+  Airspy Mini vs Airspy+Cable: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy Mini vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy+Cable vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+
+-- 150-200 km --
+  Airspy Mini vs Airspy+Cable: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy Mini vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy+Cable vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+
+-- 200-9999 km --
+  Airspy Mini vs Airspy+Cable: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy Mini vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+  Airspy+Cable vs airspy_cable_v2: MWU p=1  delta=0.0000 [0.0000,0.0000]
+
+======================================================================
+4. Daily-level comparison (MWU on daily median_capture_ratio)
+======================================================================
+
+  Airspy Mini (n_days=7, mean=1.0177)
+  vs Airspy+Cable (n_days=12, mean=1.1507)
+    MWU: U=60.5  p=0.127688
+    Bootstrap delta: 0.1325 [-0.0533,0.4780]
+
+  Airspy Mini (n=7) vs airspy_cable_v2 (n=2): need >=3 each
+
+  Airspy+Cable (n=12) vs airspy_cable_v2 (n=2): need >=3 each
+
+======================================================================
+5. Negative Binomial GLM: local_n_unique ~ phase + offset(log(os_n_used))
+======================================================================
+
+                 Generalized Linear Model Regression Results                  
+==============================================================================
+Dep. Variable:         local_n_unique   No. Observations:                29399
+Model:                            GLM   Df Residuals:                    29396
+Model Family:        NegativeBinomial   Df Model:                            2
+Link Function:                    Log   Scale:                          1.0000
+Method:                          IRLS   Log-Likelihood:            -1.2604e+05
+Date:                Thu, 05 Mar 2026   Deviance:                       7531.5
+Time:                        21:00:45   Pearson chi2:                 1.47e+03
+No. Iterations:                     5   Pseudo R-squ. (CS):           0.001011
+Covariance Type:            nonrobust                                         
+===============================================================================================
+                                  coef    std err          z      P>|z|      [0.025      0.975]
+-----------------------------------------------------------------------------------------------
+Intercept                       0.0840      0.010      8.088      0.000       0.064       0.104
+C(phase)[T.Airspy+Cable]        0.0683      0.013      5.222      0.000       0.043       0.094
+C(phase)[T.airspy_cable_v2]     0.0768      0.022      3.516      0.000       0.034       0.120
+===============================================================================================
+
+======================================================================
+6. Distance-bin NB-GLM: local_bin ~ phase + offset(log(os_bin))
+======================================================================
+
+-- 0-50 km --
+  [ERROR] ValueError('The first guess on the deviance function returned a nan.  This could be a boundary  problem and should be reported.')
+
+-- 50-100 km --
+  [ERROR] ValueError('The first guess on the deviance function returned a nan.  This could be a boundary  problem and should be reported.')
+
+-- 100-150 km --
+  [ERROR] ValueError('The first guess on the deviance function returned a nan.  This could be a boundary  problem and should be reported.')
+
+-- 150-200 km --
+  [ERROR] ValueError('The first guess on the deviance function returned a nan.  This could be a boundary  problem and should be reported.')
+
+-- 200-9999 km --
+  [ERROR] ValueError('The first guess on the deviance function returned a nan.  This could be a boundary  problem and should be reported.')
+
+======================================================================
+7. Kruskal-Wallis test (capture_ratio across all phases)
+======================================================================
+
+  Groups: Airspy Mini(n=9825), Airspy+Cable(n=16727), airspy_cable_v2(n=2847)
+  H=116.0533  p=6.29998e-26

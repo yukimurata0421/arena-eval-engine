@@ -22,8 +22,9 @@ from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
 from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_single_change_point_model
 
+CPU_HOST = min(6, os.cpu_count() or 6)
 numpyro.set_platform("cpu")
-numpyro.set_host_device_count(4)
+numpyro.set_host_device_count(CPU_HOST)
 
 
 def run_cuda_analysis():
@@ -35,7 +36,7 @@ def run_cuda_analysis():
     df = df.sort_values("date").reset_index(drop=True)
     df = clean_nb2_df(df, require_log_traffic=True)
     if len(df) < 5:
-        print("  警告: 有効データが不足しているため、変化点評価をスキップします。")
+        print("  WARNING: Insufficient valid data. Skipping change-point evaluation.")
         return
 
     n_days = len(df)

@@ -43,7 +43,7 @@ try:
 except:
     print(">>> GPU not detected. Running in CPU parallel mode (4 cores).")
     numpyro.set_platform("cpu")
-    numpyro.set_host_device_count(4)
+    numpyro.set_host_device_count(min(6, os.cpu_count() or 6))
 
 def run_discovery_analysis():
     min_auc, _min_minutes = get_quality_thresholds()
@@ -54,7 +54,7 @@ def run_discovery_analysis():
     df = df.sort_values('date').reset_index(drop=True)
     df = clean_nb2_df(df, require_log_traffic=True)
     if len(df) < 5:
-        print("  警告: 有効データが不足しているため、変化点検出をスキップします。")
+        print("  WARNING: Insufficient valid data. Skipping change-point detection.")
         return
 
     inputs = prepare_nb2_inputs(df)

@@ -122,6 +122,50 @@ noisy CI logs.
 
 ------------------------------------------------------------------------
 
+## Repository Layout (Public)
+
+- `src/arena`: core CLI/pipeline engine and shared library code
+- `scripts/`: analysis and utility layer used by pipeline stages
+- `tests/`: lightweight reproducibility checks for public CI
+
+------------------------------------------------------------------------
+
+## Minimal Local Repro
+
+    pip install -e ".[dev]"
+    arena validate
+    pytest -q
+
+------------------------------------------------------------------------
+
+## Docker (CPU-only)
+
+Build:
+
+    docker build -f docker/Dockerfile.cpu -t arena-cpu .
+
+Run:
+
+    docker run --rm arena-cpu
+
+------------------------------------------------------------------------
+
+## Public Data Policy
+
+This public repository keeps reproducible samples only under:
+
+- `data/sample/`
+- `output/sample/`
+
+Large experimental raw data and full output artifacts are intentionally
+excluded from version control.
+
+To (re)create samples from local private datasets:
+
+    python scripts/tools/create_public_samples.py
+
+------------------------------------------------------------------------
+
 ## Architecture Overview
 
 ``` mermaid

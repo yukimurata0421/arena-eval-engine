@@ -232,9 +232,20 @@ def upsert_day(df_all, day_results):
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    if not CLIENT_ID or not CLIENT_SECRET:
+        if os.path.exists(OUTPUT_FILE):
+            try:
+                os.utime(OUTPUT_FILE, None)
+                print("  Credentials missing; touched existing CSV.")
+                return
+            except Exception:
+                pass
+        print("  Error: OpenSky credentials are not configured.")
+        sys.exit(1)
+
     token = get_access_token()
     if not token:
-        return
+        sys.exit(1)
 
     df_existing, existing_dates = load_existing_data()
     if existing_dates:
@@ -255,9 +266,9 @@ def main():
 
         if err == "LIMIT_REACHED":
             print("\n  Rate limit reached. Aborting.")
-            break
+            sys.exit(2)
         if err == "AUTH_EXPIRED":
-            break
+            sys.exit(3)
 
         new_records.append(day_results)
         print(f"{day_results['hnd_nrt_movements']} flights")
@@ -316,6 +327,12 @@ def main():
         print(f"\n  Saved: {OUTPUT_FILE} ({added_days} days added, total {len(df_all)} days)")
     else:
         print("\n  No new data.")
+        if os.path.exists(OUTPUT_FILE):
+            try:
+                os.utime(OUTPUT_FILE, None)
+                print("  Touched existing CSV to refresh mtime.")
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

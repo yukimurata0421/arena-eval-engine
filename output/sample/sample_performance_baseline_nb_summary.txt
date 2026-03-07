@@ -1,0 +1,21 @@
+                 Generalized Linear Model Regression Results                  
+==============================================================================
+Dep. Variable:             auc_n_used   No. Observations:                   61
+Model:                            GLM   Df Residuals:                       59
+Model Family:        NegativeBinomial   Df Model:                            1
+Link Function:                    Log   Scale:                          1.0000
+Method:                          IRLS   Log-Likelihood:                -702.17
+Date:                Thu, 05 Mar 2026   Deviance:                       1.9763
+Time:                        20:54:46   Pearson chi2:                     2.32
+No. Iterations:                     3   Pseudo R-squ. (CS):            0.05012
+Covariance Type:            nonrobust                                         
+===============================================================================
+                  coef    std err          z      P>|z|      [0.025      0.975]
+-------------------------------------------------------------------------------
+Intercept      10.1303      0.243     41.767      0.000       9.655      10.606
+post            0.5276      0.286      1.848      0.065      -0.032       1.087
+log_traffic          0          0        nan        nan           0           0
+===============================================================================
+
+--- Post Effect ---
+post: +69.49% [-3.16, +196.64] P=0.064654

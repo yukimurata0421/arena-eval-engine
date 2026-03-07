@@ -16,7 +16,7 @@ from arena.lib.paths import ADSB_DAILY_SUMMARY
 
 os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
 numpyro.set_platform("cpu")
-numpyro.set_host_device_count(4)
+numpyro.set_host_device_count(min(6, os.cpu_count() or 6))
 
 def get_user_phases():
     from arena.lib.phase_config import get_config as _get_cfg

@@ -4,7 +4,10 @@ from pathlib import Path
 try:
     import tomllib  # py3.11+
 except ModuleNotFoundError:  # pragma: no cover
-    tomllib = None
+    try:
+        import tomli as tomllib  # type: ignore
+    except ModuleNotFoundError:
+        tomllib = None
 
 
 def _find_scripts_root() -> Path:
@@ -25,6 +28,27 @@ def _find_scripts_root() -> Path:
 SCRIPTS_ROOT = _find_scripts_root()
 
 
+def _parse_settings_fallback(text: str) -> dict:
+    settings: dict = {}
+    section = ""
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            settings.setdefault(section, {})
+            continue
+        if "=" in line and section:
+            k, v = line.split("=", 1)
+            key = k.strip()
+            val = v.strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+            settings.setdefault(section, {})[key] = val
+    return settings
+
+
 def _load_settings() -> dict:
     env_path = os.getenv("ARENA_SETTINGS") or os.getenv("ADSB_SETTINGS")
     candidates = []
@@ -34,11 +58,22 @@ def _load_settings() -> dict:
     # src layout fallback
     candidates.append(Path(__file__).resolve().parents[2] / "config" / "settings.toml")
     for p in candidates:
-        if p.exists() and tomllib is not None:
+        if not p.exists():
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        if tomllib is not None:
             try:
-                return tomllib.loads(p.read_text(encoding="utf-8"))
+                return tomllib.loads(text)
             except Exception:
-                return {}
+                pass
+        # fallback minimal parser (paths only)
+        try:
+            return _parse_settings_fallback(text)
+        except Exception:
+            return {}
     return {}
 
 

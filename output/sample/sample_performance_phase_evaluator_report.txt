@@ -1,0 +1,56 @@
+====================================================================================================
+  ADS-B Phase Evaluator Report v3.1 (NegBin + Traffic + Minutes Offset, Dual Baseline)
+====================================================================================================
+  Data: 53 days (excluded: AUC<5000=0 days, minutes<1296m=3 days), phases: 5
+  MCMC: warmup=1000, samples=2000, chains=4
+  Model: NegBin + traffic_control + minutes_offset
+  Original baseline: Phase 0 = Baseline
+  Alt baseline:      Phase 1 = Airspy Mini Intro + Gain 13-18
+  Minimum days for conclusions: 7
+
+----------------------------------------------------------------------------------------------------
+  SECTION 1: vs Original Baseline (Phase 0)
+----------------------------------------------------------------------------------------------------
+  Phase Name                     |    N | vs Previous            | vs Baseline(Ph0)                   
+  ------------------------------------------------------------------------------------------------
+  Baseline                       |    8 | ---                    |    +0.0% [   +0.0,    +0.0] P(>0)=0%
+  Airspy Mini Intro + Gain 13-18 |   31 |   +51.9% P(>0)=100%    |   +51.9% [  +17.0,   +84.0] P(>0)=100%
+  5D-FB Cable & N-P              |   12 |   +86.4% P(>0)=71%     |  +209.5% [  +16.9,  +701.4] P(>0)=100%
+  Indoor cable change (2.5DS-QFB) |    2 |   -14.7% P(>0)=47%     |   +41.7% [  -10.5,  +128.1] P(>0)=74% [reference: N<3]
+  Adapter change (NM-SM50+)      |    0 | +3658311936.0% P(>0)=82% | +5017727488.0% [  -99.5, +107835928.0] P(>0)=84% [no data]
+
+----------------------------------------------------------------------------------------------------
+  SECTION 2: vs Alt Baseline (Phase 1: Airspy Mini Intro + Gain 13-18)
+----------------------------------------------------------------------------------------------------
+  Phase Name                     |    N | vs Alt Baseline                         
+  --------------------------------------------------------------------------------
+  Baseline                       |    8 |   -32.7% [  -45.6,   -14.5] P(>0)=0%
+  Airspy Mini Intro + Gain 13-18 |   31 |    +0.0% [   +0.0,    +0.0] P(>0)=0%
+  5D-FB Cable & N-P              |   12 |   +86.4% [  -11.9,  +335.7] P(>0)=71%
+  Indoor cable change (2.5DS-QFB) |    2 |    -3.1% [  -51.4,   +57.7] P(>0)=52% [reference: N<3]
+  Adapter change (NM-SM50+)      |    0 | +3476296960.0% [  -99.6, +78535416.0] P(>0)=58% [no data]
+
+----------------------------------------------------------------------------------------------------
+  SECTION 3: Interpretation Guide
+----------------------------------------------------------------------------------------------------
+
+  Section 1 (vs Phase 0) measures improvement from the global baseline.
+  The RTL-SDR → Airspy jump dominates and can mask Cable/Adapter effects.
+
+  Section 2 (vs Alt Baseline) captures post-Airspy fine-tuning effects.
+  It can resolve 5–15% improvements from cable/adapter changes.
+
+  Reliability tags:
+    (no tag)      — N >= 7. Supports conclusions.
+    [prelim: low N]   — 3 <= N < 7. Trend only; no conclusion.
+    [reference: N<3]  — N < 3. Not enough data for statistical judgment.
+
+  Decision criteria (no-tag phases only):
+    P(>0) >= 95%  → improvement is very likely
+    P(>0) >= 80%  → improvement likely
+    P(>0) <  80%  → effect unclear (need more data)
+    94% HDI excludes 0 → statistically significant
+
+  Traffic elasticity (beta_traffic): 0.0246 [94% HDI: -0.1079, 0.1646]
+  Minutes elasticity (beta_minutes): 0.0091 [94% HDI: -1.7673, 1.0124]
+====================================================================================================

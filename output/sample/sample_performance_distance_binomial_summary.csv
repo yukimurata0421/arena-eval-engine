@@ -1,0 +1,17 @@
+Comparison,Band,Test,Base_Mean_Pct,Target_Mean_Pct,Diff_Pct,Statistic,P_Value,Effect_Size_d,Significance
+Phase1_Filter vs Phase0_Old,Near (0-100km),Welch_t,0.0,0.0,0.0,,,0.0,---
+Phase1_Filter vs Phase0_Old,Mid (100-200km),Welch_t,0.0,0.0,0.0,,,0.0,---
+Phase1_Filter vs Phase0_Old,Far (200-300km),Welch_t,0.0,0.0,0.0,,,0.0,---
+Phase1_Filter vs Phase0_Old,Extreme (300km+),Welch_t,100.0,100.0,0.0,,,0.0,---
+Phase1_Filter vs Phase0_Old,Near (0-100km),z_proportion,0.0,0.0,0.0,0.0,1.0,,---
+Phase1_Filter vs Phase0_Old,Mid (100-200km),z_proportion,0.0,0.0,0.0,0.0,1.0,,---
+Phase1_Filter vs Phase0_Old,Far (200-300km),z_proportion,0.0,0.0,0.0,0.0,1.0,,---
+Phase1_Filter vs Phase0_Old,Extreme (300km+),z_proportion,100.0,100.0,0.0,0.0,1.0,,---
+Phase2_Cable vs Phase0_Old,Near (0-100km),Welch_t,0.0,0.0,0.0,,,0.0,---
+Phase2_Cable vs Phase0_Old,Mid (100-200km),Welch_t,0.0,0.0,0.0,,,0.0,---
+Phase2_Cable vs Phase0_Old,Far (200-300km),Welch_t,0.0,0.0,0.0,,,0.0,---
+Phase2_Cable vs Phase0_Old,Extreme (300km+),Welch_t,100.0,100.0,0.0,,,0.0,---
+Phase2_Cable vs Phase0_Old,Near (0-100km),z_proportion,0.0,0.0,0.0,0.0,1.0,,---
+Phase2_Cable vs Phase0_Old,Mid (100-200km),z_proportion,0.0,0.0,0.0,0.0,1.0,,---
+Phase2_Cable vs Phase0_Old,Far (200-300km),z_proportion,0.0,0.0,0.0,0.0,1.0,,---
+Phase2_Cable vs Phase0_Old,Extreme (300km+),z_proportion,100.0,100.0,0.0,0.0,1.0,,---

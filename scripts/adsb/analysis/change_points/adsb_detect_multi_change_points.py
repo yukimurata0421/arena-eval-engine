@@ -24,9 +24,10 @@ from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
 from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_multi_change_point_model
 
+CPU_HOST = min(6, os.cpu_count() or 6)
 numpyro.set_platform("cpu")
-numpyro.set_host_device_count(4)
-print(f">>> Platform: CPU ({jax.devices()})")
+numpyro.set_host_device_count(CPU_HOST)
+print(f">>> Platform: CPU ({CPU_HOST} devices) {jax.devices()}")
 
 
 def run_multi_discovery_analysis():
@@ -38,7 +39,7 @@ def run_multi_discovery_analysis():
     df = df.sort_values("date").reset_index(drop=True)
     df = clean_nb2_df(df, require_log_traffic=True)
     if len(df) < 5:
-        print("  警告: 有効データが不足しているため、変化点検出をスキップします。")
+        print("  WARNING: Insufficient valid data. Skipping change-point detection.")
         return
 
     inputs = prepare_nb2_inputs(df)
