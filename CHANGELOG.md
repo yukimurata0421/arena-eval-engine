@@ -10,12 +10,12 @@ All notable changes to this project will be documented in this file.
 - Added documentation links from README to architecture and AEME details
 
 ### Changed
-- Refactored README for readability by separating quick-start/project overview from detailed design notes
+- Refactored README for readability by separating project overview from detailed analytical notes
 - Clarified the relationship between `PLAO`, `adsb-eval`, and `ARENA`
-- Clarified upstream input datasets required by ARENA (`pos_YYYYMMDD.jsonl` and `dist_1m.jsonl`)
+- Clarified required upstream datasets for ARENA (`pos_YYYYMMDD.jsonl` and `dist_1m.jsonl`)
 - Clarified that `rsync` is implemented in the PLAO repository but transfers outputs from both upstream systems
-- Reorganized public documentation to better separate repository overview from analytical/design details
-- Improved documentation structure for public-facing navigation and repository onboarding
+- Reorganized public documentation for easier repository onboarding
+- Corrected documentation of data transfer direction: ARENA pulls datasets from Raspberry Pi via `rsync` executed in WSL
 
 ---
 
