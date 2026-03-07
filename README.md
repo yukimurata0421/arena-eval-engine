@@ -1,6 +1,10 @@
 # ARENA --- powered by AEME
 
-![CI](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml/badge.svg)
+# ARENA --- powered by AEME
+
+[![CI](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 > A reproducible evaluation engine to detect and quantify real
 > improvements under uncertainty.
