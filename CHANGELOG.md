@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.5] - 2026-03-07
+### Added
+- Added `docs/aeme.md` for detailed documentation of the AEME analytical framework
+- Added documentation links from README to architecture and AEME details
+
+### Changed
+- Refactored README for readability by separating quick-start/project overview from detailed design notes
+- Clarified the relationship between `PLAO`, `adsb-eval`, and `ARENA`
+- Clarified upstream input datasets required by ARENA (`pos_YYYYMMDD.jsonl` and `dist_1m.jsonl`)
+- Clarified that `rsync` is implemented in the PLAO repository but transfers outputs from both upstream systems
+- Reorganized public documentation to better separate repository overview from analytical/design details
+- Improved documentation structure for public-facing navigation and repository onboarding
+
+---
+
 ## [0.1.4] - 2026-03-07
 ### Added
 - Added lightweight public test suite (`test_cli`, `test_schema`, `test_settings`, `test_pipeline_minimal`, `test_jsonl_parser`)

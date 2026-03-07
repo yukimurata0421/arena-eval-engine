@@ -1,158 +1,291 @@
-# ARENA --- powered by AEME
-
-# ARENA --- powered by AEME
+# ARENA — Aerial Radio Evaluation & Network Analytics
 
 [![CI](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-> A reproducible evaluation engine to detect and quantify real
-> improvements under uncertainty.
+> A reproducible evaluation engine to detect and quantify real improvements under uncertainty.
 
-ARENA is a CLI-first evaluation framework built to answer a fundamental
-engineering question:
+ARENA is a CLI-first statistical evaluation engine built to answer a fundamental engineering question:
 
-> Did the system truly improve --- and by how much?
+> Did the system truly improve — and by how much?
 
-At its core lies **AEME (Aerial Evaluation & Measurement Engine)** ---\
-a statistical engine designed to validate improvement claims using
-reproducible, uncertainty-aware methods.
+At its core lies **AEME (Aerial Evaluation & Measurement Engine)**, a statistical framework that validates improvement claims using reproducible, uncertainty-aware methods.
 
-------------------------------------------------------------------------
-
-## What Is ARENA?
-
-ARENA is not a data collector.\
-It is not a dashboard.
-
-It is an **evaluation engine**.
-
-It is built for environments where:
-
--   Metrics fluctuate daily
--   Noise masks real effects
--   External factors distort results
--   Proxy variables introduce bias
-
-ARENA quantifies change rigorously and reproducibly.
-
-------------------------------------------------------------------------
-
-## What Is AEME?
-
-AEME (Aerial Evaluation & Measurement Engine) is the statistical core of
-ARENA.
-
-It integrates:
-
--   Frequentist testing (MWU, Bootstrap, GLM)
--   Bayesian posterior inference (NumPyro / NUTS)
--   Change-point detection
--   Proxy endogeneity checks
--   External dataset validation
-
-AEME focuses on:
-
--   Effect size
--   Uncertainty bounds
--   Robustness across models
--   Reproducibility
-
-ARENA is the orchestration layer.\
+ARENA is the orchestration layer.
 AEME is the analytical engine.
 
-------------------------------------------------------------------------
+---
 
-## Core Philosophy
+## System Architecture
 
-ARENA is designed around four principles:
+ARENA does **not** collect ADS-B data directly.
 
-1.  **Failure-first architecture**
-    -   Pipelines assume partial failure.
-    -   Validation precedes execution.
-2.  **Single source of truth**
-    -   All parameters are configuration-driven (`settings.toml`).
-3.  **Uncertainty-aware evaluation**
-    -   Outputs emphasize magnitude and confidence, not binary
-        significance.
-4.  **Reproducible experimentation**
-    -   Improvements must survive re-analysis under multiple statistical
-        assumptions.
+It analyzes datasets produced by two upstream systems running on Raspberry Pi.
+Both upstream systems consume telemetry produced by `readsb`.
 
-------------------------------------------------------------------------
+```
+                                     Raspberry Pi
 
-## Error Accounting & Skips
+                              readsb runtime
+                                    ├─ /run/readsb/aircraft.json
+                                    └─ /run/readsb/stats.json
 
-ARENA never drops bad records silently. When parsers encounter invalid
-rows or exceptions:
 
--   Counts are tracked (`n_total`, `n_ok`, `n_skip`, `n_err`) and
-    reported at INFO level.
--   A reason histogram is logged (e.g., `parse_error`, `missing_key`,
-    `bad_filename_date`).
--   The first error sample is retained for debugging.
+        ┌───────────────┐        ┌───────────────┐
+        │            PLAO              │        │           adsb-eval          │
+        │        position log          │        │         runtime stats        │
+        └───────┬───────┘        └───────┬───────┘
+                        │                                        │
+                        │ pos_YYYYMMDD.jsonl                     │ dist_1m.jsonl
+                        │                                        │
+                        └──────────────┬─────┘
+                               │
+                               │ rsync
+                               │ (script lives in PLAO repo)
+                               │
+                               ▼
 
-Typical skip reasons include malformed JSON, missing keys, or stale
-position data.
+                          ARENA (WSL2)
+                  statistical evaluation engine
+```
 
-------------------------------------------------------------------------
+| Component | Role | Repository |
+|-----------|------|------------|
+| **PLAO**  | Raw aircraft position logger (append-only JSONL) | [plao-pos-collector](https://github.com/yukimurata0421/plao-pos-collector) |
+| **adsb-eval** | Lightweight runtime telemetry/statistics layer (generates `dist_1m.jsonl` among other outputs) | [adsb-eval](https://github.com/yukimurata0421/adsb-eval) |
+| **ARENA** | Statistical evaluation engine (this repository) | — |
 
-## Model Reuse
+---
 
-Change-point and GPU scripts share core NegativeBinomial2 model
-definitions via\
-`src/arena/lib/nb2_models.py` to keep statistical assumptions consistent
-while\
-preserving script-level entry points.
+## Required Inputs
 
-------------------------------------------------------------------------
+ARENA relies on two upstream datasets produced on Raspberry Pi.
+
+### PLAO position logs
+
+Produced by [PLAO](https://github.com/yukimurata0421/plao-pos-collector).
+
+| | |
+|---|---|
+| **Input** | `/run/readsb/aircraft.json` |
+| **Output** | `pos_YYYYMMDD.jsonl` |
+
+This dataset records aircraft positions as append-only JSONL logs.
+Each row contains decoded ADS-B position information.
+
+### adsb-eval telemetry metrics
+
+Produced by [adsb-eval](https://github.com/yukimurata0421/adsb-eval).
+
+adsb-eval performs lightweight runtime telemetry/statistics processing and generates multiple JSONL outputs derived from receiver telemetry.
+
+Among these outputs, **ARENA consumes `dist_1m.jsonl`** as one of its primary datasets.
+
+Primary logger for this handoff:
+
+| Logger | Input | Output |
+|--------|-------|--------|
+| `adsb_dist_logger.py` | `/run/readsb/aircraft.json` | `dist_1m.jsonl`, `dist_1m_errors.jsonl` |
+
+---
+
+## Data Transfer
+
+Data transfer from Raspberry Pi to the ARENA analysis environment is handled via `rsync`.
+
+The transfer script is implemented in the [PLAO repository](https://github.com/yukimurata0421/plao-pos-collector) (`ops/sync/`), but synchronizes outputs from both upstream systems.
+
+Typical transferred files include:
+
+- `pos_YYYYMMDD.jsonl` from PLAO
+- `dist_1m.jsonl` from adsb-eval
+
+Example destination paths on WSL2:
+
+```text
+/mnt/e/arena/data/plao_pos/pos_*.jsonl
+/mnt/e/arena/data/dist_1m.jsonl
+```
+
+---
+
+## Evaluation Pipeline
+
+ARENA orchestrates a multi-stage evaluation pipeline.
+
+```mermaid
+flowchart TD
+    P[PLAO: pos_YYYYMMDD.jsonl] --> A[Stage 1: Aggregation]
+    D[adsb-eval: dist_1m.jsonl] --> A
+    A --> B[Stage 2: Metric Extraction]
+    B --> C[Stage 3: Phase Classification]
+    C --> E[Stage 4: Frequentist Evaluation]
+    E --> F[Stage 5: Bayesian Inference]
+    F --> G[Stage 6-7: Change-Point / Proxy Diagnostics]
+    G --> H[Stage 8: External Validation - OpenSky]
+    H --> I[Final Report]
+```
+
+Inputs to the pipeline:
+
+- `pos_YYYYMMDD.jsonl` from PLAO
+- `dist_1m.jsonl` from adsb-eval
+
+---
+
+## CLI Usage
+
+ARENA is CLI-first.
+
+### Validate configuration
+
+```bash
+arena validate
+```
+
+### Run full evaluation
+
+```bash
+arena run
+```
+
+### Dry run
+
+```bash
+arena run --dry-run
+```
+
+### Fetch external comparison data
+
+```bash
+arena fetch-opensky
+```
+
+Direct script execution is not supported.
+
+---
+
+## Configuration
+
+All runtime parameters are defined in `settings.toml`.
+
+### Site configuration
+
+```toml
+[site]
+lat = 36.123456
+lon = 140.123456
+```
+
+If left as `0.0`, `arena validate` will issue a warning.
+
+### Quality gates
+
+```toml
+[quality]
+min_auc_n_used = 5000
+min_minutes_covered = 1296
+```
+
+### Distance bins
+
+```toml
+[distance_bins]
+km = [0, 25, 50, 100, 150, 200]
+```
+
+---
+
+## Minimal Local Reproduction
+
+```bash
+pip install -e ".[dev]"
+arena validate
+pytest -q
+```
+
+> **Note**
+> `arena validate` and `pytest` operate on sample datasets located in `data/sample/`.
+> Running a full evaluation with `arena run` requires real datasets generated by PLAO and adsb-eval.
+
+---
+
+## Installation
+
+Python 3.11+ is required.
+
+```bash
+pip install -e ".[dev]"
+```
+
+---
 
 ## Test Execution
 
 Normal run (fast / CI):
 
-    pytest -q
+```bash
+pytest -q
+```
 
 Diagnose slow tests:
 
-    pytest -q --durations=20
+```bash
+pytest -q --durations=20
+```
 
 Verbose with timings:
 
-    pytest -vv --durations=20
+```bash
+pytest -vv --durations=20
+```
 
-`--durations` is for diagnostics and is not enabled by default to avoid
-noisy CI logs.
+`--durations` is for diagnostics and is not enabled by default to avoid noisy CI logs.
 
-------------------------------------------------------------------------
-
-## Repository Layout (Public)
-
-- `src/arena`: core CLI/pipeline engine and shared library code
-- `scripts/`: analysis and utility layer used by pipeline stages
-- `tests/`: lightweight reproducibility checks for public CI
-
-------------------------------------------------------------------------
-
-## Minimal Local Repro
-
-    pip install -e ".[dev]"
-    arena validate
-    pytest -q
-
-------------------------------------------------------------------------
+---
 
 ## Docker (CPU-only)
 
 Build:
 
-    docker build -f docker/Dockerfile.cpu -t arena-cpu .
+```bash
+docker build -f docker/Dockerfile.cpu -t arena-cpu .
+```
 
 Run:
 
-    docker run --rm arena-cpu
+```bash
+docker run --rm arena-cpu
+```
 
-------------------------------------------------------------------------
+---
+
+## Development: pre-commit (recommended)
+
+To prevent CI failures, run the same checks locally before every commit.
+
+1. Install dev dependencies:
+
+   ```bash
+   pip install -e ".[dev]"
+   ```
+
+2. Install git hooks:
+
+   ```bash
+   pre-commit install
+   ```
+
+3. (Optional) Run once against all files:
+
+   ```bash
+   pre-commit run --all-files
+   ```
+
+After this, `ruff check` and `ruff format` (and basic TOML/YAML sanity checks) will run automatically on `git commit`.
+
+---
 
 ## Public Data Policy
 
@@ -161,175 +294,62 @@ This public repository keeps reproducible samples only under:
 - `data/sample/`
 - `output/sample/`
 
-Large experimental raw data and full output artifacts are intentionally
-excluded from version control.
+Large experimental raw data and full output artifacts are intentionally excluded from version control.
 
 To (re)create samples from local private datasets:
 
-    python scripts/tools/create_public_samples.py
-
-------------------------------------------------------------------------
-
-## Architecture Overview
-
-``` mermaid
-flowchart TD
-    A[Raw Logs] --> B[Aggregation]
-    B --> C[Metric Extraction]
-    C --> D[Phase Classification]
-    D --> E[Frequentist Evaluation]
-    E --> F[Bayesian Inference]
-    F --> G[External Validation]
-    G --> H[Final Report]
+```bash
+python scripts/tools/create_public_samples.py
 ```
 
-ARENA orchestrates the pipeline.\
-AEME performs the evaluation.
+---
 
-------------------------------------------------------------------------
+## Documentation
 
-## Installation
+For more details, see:
 
-Python 3.11+ required.
+- [AEME — statistical methods and design philosophy](docs/aeme.md)
 
-    pip install -e ".[dev]"
+---
 
-------------------------------------------------------------------------
+## Repository Layout
 
-## Configuration
+| Directory | Description |
+|-----------|-------------|
+| `src/arena/` | Core CLI, pipeline engine, and shared library code |
+| `scripts/` | Analysis utilities used by pipeline stages |
+| `tests/` | Lightweight CI validation |
+| `data/sample/` | Minimal datasets for CI and structural validation |
+| `output/sample/` | Example output directory structure |
+| `docs/` | Design notes and supplementary documentation |
 
-All runtime parameters are defined in `settings.toml`.
+---
 
-### Site Configuration
+## Related Repositories
 
-``` toml
-[site]
-lat = 36.123456
-lon = 140.123456
-```
+| Repository | Role |
+|------------|------|
+| [plao-pos-collector](https://github.com/yukimurata0421/plao-pos-collector) | Upstream raw position logger |
+| [adsb-eval](https://github.com/yukimurata0421/adsb-eval) | Upstream runtime telemetry/statistics generator |
 
-If left as `0.0`, `arena validate` will issue a warning.
-
-### Quality Gates
-
-``` toml
-[quality]
-min_auc_n_used = 5000
-min_minutes_covered = 1296
-```
-
-### Distance Bins
-
-``` toml
-[distance_bins]
-km = [0, 25, 50, 100, 150, 200]
-```
-
-------------------------------------------------------------------------
-
-## CLI Usage
-
-ARENA is CLI-first.
-
-### Validate configuration
-
-    arena validate
-
-### Run full evaluation
-
-    arena run
-
-### Dry run
-
-    arena run --dry-run
-
-### Fetch external comparison data
-
-    arena fetch-opensky
-
-Direct script execution is not supported.
-
-------------------------------------------------------------------------
-
-## Statistical Methods
-
-AEME integrates:
-
--   Mann--Whitney U Test
--   Bootstrap Confidence Intervals
--   Negative Binomial GLM
--   Bayesian Inference (NUTS)
--   Change-Point Detection
--   Proxy Bias Diagnostics
-
-Outputs prioritize:
-
--   Effect size
--   Credible/confidence intervals
--   Model robustness
-
-------------------------------------------------------------------------
-
-## Use Cases
-
-Originally developed for ADS-B receiver optimization, ARENA can
-generalize to:
-
--   Sensor performance validation
--   Infrastructure change evaluation
--   Network observability experiments
--   A/B testing with noisy metrics
--   Any improvement verification problem
-
-------------------------------------------------------------------------
+---
 
 ## Why This Exists
 
-Improvement claims are cheap.\
+Improvement claims are cheap.
 Validated improvements are rare.
 
 ARENA exists to close that gap.
 
-------------------------------------------------------------------------
-
-## Development: pre-commit (recommended)
-
-To prevent CI failures, run the same checks locally before every commit.
-
-1)  Install dev dependencies:
-
-```{=html}
-<!-- -->
-```
-    pip install -e ".[dev]"
-
-2)  Install git hooks:
-
-```{=html}
-<!-- -->
-```
-    pre-commit install
-
-3)  (Optional) Run once against all files:
-
-```{=html}
-<!-- -->
-```
-    pre-commit run --all-files
-
-After this, `ruff check` and `ruff format` (and basic TOML/YAML sanity
-checks)\
-will run automatically on `git commit`.
-
-------------------------------------------------------------------------
+---
 
 ## License
 
 MIT License
 
-------------------------------------------------------------------------
+---
 
 ## Author
 
-Yuki Murata\
+Yuki Murata
 Building systems that measure reality, not impressions.
