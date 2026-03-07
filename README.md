@@ -25,21 +25,21 @@ It analyzes datasets produced by two upstream systems running on Raspberry Pi.
 Both upstream systems consume telemetry produced by `readsb`.
 
 ```
-                                     Raspberry Pi
+                    Raspberry Pi
 
-                              readsb runtime
-                                    ├─ /run/readsb/aircraft.json
-                                    └─ /run/readsb/stats.json
+                 readsb runtime
+                    ├─ /run/readsb/aircraft.json
+                    └─ /run/readsb/stats.json
 
 
         ┌───────────────┐        ┌───────────────┐
-        │            PLAO              │        │           adsb-eval          │
-        │        position log          │        │         runtime stats        │
+        │      PLAO     │        │   adsb-eval   │
+        │ position log  │        │ runtime stats │
         └───────┬───────┘        └───────┬───────┘
-                        │                                        │
-                        │ pos_YYYYMMDD.jsonl                     │ dist_1m.jsonl
-                        │                                        │
-                        └──────────────┬─────┘
+                │                        │
+                │ pos_YYYYMMDD.jsonl     │ dist_1m.jsonl
+                │                        │
+                └──────────────┬─────────┘
                                │
                                │ rsync
                                │ (script lives in PLAO repo)
@@ -47,7 +47,7 @@ Both upstream systems consume telemetry produced by `readsb`.
                                ▼
 
                           ARENA (WSL2)
-                  statistical evaluation engine
+               statistical evaluation engine
 ```
 
 | Component | Role | Repository |
