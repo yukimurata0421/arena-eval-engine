@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.7] - 2026-03-08
+
+### Added
+- Added `docs/statistical-assumptions-and-limitations.md` to document model assumptions, proxy limitations, and evidence boundaries
+- Added README links to detailed methodology and limitation documents
+
+### Changed
+- Reworked `README.md` for public release readiness
+- Improved architecture description to reflect the actual runtime data flow (`readsb` → PLAO / adsb-eval → ARENA)
+- Added input contract documentation for required telemetry files
+- Clarified sample data scope, example outputs, and statistical philosophy
+- Refined public documentation around interpretation limits and reproducibility
+- Updated `.gitignore` to better exclude generated artifacts while preserving public sample data and docs assets
+
+### Notes
+- This release focuses on documentation quality, interpretation boundaries, and public repository clarity
+- Statistical results remain dataset-dependent and are documented in versioned methodology notes
+
+---
+
 ## [0.1.6] - 2026-03-08
 
 ### Added

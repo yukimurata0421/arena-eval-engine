@@ -30,6 +30,9 @@ It evaluates telemetry produced by upstream systems.
 
 ## Why ARENA
 
+For a detailed discussion of model assumptions, failed specifications,
+proxy limitations, and interpretation boundaries, see
+[docs/statistical-assumptions-and-limitations.md](./docs/statistical-assumptions-and-limitations.md).
 Most ADS-B receiver improvements are reported using simple before/after aircraft counts.
 However, these metrics are heavily confounded by traffic volume, seasonal patterns, and operational variation.
 
@@ -245,7 +248,12 @@ ARENA emphasizes statistical defensibility over simple before/after comparison.
 - Traffic volume is a confounding factor that must be controlled
 - A dual-baseline system separates the dominant hardware jump from incremental improvements
 
-The statistical engine (AEME) is documented in detail at [docs/aeme.md](./docs/aeme.md).
+The statistical engine design (AEME) is documented in
+[docs/aeme.md](./docs/aeme.md).
+
+For model assumptions, failed specifications, proxy limitations,
+and interpretation boundaries, see
+[docs/statistical-assumptions-and-limitations.md](./docs/statistical-assumptions-and-limitations.md).
 
 ---
 
