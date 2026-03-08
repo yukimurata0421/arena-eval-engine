@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2026-03-08
+### Fixed
+- Corrected the project version in `pyproject.toml` for the release.
+- Added a follow-up release because the previous release was published with an incorrect package version.
+
+
 ## [0.1.7] - 2026-03-08
 
 ### Added
