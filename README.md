@@ -1,28 +1,45 @@
 # ARENA — Aerial Radio Evaluation & Network Analytics
 
 [![CI](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml)
+![Coverage](https://img.shields.io/badge/coverage-43%25-yellow)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-> A reproducible evaluation engine to detect and quantify real improvements under uncertainty.
+---
 
-ARENA is a CLI-first statistical evaluation engine built to answer a fundamental engineering question:
+## Overview
 
-> Did the system truly improve — and by how much?
+ADS-B (Automatic Dependent Surveillance–Broadcast) receivers collect aircraft position broadcasts transmitted by aircraft transponders.
+However, before/after charts often lie.
 
-At its core lies **AEME (Aerial Evaluation & Measurement Engine)**, a statistical framework that validates improvement claims using reproducible, uncertainty-aware methods.
+An ADS-B receiver upgrade may increase aircraft counts — but that does not necessarily mean the receiver actually improved.
+Traffic volume, time of day, and operational patterns can easily produce the same effect.
 
-ARENA is the orchestration layer.
-AEME is the analytical engine.
+**ARENA exists to answer a single question:**
+
+> Is a claimed receiver improvement statistically defensible?
+
+ARENA is a statistical evaluation engine for noisy ADS-B telemetry.
+It determines whether observed receiver improvements are real or simply artifacts
+of traffic variation and external conditions.
+
+ARENA does **not** collect telemetry and does **not** decode ADS-B messages.
+It evaluates telemetry produced by upstream systems.
 
 ---
 
-## System Architecture
+## Why ARENA
 
-ARENA does **not** collect ADS-B data directly.
+Most ADS-B receiver improvements are reported using simple before/after aircraft counts.
+However, these metrics are heavily confounded by traffic volume, seasonal patterns, and operational variation.
 
-It analyzes datasets produced by two upstream systems running on Raspberry Pi.
-Both upstream systems consume telemetry produced by `readsb`.
+ARENA was created to provide a statistically defensible evaluation method for receiver performance experiments.
+
+---
+
+## Architecture
+
+ARENA is the final layer in a telemetry stack that starts at the receiver.
 
 ```
                     Raspberry Pi
@@ -41,315 +58,213 @@ Both upstream systems consume telemetry produced by `readsb`.
                 │                        │
                 └──────────────┬─────────┘
                                │
-                               │ rsync
-                               │ (script lives in PLAO repo)
-                               │
                                ▼
 
                           ARENA (WSL2)
                statistical evaluation engine
 ```
 
-| Component | Role | Repository |
-|-----------|------|------------|
-| **PLAO**  | Raw aircraft position logger (append-only JSONL) | [plao-pos-collector](https://github.com/yukimurata0421/plao-pos-collector) |
-| **adsb-eval** | Lightweight runtime telemetry/statistics layer (generates `dist_1m.jsonl` among other outputs) | [adsb-eval](https://github.com/yukimurata0421/adsb-eval) |
-| **ARENA** | Statistical evaluation engine (this repository) | — |
+[PLAO](https://github.com/yukimurata0421/plao-pos-collector) and [adsb-eval](https://github.com/yukimurata0421/adsb-eval) run on the Raspberry Pi and produce telemetry logs independently.
+ARENA pulls those logs and performs all statistical evaluation on a separate machine.
+This layered design isolates telemetry collection from statistical evaluation,
+allowing receiver experiments to be analyzed independently from the data acquisition layer.
+
+For the internal pipeline architecture (stages 1–8), see [docs/architecture.md](./docs/architecture.md).
 
 ---
 
-## Required Inputs
+## Input Contract
 
-ARENA relies on two upstream datasets produced on Raspberry Pi.
+ARENA expects telemetry produced by PLAO and adsb-eval.
 
-### PLAO position logs
+| File | Source | Description |
+|---|---|---|
+| `pos_YYYYMMDD.jsonl` | PLAO | Per-aircraft position logs with lat/lon, altitude, distance, and bearing |
+| `dist_1m.jsonl` | adsb-eval | Minute-level aggregated distance and signal statistics |
+| `data/flight_data/airport_movements.csv` | OpenSky Network | Nearby airport traffic counts used as a confounding control |
 
-Produced by [PLAO](https://github.com/yukimurata0421/plao-pos-collector).
+`pos_YYYYMMDD.jsonl` and `dist_1m.jsonl` are required.
+`airport_movements.csv` is optional but recommended for traffic normalization.
 
-| | |
+See `data/sample/` for example file structures.
+
+---
+
+## Key Features
+
+- Statistical validation of receiver performance claims
+- Coverage-based AUC performance metrics (not peak range)
+- Bayesian (NumPyro MCMC) and frequentist (NB-GLM, Mann-Whitney U) evaluation
+- Dual-baseline system: original RTL-SDR baseline and stabilized Airspy baseline
+- OpenSky Network integration for external traffic normalization
+- Bootstrap confidence intervals and distribution comparison
+- 8-stage reproducible pipeline with failure-resilient JSONL logging
+- CI-validated statistical core functions
+
+---
+
+## Project Structure
+
+```
+arena-eval-engine/
+├── src/arena/           # Core library (statistical functions, metrics, evaluation)
+├── scripts/             # Pipeline scripts (stages 1–8)
+├── tests/               # pytest test suite
+├── data/sample/         # Public sample dataset
+├── output/sample/       # Example output artifacts
+├── docker/              # Container configuration
+├── docs/                # Additional documentation
+│   ├── architecture.md  #   Pipeline stage diagram (Mermaid)
+│   └── aeme.md          #   Statistical engine design and philosophy
+├── .github/workflows/   # CI configuration (GitHub Actions)
+└── pyproject.toml       # Package metadata and dependencies
+```
+
+---
+
+## Quick Start
+
+ARENA can be executed locally with the included public sample dataset.
+
+### 1. Clone repository
+
+```bash
+git clone https://github.com/yukimurata0421/arena-eval-engine.git
+cd arena-eval-engine
+```
+
+### 2. Install dependencies
+
+Recommended (development install):
+
+```bash
+pip install -e ".[dev]"
+```
+
+Minimal install:
+
+```bash
+pip install -e .
+```
+
+### 3. Validate environment
+
+```bash
+arena validate
+```
+
+Expected output:
+
+```
+Configuration OK
+Environment validated
+```
+
+### 4. Run tests
+
+```bash
+pytest -q --cov=arena --cov-report=term-missing
+```
+
+```
+15 passed
+Coverage: 43%
+```
+
+Coverage focuses on statistical functions, telemetry parsing, and evaluation logic.
+Pipeline scripts and CLI wrappers are intentionally less covered.
+
+---
+
+## Example Result
+
+The following excerpt shows the Bayesian phase evaluation produced by ARENA.
+
+### Bayesian Phase Evaluation (Dual Baseline)
+
+```
+vs Original Baseline (RTL-SDR)          vs Alt Baseline (Airspy Mini)
+-----------------------------------------  -----------------------------------------
+Airspy Mini     +41.6% P(>0)=100%         5D-FB Cable      +3.4% P(>0)=64%
+5D-FB Cable     +46.0% P(>0)=100%         Adapter change  +12.0% P(>0)=83%
+Adapter change  +58.3% P(>0)=100%
+```
+
+The RTL-SDR → Airspy upgrade produced a dominant +41.6% improvement (94% HDI excludes zero).
+Post-Airspy fine-tuning shows a cumulative +12% trend against the Airspy baseline,
+but P(>0) has not yet reached the 95% threshold — demonstrating that ARENA correctly distinguishes
+confident improvements from effects that require more data.
+
+---
+
+## Sample Data
+
+A public example dataset is included in `data/sample/`.
+
+| File | Description |
 |---|---|
-| **Input** | `/run/readsb/aircraft.json` |
-| **Output** | `pos_YYYYMMDD.jsonl` |
+| `sample_dist_1m.jsonl` | Minute-level distance telemetry |
+| `sample_plao_pos_pos_YYYYMMDD.jsonl` | Raw aircraft position logs |
+| `sample_decoder_metrics.jsonl` | Decoder performance telemetry |
+| `sample_signal_stats.jsonl` | SDR signal statistics |
+| `sample_flight_data_airport_movements.csv` | Traffic proxy data |
 
-This dataset records aircraft positions as append-only JSONL logs.
-Each row contains decoded ADS-B position information.
+### What the sample dataset provides
 
-### adsb-eval telemetry metrics
+- Understanding ARENA input contracts and telemetry structure
+- Verifying test reproducibility
+- Exploring expected output artifacts
 
-Produced by [adsb-eval](https://github.com/yukimurata0421/adsb-eval).
+### What the sample dataset does NOT provide
 
-adsb-eval performs lightweight runtime telemetry/statistics processing and generates multiple JSONL outputs derived from receiver telemetry.
-
-Among these outputs, **ARENA consumes `dist_1m.jsonl`** as one of its primary datasets.
-
-Primary logger for this handoff:
-
-| Logger | Input | Output |
-|--------|-------|--------|
-| `adsb_dist_logger.py` | `/run/readsb/aircraft.json` | `dist_1m.jsonl`, `dist_1m_errors.jsonl` |
+The included dataset is intentionally minimal and **not intended for full statistical evaluation**.
+It does not represent long-term receiver performance, full traffic normalization, or hardware improvement validation.
+Full evaluation requires real telemetry generated by PLAO and adsb-eval.
 
 ---
 
-## Data Transfer
+## Example Output
 
-Data transfer from Raspberry Pi to the ARENA analysis environment is handled via `rsync`.
+Example output artifacts are provided in `output/sample/`:
 
-The transfer script is implemented in the [PLAO repository](https://github.com/yukimurata0421/plao-pos-collector) (`ops/sync/`), but synchronizes outputs from both upstream systems.
-
-Typical transferred files include:
-
-- `pos_YYYYMMDD.jsonl` from PLAO
-- `dist_1m.jsonl` from adsb-eval
-
-Example destination paths on WSL2:
-
-```text
-/mnt/e/arena/data/plao_pos/pos_*.jsonl
-/mnt/e/arena/data/dist_1m.jsonl
-```
+| File | Description |
+|---|---|
+| `auc_summary.csv` | Coverage AUC evaluation results |
+| `report.json` | Structured evaluation report |
+| `metrics_summary.csv` | Aggregated performance metrics |
 
 ---
 
-## Evaluation Pipeline
+## Statistical Philosophy
 
-ARENA orchestrates a multi-stage evaluation pipeline.
+ARENA emphasizes statistical defensibility over simple before/after comparison.
 
-```mermaid
-flowchart TD
-    P[PLAO: pos_YYYYMMDD.jsonl] --> A[Stage 1: Aggregation]
-    D[adsb-eval: dist_1m.jsonl] --> A
-    A --> B[Stage 2: Metric Extraction]
-    B --> C[Stage 3: Phase Classification]
-    C --> E[Stage 4: Frequentist Evaluation]
-    E --> F[Stage 5: Bayesian Inference]
-    F --> G[Stage 6-7: Change-Point / Proxy Diagnostics]
-    G --> H[Stage 8: External Validation - OpenSky]
-    H --> I[Final Report]
-```
+- Maximum distance alone is not a reliable metric
+- Receiver performance must be evaluated as a distribution, not a single number
+- Coverage AUC captures receiver performance across distance distributions rather than relying on maximum range
+- Traffic volume is a confounding factor that must be controlled
+- A dual-baseline system separates the dominant hardware jump from incremental improvements
 
-Inputs to the pipeline:
-
-- `pos_YYYYMMDD.jsonl` from PLAO
-- `dist_1m.jsonl` from adsb-eval
+The statistical engine (AEME) is documented in detail at [docs/aeme.md](./docs/aeme.md).
 
 ---
 
-## CLI Usage
+## CI / Testing
 
-ARENA is CLI-first.
-
-### Validate configuration
+ARENA uses GitHub Actions for continuous integration.
 
 ```bash
-arena validate
+pytest -q --cov=arena --cov-report=term-missing
 ```
 
-### Run full evaluation
-
-```bash
-arena run
-```
-
-### Dry run
-
-```bash
-arena run --dry-run
-```
-
-### Fetch external comparison data
-
-```bash
-arena fetch-opensky
-```
-
-Direct script execution is not supported.
-
----
-
-## Configuration
-
-All runtime parameters are defined in `settings.toml`.
-
-### Site configuration
-
-```toml
-[site]
-lat = 36.123456
-lon = 140.123456
-```
-
-If left as `0.0`, `arena validate` will issue a warning.
-
-### Quality gates
-
-```toml
-[quality]
-min_auc_n_used = 5000
-min_minutes_covered = 1296
-```
-
-### Distance bins
-
-```toml
-[distance_bins]
-km = [0, 25, 50, 100, 150, 200]
-```
-
----
-
-## Minimal Local Reproduction
-
-```bash
-pip install -e ".[dev]"
-arena validate
-pytest -q
-```
-
-> **Note**
-> `arena validate` and `pytest` operate on sample datasets located in `data/sample/`.
-> Running a full evaluation with `arena run` requires real datasets generated by PLAO and adsb-eval.
-
----
-
-## Installation
-
-Python 3.11+ is required.
-
-```bash
-pip install -e ".[dev]"
-```
-
----
-
-## Test Execution
-
-Normal run (fast / CI):
-
-```bash
-pytest -q
-```
-
-Diagnose slow tests:
-
-```bash
-pytest -q --durations=20
-```
-
-Verbose with timings:
-
-```bash
-pytest -vv --durations=20
-```
-
-`--durations` is for diagnostics and is not enabled by default to avoid noisy CI logs.
-
----
-
-## Docker (CPU-only)
-
-Build:
-
-```bash
-docker build -f docker/Dockerfile.cpu -t arena-cpu .
-```
-
-Run:
-
-```bash
-docker run --rm arena-cpu
-```
-
----
-
-## Development: pre-commit (recommended)
-
-To prevent CI failures, run the same checks locally before every commit.
-
-1. Install dev dependencies:
-
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-2. Install git hooks:
-
-   ```bash
-   pre-commit install
-   ```
-
-3. (Optional) Run once against all files:
-
-   ```bash
-   pre-commit run --all-files
-   ```
-
-After this, `ruff check` and `ruff format` (and basic TOML/YAML sanity checks) will run automatically on `git commit`.
-
----
-
-## Public Data Policy
-
-This public repository keeps reproducible samples only under:
-
-- `data/sample/`
-- `output/sample/`
-
-Large experimental raw data and full output artifacts are intentionally excluded from version control.
-
-To (re)create samples from local private datasets:
-
-```bash
-python scripts/tools/create_public_samples.py
-```
-
----
-
-## Documentation
-
-For more details, see:
-
-- [AEME — statistical methods and design philosophy](docs/aeme.md)
-
----
-
-## Repository Layout
-
-| Directory | Description |
-|-----------|-------------|
-| `src/arena/` | Core CLI, pipeline engine, and shared library code |
-| `scripts/` | Analysis utilities used by pipeline stages |
-| `tests/` | Lightweight CI validation |
-| `data/sample/` | Minimal datasets for CI and structural validation |
-| `output/sample/` | Example output directory structure |
-| `docs/` | Design notes and supplementary documentation |
-
----
-
-## Related Repositories
-
-| Repository | Role |
-|------------|------|
-| [plao-pos-collector](https://github.com/yukimurata0421/plao-pos-collector) | Upstream raw position logger |
-| [adsb-eval](https://github.com/yukimurata0421/adsb-eval) | Upstream runtime telemetry/statistics generator |
-
----
-
-## Why This Exists
-
-Improvement claims are cheap.
-Validated improvements are rare.
-
-ARENA exists to close that gap.
+| Metric | Value |
+|---|---|
+| Tests | 15 passed |
+| Coverage | 43% |
+| Python | 3.11+ |
 
 ---
 
 ## License
 
-MIT License
-
----
-
-## Author
-
-Yuki Murata
-Building systems that measure reality, not impressions.
+[MIT License](./LICENSE)

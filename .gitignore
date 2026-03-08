@@ -4,6 +4,8 @@ __pycache__/
 *.pyd
 *.so
 *.egg-info/
+*.egg
+pip-wheel-metadata/
 dist/
 build/
 .venv/
@@ -12,13 +14,22 @@ venv/
 .mypy_cache/
 .ruff_cache/
 .coverage
+coverage.xml
 htmlcov/
+
+# --- coverage / test artifacts ---
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+pytestdebug.log
 
 # --- OS/IDE ---
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.swp
 
 # --- arena private ---
 data/*

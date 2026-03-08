@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest==8.2.2",
+  "pytest-cov>=5,<7",
   "ruff==0.6.9",
   "pre-commit==3.7.1",
 ]
@@ -67,3 +68,11 @@ extend-exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
 ignore = ["E501"]
+
+[tool.coverage.run]
+branch = true
+source = ["arena"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2026-03-08
+
+### Added
+- Added test coverage measurement with `pytest-cov`
+- Added GitHub Actions coverage job for Python 3.11
+- Added `coverage.xml` generation and artifact upload in CI
+- Added coverage execution example to README
+
+### Changed
+- Reworked README structure for public release readiness
+- Improved project overview, architecture explanation, and sample data documentation
+- Clarified CI / testing section and current coverage status
+- Updated `.gitignore` to exclude generated coverage artifacts
+
+### Notes
+- Current test suite: 15 passed
+- Current total coverage: 43%
+- Coverage currently focuses on statistical functions, telemetry parsing, and evaluation logic
+- Pipeline scripts and CLI wrappers remain intentionally less covered
+
 ---
 
 ## [0.1.5] - 2026-03-07
