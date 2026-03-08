@@ -6,8 +6,8 @@
 > conclusions must be qualified.
 >
 > Last updated: 2026-03-08  
-> Primary evaluation window: 2025-12-26 to 2026-03-07  
-> (Some sections use 73 raw calendar days, 68 quality-filtered days, or 60 strictly filtered days as noted below.)
+> Primary evaluation window: 2025-12-26 to 2026-03-08  
+> (Some sections use 73 raw calendar days, 68 quality-filtered days, or 61 strictly filtered days as noted below.)
 >
 > All numerical results in this document are dataset-dependent and should
 > be interpreted as versioned evidence summaries rather than permanent
@@ -57,7 +57,7 @@ This document is structured around a simple principle:
 > When they don't, the conclusions must be qualified or withdrawn.
 
 The dataset covers 73 calendar days (68 after quality exclusions for the
-baseline NB-GLM; 60 for the phase evaluator after stricter filtering).
+baseline NB-GLM; 61 for the phase evaluator after stricter filtering).
 Hardware changes span five phases: RTL-SDR baseline, Airspy Mini introduction,
 5D-FB cable upgrade, indoor cable change (2.5DS-QFB), and adapter change
 (NM-SM50+).
@@ -75,9 +75,9 @@ collection methodology (see PLAO documentation), or how to run ARENA
 
 Three dataset scopes appear throughout this document:
 
-- **73 calendar days**: raw observation window (2025-12-26 to 2026-03-07)
+- **73 calendar days**: raw observation window (2025-12-26 to 2026-03-08)
 - **68 days**: usable days for the baseline NB-GLM after quality exclusions
-- **60 days**: usable days for the phase evaluator after stricter filtering
+- **61 days**: usable days for the phase evaluator after stricter filtering (AUC<5000: 1 day excluded, minutes<1296: 2 days excluded)
 
 ---
 
@@ -90,7 +90,7 @@ Three dataset scopes appear throughout this document:
 | 0 | Baseline (RTL-SDR) | 2025-12-26 | Vinnant 8-P antenna, RTL-SDR V4 | 8 | definitive |
 | 1 | Airspy Mini + Gain 13–18 | 2026-01-14 | Airspy Mini SDR | 31 | definitive |
 | 2 | 5D-FB Cable & N-P | 2026-02-14 | Cosmowave 5D-FB 2m + SMA⇔N-P adapter | 12 | definitive |
-| 3 | Indoor cable (2.5DS-QFB) | 2026-02-26 | Shikoku Electric Wire 2.5DS-QFB 50cm | 2 | reference (N<3) |
+| 3 | Indoor cable (2.5DS-QFB) | 2026-02-26 | Shikoku Electric Wire 2.5DS-QFB 50cm | 3 | preliminary (low N) |
 | 4 | Adapter change (NM-SM50+) | 2026-02-28 | Mini-Circuits NM-SM50+ | 7 | definitive |
 
 ### Confounding: Soft Parameter Changes Within Phases
@@ -179,53 +179,74 @@ Dual baseline: Phase 0 (RTL-SDR) and Phase 1 (Airspy Mini)
 
 | Phase | N | Mean % | 94% HDI | P(>0) |
 |-------|---|--------|---------|-------|
-| 1: Airspy Mini | 31 | +41.6% | [+16.5, +69.4] | 100% |
-| 2: 5D-FB Cable | 12 | +46.0% | [+16.6, +79.9] | 99.9% |
-| 3: Indoor cable | 2 | +57.3% | [+7.5, +125.8] | 98.9% |
-| 4: Adapter | 7 | +58.3% | [+21.1, +102.4] | 99.9% |
+| 1: Airspy Mini | 31 | +45.0% | [+16.9, +84.0] | 99.9% |
+| 2: 5D-FB Cable | 12 | +100.7% | [+17.6, +701.4] | 99.9% |
+| 3: Indoor cable | 3 | +51.5% | [-10.5, +113.0] | 91.3% [prelim: low N] |
+| 4: Adapter | 7 | +54.6% | [+5.8, +100.4] | 100% |
 
 **What the data showed (vs Alt Baseline, Phase 1 = Airspy Mini):**
 
 | Phase | N | Mean % | 94% HDI | P(>0) |
 |-------|---|--------|---------|-------|
-| 2: 5D-FB Cable | 12 | +3.4% | [-12.1, +21.2] | 64% |
-| 3: Indoor cable | 2 | +11.4% | [-21.3, +56.0] | 68% |
-| 4: Adapter | 7 | +12.0% | [-9.6, +37.7] | 83% |
+| 2: 5D-FB Cable | 12 | +31.1% | [-11.5, +335.7] | 67% |
+| 3: Indoor cable | 3 | +6.1% | [-51.4, +46.2] | 68% [prelim: low N] |
+| 4: Adapter | 7 | +8.0% | [-42.5, +36.0] | 79% |
+
+**Adjacent-phase comparisons (vs_previous):**
+
+| Comparison | Mean % | P(>0) |
+|------------|--------|-------|
+| Phase 1 vs Phase 0 | +45.0% | 99.9% |
+| Phase 2 vs Phase 1 | +31.1% | 67% |
+| Phase 3 vs Phase 2 | +0.0% | 60% |
+| Phase 4 vs Phase 3 | +4.5% | 58% |
 
 **Separate Bayesian 2-group comparison (CUDA, no traffic control):**
 
 | Comparison | Mean % | 94% HDI | P(>0) |
 |------------|--------|---------|-------|
-| Airspy Mini vs RTL-SDR | +69.7% | [+45.0, +94.7] | 100% |
-| Airspy+Cable vs RTL-SDR | +72.7% | [+42.7, +104.6] | 100% |
-| Airspy+Cable vs Airspy Mini | +2.0% | [-14.6, +18.7] | 57% |
-| airspy_adapter vs RTL-SDR | +90.3% | [+49.6, +130.9] | 100% |
-| airspy_adapter vs airspy_cable_v2 | +4.2% | [-35.6, +44.2] | 55% |
+| Airspy Mini vs RTL-SDR | +69.7% | [+44.7, +94.5] | 100% |
+| Airspy+Cable vs RTL-SDR | +72.5% | [+41.7, +102.8] | 100% |
+| Airspy+Cable vs Airspy Mini | +1.9% | [-14.5, +18.9] | 56% |
+| airspy_cable_v2 vs RTL-SDR | +86.3% | [+31.5, +142.0] | 100% |
+| airspy_cable_v2 vs Airspy+Cable | +8.5% | [-23.9, +42.3] | 66% |
+| airspy_adapter vs RTL-SDR | +91.4% | [+48.3, +135.9] | 100% |
+| airspy_adapter vs airspy_cable_v2 | +5.0% | [-29.6, +41.1] | 57% |
 
 #### Why the estimated effect size changes across Bayesian models
 
 The Phase Evaluator (with traffic + minutes control) estimates Airspy
-improvement at +41.6%. The simple Bayesian 2-group model (no controls)
-estimates +69.7%. This 28-point gap is not a contradiction — it shows
+improvement at +45.0%. The simple Bayesian 2-group model (no controls)
+estimates +69.7%. This 25-point gap is not a contradiction — it shows
 that controlling for operational time (minutes_covered) absorbs part of
 what the uncontrolled model attributes to the hardware change. The
-minutes elasticity (β=0.57, HDI [0.17, 0.96]) is significant and
-meaningful.
+minutes elasticity (β=0.38, HDI [-1.77, +0.98]) is estimated but the HDI
+spans zero in this dataset, meaning the offset adjustment is directionally
+plausible but not individually significant.
 
 The implication is that the estimated hardware effect is sensitive to
 model specification. The controlled model is more conservative and more
 interpretable for this dataset, while the uncontrolled model likely
 absorbs part of the uptime variation into the hardware coefficient.
 
+#### Phase 2 HDI anomaly
+
+Phase 2 vs baseline shows +100.7% with an extremely wide HDI upper bound
+of +701.4%. This asymmetric posterior reflects the combination of (a) a
+genuine large improvement from baseline, (b) intra-phase variance driven
+by the decoder parameter revert on 2026-02-27, and (c) the NB model's
+log-link exponentiation amplifying right-tail uncertainty. The mean
+estimate is meaningful but the upper HDI bound should not be
+over-interpreted.
+
 **Limitations specific to this data:**
-- Phase 3 has N=2 days. The posterior is strongly influenced by the
-  prior rather than the data. ARENA flags this as `[reference: N<3]`.
-- Adjacent-phase comparisons (vs_previous) all have P(>0) < 65%,
+- Phase 3 has N=3 days. The posterior is strongly influenced by the
+  prior rather than the data. ARENA flags this as `[prelim: low N]`.
+- Adjacent-phase comparisons (vs_previous) all have P(>0) < 67%,
   meaning the model cannot distinguish cable/adapter effects from noise.
 - The 12-chain MCMC with 2000 samples shows good convergence for Phases
-  0–2 and 4, but the Phase 3 posterior is wide (HDI span = 77pp) due to
-  minimal data.
-- Traffic elasticity is β = -0.013 (HDI: [-0.08, +0.05]), consistent
+  0–2 and 4, but the Phase 3 posterior is wide due to minimal data.
+- Traffic elasticity is β = -0.015 (HDI: [-0.185, +0.138]), consistent
   with the frequentist result: the traffic proxy has no predictive power.
 
 ---
@@ -243,8 +264,11 @@ sampling distribution of the mean difference via resampling.
 | Comparison | N₁ | N₂ | p-value | Bootstrap Δ | 95% CI |
 |------------|----|----|---------|-------------|--------|
 | Airspy Mini vs Airspy+Cable | 7001 | 12674 | 9.7e-164 | -0.048 | [-0.052, -0.044] |
-| Airspy Mini vs airspy_adapter | 7001 | 8442 | 1.6e-92 | -0.040 | [-0.044, -0.035] |
-| Airspy+Cable vs airspy_adapter | 12674 | 8442 | 2.5e-12 | +0.008 | [+0.005, +0.012] |
+| Airspy Mini vs airspy_adapter | 7001 | 7029 | 1.0e-97 | -0.042 | [-0.047, -0.038] |
+| Airspy Mini vs airspy_cable_v2 | 7001 | 4257 | 2.7e-46 | -0.036 | [-0.041, -0.030] |
+| Airspy+Cable vs airspy_adapter | 12674 | 7029 | 5.5e-7 | +0.006 | [+0.002, +0.009] |
+| Airspy+Cable vs airspy_cable_v2 | 12674 | 4257 | 3.4e-17 | +0.012 | [+0.008, +0.017] |
+| airspy_adapter vs airspy_cable_v2 | 7029 | 4257 | 2.6e-5 | +0.007 | [+0.002, +0.012] |
 
 **Limitations specific to this data:**
 - **Large-sample inflation:** With n > 7000 per group, trivial differences
@@ -258,6 +282,20 @@ sampling distribution of the mean difference via resampling.
   with AUC-based models showing improvement. See
   [Section 4](#4-cross-model-consistency).
 
+**Daily-level comparison (MWU on daily median_capture_ratio):**
+
+| Comparison | N₁ | N₂ | p-value | Bootstrap Δ | 95% CI |
+|------------|----|----|---------|-------------|--------|
+| Airspy Mini vs Airspy+Cable | 5 | 9 | 0.019 | -0.047 | [-0.073, -0.019] |
+| Airspy Mini vs airspy_adapter | 5 | 5 | 0.059 | -0.040 | [-0.066, -0.012] |
+| Airspy+Cable vs airspy_adapter | 9 | 5 | 0.423 | +0.007 | [-0.004, +0.019] |
+| Airspy+Cable vs airspy_cable_v2 | 9 | 3 | 0.194 | +0.016 | [+0.006, +0.025] |
+
+At the daily level, only the Airspy Mini vs Airspy+Cable comparison
+reaches p < 0.05. The remaining comparisons are non-significant with
+very small effect sizes, consistent with the phase evaluator's finding
+that post-Airspy incremental changes are not individually detectable.
+
 ---
 
 ### 3.4 Distance-bin NB-GLM with OpenSky Offset
@@ -269,24 +307,30 @@ for OpenSky traffic as an exposure variable.
 
 **What the data showed:**
 
-| Distance Bin | Airspy+Cable coef | p-value | airspy_adapter coef | p-value |
-|-------------|-------------------|---------|---------------------|---------|
-| 0–50 km | +0.017 | 0.322 | -0.023 | 0.218 |
-| 50–100 km | -0.003 | 0.856 | +0.013 | 0.469 |
-| 100–150 km | -0.037 | 0.027 | +0.00002 | 0.999 |
-| 150–200 km | -0.067 | <0.001 | -0.085 | <0.001 |
-| 200+ km | -0.094 | <0.001 | -0.140 | <0.001 |
+| Distance Bin | Airspy+Cable coef | p-value | airspy_adapter coef | p-value | airspy_cable_v2 coef | p-value |
+|-------------|-------------------|---------|---------------------|---------|----------------------|---------|
+| 0–50 km | +0.017 | 0.322 | -0.014 | 0.468 | -0.014 | 0.546 |
+| 50–100 km | -0.003 | 0.856 | +0.004 | 0.831 | +0.023 | 0.290 |
+| 100–150 km | -0.037 | 0.027 | -0.004 | 0.815 | +0.005 | 0.819 |
+| 150–200 km | -0.067 | <0.001 | -0.082 | <0.001 | -0.092 | <0.001 |
+| 200+ km | -0.094 | <0.001 | -0.133 | <0.001 | -0.152 | <0.001 |
 
 **Key finding:** At 150+ km, phase coefficients are significantly
 *negative* — later phases capture proportionally *fewer* aircraft
 relative to OpenSky. This is counterintuitive given other metrics
-showing improvement.
+showing improvement. The effect is monotonically stronger with
+distance: the further from the station, the larger the relative
+decline against the OpenSky denominator.
+
+At 0–100 km, no phase shows significant effects (all p > 0.29),
+confirming that near-field reception is structurally determined
+and insensitive to the hardware changes evaluated.
 
 **Limitations specific to this data:**
-- Pseudo R² ranges from 0.00002 to 0.002 across bins. Phase explains
+- Pseudo R² ranges from 0.00006 to 0.002 across bins. Phase explains
   almost nothing about minute-level variation, even when statistically
   significant.
-- The 0–50 km bin shows capture ratios consistently < 1.0 (mean ≈ 0.55–0.58),
+- The 0–50 km bin shows capture ratios consistently < 1.0 (mean ≈ 0.56–0.58),
   indicating a structural near-field deficit unrelated to hardware changes.
 - The offset assumes OpenSky's per-bin counts are proportional to true
   traffic, which may not hold at the extremes of distance.
@@ -362,7 +406,7 @@ This decision is recorded in the pipeline execution log.
   antenna + SDR + gain changes over multiple days, creating a gradual
   rather than abrupt transition. Change-point models assume sharp breaks,
   which may mislocate the transition.
-- With only 60 days, K=3 change points means each segment averages ~15
+- With only 61 days, K=3 change points means each segment averages ~15
   days, approaching the minimum for stable estimation.
 
 ---
@@ -411,46 +455,61 @@ ARENA's models show **partial convergence with one notable contradiction**.
 
 All models agree that the RTL-SDR → Airspy transition produced a large,
 real improvement:
-- Phase evaluator: +41.6% (traffic-controlled)
+- Phase evaluator: +45.0% (traffic + minutes controlled)
 - Bayesian 2-group: +69.7% (uncontrolled)
 - Time-resolved: +15–62% across all time bins
-- Coverage P95: 188 km → 208 km
+- Coverage P95: 188–191 km → 201–209 km
 - LOS efficiency: 56.5% → 60.3%
 
 The magnitude differs by model specification (controlled vs uncontrolled),
 but the direction and significance are unanimous.
+
+All models also agree that individual cable/adapter effects are not
+individually distinguishable from noise at this sample size:
+- Phase evaluator vs alt baseline: P(>0) = 67%, 68%, 79%
+- Bayesian CUDA adjacent comparisons: P(>0) = 56–66%
+- Daily MWU for post-Airspy phases: p > 0.05 except one borderline case
 
 ### Where models disagree
 
 **OpenSky capture ratio decreases in later phases**, while AUC, coverage,
 and LOS metrics increase. Specifically:
 
-| Metric | Airspy Mini | Airspy+Cable | Adapter |
-|--------|-------------|--------------|---------|
-| Capture ratio (overall) | 1.210 | 1.162 | 1.170 |
-| AUC mean (daily) | ~42,400 | ~43,100 | ~46,600 |
-| P95 distance (km) | ~190 | ~195 | ~208 |
-| LOS efficiency (%) | ~57.8 | ~58.5 | ~60.0 |
+| Metric | Airspy Mini | Airspy+Cable | airspy_cable_v2 | Adapter |
+|--------|-------------|--------------|-----------------|---------|
+| Capture ratio (overall) | 1.210 | 1.162 | 1.175 | 1.168 |
+| AUC mean (daily) | ~42,400 | ~43,100 | — | ~46,600 |
+| P95 distance (km) | ~190 | ~195 | ~205 | ~208 |
+| LOS efficiency (%) | ~57.8 | ~58.5 | — | ~60.0 |
 
 Three independent metrics (AUC, P95, LOS) show improvement while the
-capture ratio shows decline. This suggests the capture ratio is not a
+capture ratio shows decline. The distance-bin NB-GLM (Section 3.4)
+provides additional specificity: the decline is concentrated at 150+ km,
+where later phases show significantly negative coefficients (p < 0.001),
+while 0–100 km shows no significant phase effects.
+
+This suggests the capture ratio is not a
 reliable improvement indicator in this context. Possible explanations:
 
 1. **Near-field bias:** The 0–50 km capture ratio is consistently < 1.0
-   (mean ≈ 0.57), pulling the overall ratio down. Hardware changes that
-   improve far-field reception may not proportionally improve near-field.
+   (mean ≈ 0.56–0.58 across all phases), pulling the overall ratio down.
+   Hardware changes that improve far-field reception may not
+   proportionally improve near-field.
 2. **OpenSky coverage changes:** If OpenSky's own coverage improved
    during the study period, the denominator grows faster than local
-   improvement, deflating the ratio.
+   improvement, deflating the ratio. The monotonic decline of capture
+   ratio with increasing distance (150–200 km: -0.067 to -0.092;
+   200+ km: -0.094 to -0.152) is consistent with this hypothesis.
 3. **Schema migration:** The transition to PLAO pos schema_ver=1 may
    have changed how local unique aircraft are counted.
-4. **Distance-dependent effect direction:** NB-GLM shows positive
-   coefficients at 50–100 km but increasingly negative at 150+ km,
-   suggesting the effect varies with distance in complex ways.
+4. **Distance-dependent effect direction:** NB-GLM shows non-significant
+   positive coefficients at 50–100 km but increasingly negative at
+   150+ km, suggesting the effect varies with distance in complex ways
+   that a single overall capture ratio cannot represent.
 
 **Working interpretation:** The capture ratio should be treated as a
 supplementary diagnostic, not a primary improvement metric, until the
-near-field bias mechanism is better understood.
+near-field bias mechanism and the far-field decline are better understood.
 
 ---
 
@@ -463,7 +522,7 @@ traffic. This proxy has two documented failures:
 
 **Failure 1: Zero predictive power.**
 In both the frequentist NB-GLM (β=0.023, p=0.921) and the Bayesian
-model (β=-0.013, HDI [-0.08, +0.05]), the traffic variable explains
+model (β=-0.015, HDI [-0.185, +0.138]), the traffic variable explains
 no variance in local AUC. Airport departures/arrivals do not correlate
 with the number of aircraft flying over a ground station located ~60 km
 from the airports.
@@ -501,9 +560,9 @@ limits).
 ### 6.1 What the Data Confirms
 
 **The Airspy Mini introduction was a decisive improvement.**
-Phase evaluator: +41.6% [HDI +16.5, +69.4], P(>0)=100%.
-Bayesian CUDA: +69.7% [HDI +45.0, +94.7], P(>0)=100%.
-The difference between estimates (41.6% vs 69.7%) reflects the impact
+Phase evaluator: +45.0% [HDI +16.9, +84.0], P(>0)=99.9%.
+Bayesian CUDA: +69.7% [HDI +44.7, +94.5], P(>0)=100%.
+The difference between estimates (45.0% vs 69.7%) reflects the impact
 of controlling for operational minutes, not a contradiction.
 Every model — frequentist, Bayesian, time-resolved, coverage, LOS — agrees.
 
@@ -513,14 +572,20 @@ the largest relative gains (+45–62%). This rules out the hypothesis
 that improvement is an artifact of time-of-day sampling bias.
 
 **Coverage area expanded measurably.**
-Average P95 distance grew from ~188 km (Phase 0–1 overlap) to ~208 km
+Average P95 distance grew from ~188–191 km (Phase 1 early) to ~201–209 km
 (Phase 4). Area_p95 increased correspondingly from ~117,000 km² to
-~141,000 km².
+~142,000 km².
 
 **LOS efficiency improved progressively.**
 From 56.5% (Phase 0) to 60.3% (Phase 4), with a visible step at the
 cable change (Phase 2). This is an independent physical metric
 consistent with the AUC-based evaluation.
+
+**Cumulative improvement from RTL-SDR baseline is confirmed for all
+post-Airspy phases.**
+vs Phase 0: Phase 2 +100.7% (P=99.9%), Phase 4 +54.6% (P=100%).
+The cumulative hardware stack (Airspy + cable + adapter) produces a
+clear and statistically significant improvement over the original system.
 
 ### 6.2 What the Data Rejects
 
@@ -532,13 +597,15 @@ the phase effect persists regardless of traffic specification.
 
 **"Cable and adapter changes each produced individually significant
 improvement."**
-Against the Airspy Mini alt-baseline: 5D-FB +3.4% (P=64%),
-Adapter +12.0% (P=83%). All 94% HDIs include zero.
-Adjacent-phase comparisons (vs_previous) are all below P=65%.
+Against the Airspy Mini alt-baseline: 5D-FB +31.1% (P=67%),
+Indoor cable +6.1% (P=68%), Adapter +8.0% (P=79%). All 94% HDIs include zero.
+Adjacent-phase comparisons (vs_previous) are all below P=67%.
 
 **"The capture ratio validates the improvement."**
 OpenSky capture ratio *decreases* from 1.21 to 1.16–1.17, contradicting
-AUC, coverage, and LOS metrics. The capture ratio is not a reliable
+AUC, coverage, and LOS metrics. The distance-bin NB-GLM further shows
+that this decline is concentrated at 150+ km (p < 0.001) while near-field
+(0–100 km) is unaffected. The capture ratio is not a reliable
 improvement indicator in this dataset.
 
 **"The binomial quality model supports the conclusions."**
@@ -553,8 +620,8 @@ A/B testing (temporarily reverting to the old cable) would be needed
 to isolate individual effects, but is impractical.
 
 **Indoor cable change (2.5DS-QFB) impact.**
-N=2 days. ARENA's own reliability tag marks this as `[reference: N<3]`.
-The +11.4% estimate (P=68%) is a directional hint, not evidence.
+N=3 days. ARENA's own reliability tag marks this as `[prelim: low N]`.
+The +6.1% estimate (P=68%) is a directional hint, not evidence.
 
 **Soft parameter contributions.**
 Gain (13–21), decoder flags (-e, -f, -m, -w), and night-time schedules
@@ -562,28 +629,32 @@ were changed multiple times within Phase 1. ARENA evaluates at the
 hardware-phase level and cannot attribute effects to individual parameters.
 
 **The cause of near-field capture deficit.**
-The 0–50 km capture ratio is consistently ~0.57 (local sees ~57% of
-what OpenSky sees at close range). Whether this is antenna directivity,
-readsb filtering, terrain masking, or low-altitude aircraft exclusion
-is undetermined.
+The 0–50 km capture ratio is consistently ~0.56–0.58 (local sees ~57% of
+what OpenSky sees at close range) across all phases. The distance-bin
+NB-GLM confirms no phase has a significant effect at 0–50 km (all p > 0.32).
+Whether this is antenna directivity, readsb filtering, terrain masking,
+or low-altitude aircraft exclusion is undetermined.
 
 ### 6.4 What Remains Open
 
 **Long-term stability and seasonal effects.**
-The 60-day window (late December to early March) covers only winter
+The 61-day window (late December to early March) covers only winter
 conditions. Atmospheric propagation, humidity, and temperature inversions
 may affect ADS-B reception differently in summer.
 
 **Achieving P(>0) ≥ 95% for the adapter change.**
-Currently at P=83% (vs Airspy Mini baseline). Extrapolating when this
-threshold will be crossed depends on day-to-day variance (CV ≈ 15–20%)
-and is unreliable. A single low-value day (e.g., the Feb 25 outlier
-with AUC=33,229) can significantly delay convergence.
+Currently at P=79% (vs Airspy Mini baseline) with N=7 days. As data
+accumulates, this may cross the 80% or 95% thresholds, but the rate
+of convergence depends on day-to-day variance (CV ≈ 15–20%)
+and is unreliable to extrapolate. A single low-value day (e.g., the
+Feb 25 outlier with AUC=33,229) can significantly delay convergence.
 
 **Reconciling the capture ratio contradiction.**
 Why does the OpenSky-relative metric decline while absolute and
-coverage-based metrics improve? Until this is explained, the capture
-ratio cannot be used as a primary evaluation metric.
+coverage-based metrics improve? The distance-bin analysis narrows the
+problem: the decline is at 150+ km. Until the mechanism (OpenSky
+denominator growth, atmospheric effects, or schema differences) is
+identified, the capture ratio cannot be used as a primary evaluation metric.
 
 **Phase 0 normalization quality.**
 RTL-SDR period data lacks local_traffic_proxy, pos_records, and
@@ -596,7 +667,7 @@ auc_n_used and hnd_nrt_movements (which has zero predictive power).
 
 ### 7.1 Operational Next Steps
 
-1. **Accumulate data for Phase 4.** The adapter change shows P(>0)=83%
+1. **Accumulate data for Phase 4.** The adapter change shows P(>0)=79%
    with 7 days. Continue monitoring without further changes until the
    estimate stabilizes (target: 21+ days to allow for weekly cycles).
 
@@ -624,7 +695,9 @@ auc_n_used and hnd_nrt_movements (which has zero predictive power).
 
 6. **Investigate the capture ratio anomaly.** Decompose the 0–50 km
    deficit by analyzing aircraft altitude distributions and comparing
-   local vs OpenSky detection by altitude band.
+   local vs OpenSky detection by altitude band. Also investigate whether
+   the monotonic far-field decline (150–200 km, 200+ km) reflects
+   OpenSky denominator growth over the study period.
 
 7. **Add seasonal monitoring.** Extend the dataset through at least one
    full season change (June–August) before drawing long-term conclusions.
@@ -635,7 +708,7 @@ auc_n_used and hnd_nrt_movements (which has zero predictive power).
    development case. As data accumulates, re-benchmark to find the
    dataset size where GPU parallelism begins to outperform CPU
    sequential execution for DiscreteHMCGibbs and NUTS on this hardware.
-   
+
 ---
 
 ## 8. Appendix: Decision Criteria Reference

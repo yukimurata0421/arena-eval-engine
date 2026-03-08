@@ -2,6 +2,78 @@
 
 All notable changes to this project will be documented in this file.
 
+---
+
+## [0.1.9] - 2026-03-08
+
+### Fixed
+
+- Corrected logging behavior for pipeline_runs.jsonl.
+  Introduced a configurable logging mode: --log-jsonl-mode {append, overwrite}.
+  append preserves the original append-only audit log design.
+  overwrite clears the log at run start so that only the current execution remains.
+
+- Fixed data contamination in merge_output_for_ai.py.
+  performance/pipeline_runs*.jsonl is now excluded from merged outputs.
+  Added wildcard exclusion using fnmatch.
+  Large .jsonl and .log files are now read from the tail section to prioritize recent results.
+
+- Corrected numerical values in the "Statistical assumptions and limitations" section.
+  The previous values were derived from merged outputs that included audit log data.
+  After fixing the merge logic and regenerating the outputs, the statistical values were recalculated.
+  The statistical assumptions themselves remain unchanged.
+
+### Added
+
+- Regression test for JSONL logging mode.
+  Added test_log_jsonl_mode_overwrite to ensure overwrite mode resets execution logs correctly.
+
+### Validation
+
+- Verified using real pipeline data with repeated dry-run executions.
+- Confirmed correct behavior for both logging modes.
+  overwrite: only the latest run remains.
+  append: execution history is preserved.
+- Confirmed performance/pipeline_runs*.jsonl appears as excluded_file in the merge manifest.
+- Test suite executed successfully.
+
+python -m pytest tests/test_jsonl_parser.py tests/test_pipeline_minimal.py
+
+### Fixed
+
+- Corrected logging behavior for pipeline_runs.jsonl.
+  - Introduced a configurable logging mode: --log-jsonl-mode {append, overwrite}.
+  - append preserves the original append-only audit log design.
+  - overwrite clears the log at run start to keep only the current execution results.
+
+- Fixed data contamination in merge_output_for_ai.py.
+  - Excluded performance/pipeline_runs*.jsonl from merged outputs.
+  - Added wildcard exclusion using fnmatch.
+  - Implemented tail-priority reading for large .jsonl and .log files to prioritize recent outputs.
+
+- Corrected numerical values in the "Statistical assumptions and limitations" section.
+  - Previous values were derived from merged outputs that included audit log data.
+  - After fixing the merge logic and regenerating results, the statistical values were recalculated and updated.
+  - The statistical assumptions themselves remain unchanged; only the reported numbers were corrected.
+
+### Added
+
+- Regression test for JSONL logging mode.
+  - Added test_log_jsonl_mode_overwrite to ensure overwrite mode resets execution logs correctly.
+
+### Validation
+
+- Verified using real pipeline data with repeated dry-run executions.
+- Confirmed correct behavior for both logging modes:
+  - overwrite: only the latest run remains
+  - append: execution history is preserved
+- Confirmed performance/pipeline_runs*.jsonl appears as excluded_file in the merge manifest.
+- Test suite executed successfully.
+
+    python -m pytest tests/test_jsonl_parser.py tests/test_pipeline_minimal.py
+
+---
+
 ## [0.1.8] - 2026-03-08
 ### Fixed
 - Corrected the project version in `pyproject.toml` for the release.

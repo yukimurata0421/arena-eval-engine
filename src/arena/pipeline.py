@@ -274,6 +274,7 @@ class RunConfig:
     skip_existing: bool = False
     fail_fast: bool = False
     log_jsonl: str = ""
+    log_jsonl_mode: str = "append"
     skip_plao: bool = False
 
 
@@ -1353,6 +1354,17 @@ def run(cfg: RunConfig) -> int:
         log_jsonl = Path(cfg.log_jsonl)
     else:
         log_jsonl = output_root_native / "performance" / "pipeline_runs.jsonl"
+
+    log_mode = (cfg.log_jsonl_mode or "append").strip().lower()
+    if log_mode not in {"append", "overwrite"}:
+        print(f"[ERROR] Invalid --log-jsonl-mode: {cfg.log_jsonl_mode} (use append|overwrite)")
+        return 1
+    if log_mode == "overwrite":
+        log_jsonl.parent.mkdir(parents=True, exist_ok=True)
+        log_jsonl.write_text("", encoding="utf-8")
+        print(f"Log mode:       overwrite ({log_jsonl})")
+    else:
+        print(f"Log mode:       append ({log_jsonl})")
 
     runner = PipelineRunner(
         backend=backend,

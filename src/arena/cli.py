@@ -133,6 +133,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         skip_existing=args.skip_existing,
         fail_fast=args.fail_fast,
         log_jsonl=args.log_jsonl or "",
+        log_jsonl_mode=args.log_jsonl_mode,
         skip_plao=args.skip_plao,
     )
 
@@ -184,6 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--skip-existing", action="store_true")
     p_run.add_argument("--fail-fast", action="store_true")
     p_run.add_argument("--log-jsonl", default="")
+    p_run.add_argument("--log-jsonl-mode", choices=["append", "overwrite"], default="append")
     p_run.add_argument("--skip-plao", action="store_true")
     p_run.set_defaults(func=cmd_run)
 

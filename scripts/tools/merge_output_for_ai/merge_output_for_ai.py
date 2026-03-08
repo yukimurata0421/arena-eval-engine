@@ -26,15 +26,25 @@ import io
 import os
 import sys
 import zipfile
+from fnmatch import fnmatch
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
+_ROOT = Path(__file__).resolve().parents[3]
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
 from arena.lib.paths import OUTPUT_DIR
 
 
 TEXT_EXT_DEFAULT = [".txt", ".log", ".json", ".jsonl", ".csv", ".html", ".md"]
+ALWAYS_EXCLUDE_DIRS = {"merged_for_ai", "_tmp_check_out"}
+ALWAYS_EXCLUDE_DIR_PREFIXES = ("_tmp",)
+ALWAYS_EXCLUDE_REL_PATHS = {"performance/pipeline_runs.jsonl"}
+ALWAYS_EXCLUDE_REL_GLOBS = {"performance/pipeline_runs*.jsonl"}
 
 
 @dataclass
@@ -53,7 +63,7 @@ def iso_mtime(p: Path) -> str:
     return datetime.fromtimestamp(ts).isoformat(timespec="seconds")
 
 
-def try_read_text(path: Path, max_bytes: int) -> Tuple[Optional[str], str]:
+def try_read_text(path: Path, max_bytes: int, prefer_tail: bool = False) -> Tuple[Optional[str], str]:
     """
     Try to read as text.
     - UTF-8 (with BOM) -> fallback to cp932 -> final fallback latin-1
@@ -69,8 +79,15 @@ def try_read_text(path: Path, max_bytes: int) -> Tuple[Optional[str], str]:
             return None, "binary_like(NULL found)"
 
     raw = None
-    with path.open("rb") as f:
-        raw = f.read(to_read)
+    if prefer_tail and size > max_bytes:
+        with path.open("rb") as f:
+            f.seek(size - to_read)
+            raw = f.read(to_read)
+        if b"\n" in raw:
+            raw = raw.split(b"\n", 1)[1]
+    else:
+        with path.open("rb") as f:
+            raw = f.read(to_read)
 
     encodings = ["utf-8-sig", "utf-8", "cp932", "latin-1"]
     last_err = None
@@ -85,10 +102,22 @@ def try_read_text(path: Path, max_bytes: int) -> Tuple[Optional[str], str]:
             note = None
 
     if text is None:
-        return None, f"decode_failed({last_err})"
+        if prefer_tail:
+            for enc in encodings:
+                try:
+                    text = raw.decode(enc, errors="replace")
+                    note = f"{enc}(replace)"
+                    break
+                except Exception:
+                    continue
+        if text is None:
+            return None, f"decode_failed({last_err})"
 
     if size > max_bytes:
-        text += "\n\n<!-- TRUNCATED: file_size={} bytes exceeded max_bytes={} -->\n".format(size, max_bytes)
+        if prefer_tail:
+            text += "\n\n<!-- TRUNCATED: showing tail, file_size={} bytes exceeded max_bytes={} -->\n".format(size, max_bytes)
+        else:
+            text += "\n\n<!-- TRUNCATED: file_size={} bytes exceeded max_bytes={} -->\n".format(size, max_bytes)
 
     return text, note
 
@@ -148,7 +177,8 @@ def merge_to_markdown(
                 continue
 
             p = Path(it.abs_path)
-            text, enc = try_read_text(p, max_bytes=max_bytes_per_file)
+            prefer_tail = it.ext in {".jsonl", ".log"}
+            text, enc = try_read_text(p, max_bytes=max_bytes_per_file, prefer_tail=prefer_tail)
 
             out.write("\n\n---\n")
             out.write(f"### {it.rel_path}\n")
@@ -194,7 +224,7 @@ def main() -> int:
     ap.add_argument("--include-ext", default=",".join(TEXT_EXT_DEFAULT),
                     help="Comma-separated extensions to include (e.g. .txt,.log,.json,.csv,.html)")
     ap.add_argument("--exclude-dir", default="",
-                    help="Comma-separated directory names to exclude (e.g. .git,__pycache__)")
+                    help="Comma-separated directory names to exclude in addition to always-excluded dirs")
     ap.add_argument("--max-bytes-per-file", type=int, default=2_000_000,
                     help="Max bytes to read per file (default: 2,000,000)")
     ap.add_argument("--sort", choices=["path", "mtime"], default="path",
@@ -206,9 +236,10 @@ def main() -> int:
     out_dir = Path(args.out)
     include_ext = [e.strip().lower() for e in args.include_ext.split(",") if e.strip()]
     exclude_dirs = {d.strip() for d in args.exclude_dir.split(",") if d.strip()}
+    exclude_dirs.update(ALWAYS_EXCLUDE_DIRS)
 
     if not base_dir.exists():
-        print(f"[ERROR] base_dir not found: {base_dir}", file=sys.stderr)
+        print(f"[ERROR] base_dir が見つかりません: {base_dir}", file=sys.stderr)
         return 2
 
     all_files = enumerate_files(base_dir)
@@ -216,9 +247,14 @@ def main() -> int:
     items: List[FileItem] = []
     for p in all_files:
         rel = normalize_rel(base_dir, p)
+        if rel in ALWAYS_EXCLUDE_REL_PATHS or any(fnmatch(rel, pat) for pat in ALWAYS_EXCLUDE_REL_GLOBS):
+            items.append(FileItem(rel, str(p), p.suffix.lower(), p.stat().st_size, iso_mtime(p),
+                                  included=False, reason="excluded_file"))
+            continue
+
         if exclude_dirs:
             parts = Path(rel).parts
-            if any(part in exclude_dirs for part in parts):
+            if any(part in exclude_dirs or part.startswith(ALWAYS_EXCLUDE_DIR_PREFIXES) for part in parts):
                 items.append(FileItem(rel, str(p), p.suffix.lower(), p.stat().st_size, iso_mtime(p),
                                       included=False, reason="excluded_dir"))
                 continue
@@ -244,7 +280,7 @@ def main() -> int:
     print(f"[OK] manifest: {manifest_path}")
 
     if args.dry_run:
-        print("[INFO] dry-run enabled: skip merging")
+        print("[INFO] dry-run 有効: マージをスキップします")
         return 0
 
     merge_to_markdown(

@@ -118,6 +118,7 @@ arena-eval-engine/
 ├── docker/              # Container configuration
 ├── docs/                # Additional documentation
 │   ├── architecture.md  #   Pipeline stage diagram (Mermaid)
+│   ├── statistical-assumptions-and-limitations.md
 │   └── aeme.md          #   Statistical engine design and philosophy
 ├── .github/workflows/   # CI configuration (GitHub Actions)
 └── pyproject.toml       # Package metadata and dependencies
