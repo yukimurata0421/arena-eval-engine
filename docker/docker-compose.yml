@@ -4,6 +4,27 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.cpu
     command: ["python", "-m", "pytest", "-q", "-m", "not real_data"]
+  arena-run:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    command:
+      [
+        "arena",
+        "run",
+        "--backend",
+        "native",
+        "--data-dir",
+        "/workspace/data",
+        "--output-dir",
+        "/workspace/output",
+        "--stage",
+        "1",
+        "--no-gpu",
+      ]
   arena-sample-smoke:
     build:
       context: ..

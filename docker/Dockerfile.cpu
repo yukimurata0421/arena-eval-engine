@@ -12,6 +12,6 @@ COPY data /workspace/data
 COPY output /workspace/output
 
 RUN python -m pip install -U pip \
- && pip install -e ".[dev]"
+ && pip install -e ".[dev,bayes,gpu]"
 
 CMD ["python", "scripts/dev/run_sample_smoke.py"]

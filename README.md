@@ -313,6 +313,38 @@ or with Compose:
 docker compose -f docker/docker-compose.yml run --rm arena-sample-smoke
 ```
 
+The CPU image is provisioned for the full `arena run` CLI, including the
+Bayesian and NumPyro/JAX dependencies required by Stage 4 and Stage 5.
+This keeps the smoke and full-run workflows on the same image, at the cost of
+a larger Docker build than a smoke-only image.
+
+## Docker Full Run
+
+Run the full pipeline in Docker with the repository mounted into `/workspace`
+so outputs persist on the host:
+
+```powershell
+docker build -f docker/Dockerfile.cpu -t arena-release .
+docker run --rm -it `
+  -v "E:\arena_release:/workspace" `
+  -w /workspace `
+  arena-release `
+  arena run --backend native --data-dir /workspace/data --output-dir /workspace/output --stage 1 --no-gpu
+```
+
+Compose equivalent:
+
+```bash
+docker compose -f docker/docker-compose.yml run --rm arena-run
+```
+
+You can override the default `arena run` arguments when needed. For example:
+
+```bash
+docker compose -f docker/docker-compose.yml run --rm arena-run arena run --only 1 --dry-run --skip-plao
+docker compose -f docker/docker-compose.yml run --rm arena-run arena validate --data-dir /workspace/data --output-dir /workspace/output --create-dirs
+```
+
 ## Real-Data Smoke
 
 Real-data validation is local and opt-in only.
