@@ -5,13 +5,36 @@ on:
   pull_request:
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check src tests scripts/tools/artifacts scripts/dev
+
+  tests:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.11"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,21 +44,66 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check .
-      - name: Test (no coverage)
-        if: matrix.python-version != '3.11'
-        run: pytest -q
-      - name: Test with coverage
-        if: matrix.python-version == '3.11'
+      - name: Pytest
+        run: python -m pytest -q -m "not real_data"
+
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
         run: |
-          pytest -q \
-            --cov=arena \
-            --cov-report=term-missing \
-            --cov-report=xml:coverage.xml
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+      - name: Coverage
+        run: |
+          coverage run -m pytest -q -m "not real_data"
+          coverage report
+          coverage xml
       - name: Upload coverage artifact
-        if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
           path: coverage.xml
+
+  compatibility:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install ".[dev]"
+      - name: Non-editable CLI path compatibility
+        working-directory: tests
+        run: python -m arena.cli validate
+      - name: Legacy wrapper help
+        run: python scripts/tools/merge_output_for_ai/merge_output_for_ai.py --help
+      - name: Artifacts CLI help
+        run: python scripts/tools/artifacts/cli.py --help
+      - name: Compatibility regression tests
+        run: |
+          python -m pytest -q tests/test_cli.py tests/test_pipeline_minimal.py tests/test_artifacts_migration.py
+      - name: Artifact verify and replay smoke
+        run: python scripts/dev/run_sample_smoke.py
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build
+        run: docker build -f docker/Dockerfile.cpu -t arena-release-smoke .
+      - name: Docker sample smoke
+        run: docker run --rm arena-release-smoke python scripts/dev/run_sample_smoke.py

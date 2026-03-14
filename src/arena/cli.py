@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Sequence
 
 from arena import pipeline
-from arena.lib.paths import ROOT, SCRIPTS_ROOT
+from arena.artifacts.integrity import verify_artifact_bundle
+from arena.artifacts.replay import replay_artifact_bundle
+from arena.lib.paths import resolve_data_dir, resolve_output_dir, resolve_root, resolve_scripts_root
 from arena.lib.phase_config import load_phase_config
 from arena.lib.runtime_config import load_settings
 
@@ -40,9 +42,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
         except Exception:
             phase_cfg = Path()
 
-    scripts_root = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(SCRIPTS_ROOT)))
-    data_dir = Path(os.getenv("ARENA_DATA_DIR", str(ROOT / "data")))
-    output_dir = Path(os.getenv("ARENA_OUTPUT_DIR", str(ROOT / "output")))
+    default_scripts_root = resolve_scripts_root()
+    default_root = resolve_root(scripts_root=default_scripts_root)
+    scripts_root = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(default_scripts_root)))
+    data_dir = Path(os.getenv("ARENA_DATA_DIR", str(resolve_data_dir(root=default_root))))
+    output_dir = Path(os.getenv("ARENA_OUTPUT_DIR", str(resolve_output_dir(root=default_root))))
 
     ok = True
     if not scripts_root.exists():
@@ -81,9 +85,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
                 lat = float(data["site"]["lat"])
                 lon = float(data["site"]["lon"])
                 if lat == 0.0 and lon == 0.0:
-                    print(
-                        "WARNING: site.lat/lon is 0.0 (not configured). Set it in settings.toml [site]."
-                    )
+                    print("WARNING: site.lat/lon is 0.0 (not configured). Set it in settings.toml [site].")
             except (TypeError, ValueError):
                 print("[NG] settings.toml [site] lat/lon must be numeric")
                 ok = False
@@ -135,6 +137,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         log_jsonl=args.log_jsonl or "",
         log_jsonl_mode=args.log_jsonl_mode,
         skip_plao=args.skip_plao,
+        workers=args.workers,
     )
 
     return pipeline.run(cfg)
@@ -143,27 +146,44 @@ def cmd_run(args: argparse.Namespace) -> int:
 def cmd_fetch_opensky(args: argparse.Namespace) -> int:
     _apply_path_overrides(args)
 
-    script = (
-        Path(os.getenv("ARENA_SCRIPTS_ROOT", str(SCRIPTS_ROOT)))
-        / "adsb"
-        / "data_fetch"
-        / "get_opensky_traffic.py"
-    )
+    script = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(resolve_scripts_root()))) / "adsb" / "data_fetch" / "get_opensky_traffic.py"
     if not script.exists():
         print(f"[NG] OpenSky script not found: {script}")
         return 1
 
-    env = {**os.environ}
-    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
-
-    cmd = [sys.executable, str(script)]
-    proc = subprocess.run(cmd, env=env)
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])}
+    proc = subprocess.run([sys.executable, str(script)], env=env)
     return proc.returncode
 
 
+def cmd_artifacts_verify(args: argparse.Namespace) -> int:
+    try:
+        result = verify_artifact_bundle(Path(args.artifact_bundle))
+    except Exception as exc:
+        print(f"[NG] artifact verification failed: {exc}")
+        return 1
+    print(f"artifact_bundle: {Path(args.artifact_bundle).resolve()}")
+    print(f"valid: {int(result['valid'])}")
+    print(f"bundle_sha256: {result['bundle_sha256']}")
+    print(f"integrity_passed: {int(bool(result['integrity_summary'].get('passed', False)))}")
+    if result["errors"]:
+        print("errors:")
+        for error in result["errors"]:
+            print(f"- {error}")
+    return 0 if result["valid"] else 1
+
+
+def cmd_artifacts_replay(args: argparse.Namespace) -> int:
+    try:
+        return replay_artifact_bundle(Path(args.artifact_bundle))
+    except Exception as exc:
+        print(f"[NG] artifact replay failed: {exc}")
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="arena", description="ARENA evaluation engine CLI")
-    sub = p.add_subparsers(dest="subcommand", required=True)
+    parser = argparse.ArgumentParser(prog="arena", description="ARENA evaluation engine CLI")
+    sub = parser.add_subparsers(dest="subcommand", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--scripts-root", help="override scripts root")
@@ -187,6 +207,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--log-jsonl", default="")
     p_run.add_argument("--log-jsonl-mode", choices=["append", "overwrite"], default="append")
     p_run.add_argument("--skip-plao", action="store_true")
+    p_run.add_argument("--workers", type=int, default=0, help="worker count for child scripts (0=auto)")
     p_run.set_defaults(func=cmd_run)
 
     p_val = sub.add_parser("validate", parents=[common], help="validate config and directories")
@@ -196,12 +217,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_fetch = sub.add_parser("fetch-opensky", parents=[common], help="fetch OpenSky traffic data")
     p_fetch.set_defaults(func=cmd_fetch_opensky)
 
-    return p
+    p_artifacts = sub.add_parser("artifacts", help="verify or replay an artifact bundle")
+    artifacts_sub = p_artifacts.add_subparsers(dest="artifacts_command", required=True)
+
+    p_artifacts_verify = artifacts_sub.add_parser("verify", help="verify an artifact bundle")
+    p_artifacts_verify.add_argument("artifact_bundle", nargs="?", default=".", help="artifact bundle root")
+    p_artifacts_verify.set_defaults(func=cmd_artifacts_verify)
+
+    p_artifacts_replay = artifacts_sub.add_parser("replay", help="replay artifact bundle verification")
+    p_artifacts_replay.add_argument("artifact_bundle", help="artifact bundle root")
+    p_artifacts_replay.set_defaults(func=cmd_artifacts_replay)
+
+    return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    p = build_parser()
-    args = p.parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     return args.func(args)
 
 

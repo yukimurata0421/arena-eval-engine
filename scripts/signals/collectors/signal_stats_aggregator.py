@@ -8,10 +8,11 @@ from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
-from arena.lib.paths import DATA_DIR, PAST_LOG_DIR, ADSB_SIGNAL_RANGE_SUMMARY
+from arena.lib.paths import DATA_DIR, PAST_LOG_DIR, ADSB_SIGNAL_DAILY_SUMMARY, ADSB_SIGNAL_RANGE_SUMMARY
 
 SEARCH_DIRS = [str(DATA_DIR), str(PAST_LOG_DIR)]
 OUTPUT_FILE = str(ADSB_SIGNAL_RANGE_SUMMARY)
+LEGACY_OUTPUT_FILE = str(ADSB_SIGNAL_DAILY_SUMMARY)
 
 def combine_metrics(buckets, keys, metric_key):
     total_val = 0
@@ -78,6 +79,7 @@ def aggregate_signal_ranges():
         df = pd.DataFrame(columns=["date", "sig_150_175", "snr_150_175"])
         os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
         df.to_csv(OUTPUT_FILE, index=False)
+        pd.DataFrame(columns=["date", "sig_150_175"]).to_csv(LEGACY_OUTPUT_FILE, index=False)
         return
 
     print(f">>> Aggregating signal strength and SNR from {len(files)} files... (parallel)")
@@ -116,7 +118,9 @@ def aggregate_signal_ranges():
         df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     df.to_csv(OUTPUT_FILE, index=False)
-    print(f"✅ Range aggregation (with SNR) complete: {OUTPUT_FILE}")
+    # Backward compatibility: keep the legacy daily signal summary refreshed.
+    df[["date", "sig_150_175"]].to_csv(LEGACY_OUTPUT_FILE, index=False)
+    print(f"[OK] Range aggregation (with SNR) complete: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     aggregate_signal_ranges()

@@ -19,6 +19,7 @@ dependencies = [
   "seaborn>=0.13",
   "folium>=0.16",
   "requests>=2.31",
+  "jsonschema>=4.23",
 ]
 
 [project.optional-dependencies]
@@ -55,6 +56,11 @@ include = ["arena*"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["src", "."]
+markers = [
+  "slow: long-running tests (run explicitly)",
+  "gpu: tests requiring GPU/JAX (run explicitly)",
+  "real_data: opt-in smoke tests against private local datasets",
+]
 
 [tool.ruff]
 line-length = 100
@@ -71,8 +77,9 @@ ignore = ["E501"]
 
 [tool.coverage.run]
 branch = true
-source = ["arena"]
+source = ["arena", "scripts"]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+fail_under = 55

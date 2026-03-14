@@ -1,83 +1,11 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
+from typing import Any
 
-try:
-    import tomllib  # py3.11+
-except ModuleNotFoundError:  # pragma: no cover
-    try:
-        import tomli as tomllib  # type: ignore
-    except ModuleNotFoundError:
-        tomllib = None
-
-
-def _find_scripts_root() -> Path:
-    env_scripts = os.getenv("ARENA_SCRIPTS_ROOT") or os.getenv("ADSB_SCRIPTS_ROOT")
-    if env_scripts:
-        return Path(env_scripts)
-    here = Path(__file__).resolve()
-    # If running from src layout, find the sibling "scripts" directory.
-    for parent in here.parents:
-        candidate = parent / "scripts"
-        if candidate.exists() and (candidate / "adsb").exists():
-            return candidate
-        if parent.name == "scripts" and (parent / "adsb").exists():
-            return parent
-    return here.parents[1]
-
-
-SCRIPTS_ROOT = _find_scripts_root()
-
-
-def _parse_settings_fallback(text: str) -> dict:
-    settings: dict = {}
-    section = ""
-    for raw in text.splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            section = line[1:-1].strip()
-            settings.setdefault(section, {})
-            continue
-        if "=" in line and section:
-            k, v = line.split("=", 1)
-            key = k.strip()
-            val = v.strip()
-            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-                val = val[1:-1]
-            settings.setdefault(section, {})[key] = val
-    return settings
-
-
-def _load_settings() -> dict:
-    env_path = os.getenv("ARENA_SETTINGS") or os.getenv("ADSB_SETTINGS")
-    candidates = []
-    if env_path:
-        candidates.append(Path(env_path))
-    candidates.append(SCRIPTS_ROOT / "config" / "settings.toml")
-    # src layout fallback
-    candidates.append(Path(__file__).resolve().parents[2] / "config" / "settings.toml")
-    for p in candidates:
-        if not p.exists():
-            continue
-        try:
-            text = p.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        if tomllib is not None:
-            try:
-                return tomllib.loads(text)
-            except Exception:
-                pass
-        # fallback minimal parser (paths only)
-        try:
-            return _parse_settings_fallback(text)
-        except Exception:
-            return {}
-    return {}
-
-
-_SETTINGS = _load_settings()
+from arena.lib.runtime_config import load_settings
+from arena.lib.settings_loader import find_scripts_root
 
 
 def _looks_like_windows_path(val: str) -> bool:
@@ -103,8 +31,17 @@ def _wsl_to_win_path(val: str) -> str:
     return f"{drive}:\\" + rest
 
 
-def _settings_path_value(key: str) -> Path | None:
-    val = _SETTINGS.get("paths", {}).get(key)
+def _load_settings() -> dict[str, Any]:
+    data = load_settings().data
+    return data if isinstance(data, dict) else {}
+
+
+def _settings_path_value(key: str, settings: dict[str, Any] | None = None) -> Path | None:
+    source = settings if settings is not None else _load_settings()
+    paths = source.get("paths", {})
+    if not isinstance(paths, dict):
+        return None
+    val = paths.get(key)
     if val is None:
         return None
     raw = str(val).strip()
@@ -117,18 +54,27 @@ def _settings_path_value(key: str) -> Path | None:
     return Path(raw)
 
 
-def _resolve_root() -> Path:
+def resolve_scripts_root() -> Path:
+    return find_scripts_root()
+
+
+def resolve_root(
+    *,
+    settings: dict[str, Any] | None = None,
+    scripts_root: Path | None = None,
+) -> Path:
     env_root = os.getenv("ARENA_ROOT") or os.getenv("ADSB_ROOT")
     if env_root:
         return Path(env_root)
-    settings_root = _settings_path_value("root")
+    settings_root = _settings_path_value("root", settings=settings)
     if settings_root:
         return settings_root
 
     # Prefer project root inferred from scripts location
+    scripts = scripts_root or resolve_scripts_root()
     try:
-        if SCRIPTS_ROOT.exists() and SCRIPTS_ROOT.parent.exists():
-            return SCRIPTS_ROOT.parent
+        if scripts.exists() and scripts.parent.exists():
+            return scripts.parent
     except Exception:
         pass
 
@@ -138,17 +84,36 @@ def _resolve_root() -> Path:
     except Exception:
         return Path("/")
 
+def resolve_data_dir(*, root: Path | None = None, settings: dict[str, Any] | None = None) -> Path:
+    env_data = os.getenv("ARENA_DATA_DIR") or os.getenv("ADSB_DATA_DIR")
+    if env_data:
+        return Path(env_data)
+    resolved_root = root or resolve_root(settings=settings)
+    return _settings_path_value("data_dir", settings=settings) or (resolved_root / "data")
 
-ROOT = _resolve_root()
-_ENV_DATA = os.getenv("ARENA_DATA_DIR") or os.getenv("ADSB_DATA_DIR")
-_ENV_OUTPUT = os.getenv("ARENA_OUTPUT_DIR") or os.getenv("ADSB_OUTPUT_DIR")
 
-DATA_DIR = Path(_ENV_DATA) if _ENV_DATA else (_settings_path_value("data_dir") or (ROOT / "data"))
+def resolve_output_dir(*, root: Path | None = None, settings: dict[str, Any] | None = None) -> Path:
+    env_output = os.getenv("ARENA_OUTPUT_DIR") or os.getenv("ADSB_OUTPUT_DIR")
+    if env_output:
+        return Path(env_output)
+    resolved_root = root or resolve_root(settings=settings)
+    return _settings_path_value("output_dir", settings=settings) or (resolved_root / "output")
+
+
+def resolve_runtime_roots() -> tuple[Path, Path, Path]:
+    scripts_root = resolve_scripts_root()
+    settings = _load_settings()
+    root = resolve_root(settings=settings, scripts_root=scripts_root)
+    output = resolve_output_dir(root=root, settings=settings)
+    data = resolve_data_dir(root=root, settings=settings)
+    return scripts_root, output, data
+
+
+# Backward-compatible module constants (snapshot at import time).
+SCRIPTS_ROOT, OUTPUT_DIR, DATA_DIR = resolve_runtime_roots()
+ROOT = resolve_root(scripts_root=SCRIPTS_ROOT)
 RAW_DIR = DATA_DIR / "raw"
 PAST_LOG_DIR = RAW_DIR / "past_log"
-OUTPUT_DIR = (
-    Path(_ENV_OUTPUT) if _ENV_OUTPUT else (_settings_path_value("output_dir") or (ROOT / "output"))
-)
 
 ADSB_DAILY_SUMMARY = OUTPUT_DIR / "adsb_daily_summary.csv"
 ADSB_DAILY_SUMMARY_V2 = OUTPUT_DIR / "adsb_daily_summary_v2.csv"
@@ -157,5 +122,5 @@ ADSB_SIGNAL_RANGE_SUMMARY = OUTPUT_DIR / "adsb_signal_range_summary.csv"
 ADSB_SIGNAL_DAILY_SUMMARY = OUTPUT_DIR / "adsb_signal_daily_summary.csv"
 
 
-def ensure_dir(path: Path):
+def ensure_dir(path: Path) -> None:
     os.makedirs(path, exist_ok=True)

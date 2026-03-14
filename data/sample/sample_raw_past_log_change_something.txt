@@ -1,42 +1,42 @@
-2026/01/09 18:45 vinnant 8-pに変更 
-2026/01/10 10:00 gain 33.8に固定 
-2026/01/10 22:12 Threshold 8に変更 
-2026/01/10 23:20 Threshold 9に変更 
-2026/01/11 00:13 gain 36.4に変更 
-2026/01/11 19:31 gain 38.6に変更 
-2026/01/12 09:10 gain 40.2に変更 
-2026/01/12 14:52 gain 42.1に変更 
-2026/01/12 22:10 gain 43.4に変更 
-2026/01/13 18:30 Threshold 8に変更 
-2026/01/14 17:02 airspy mini導入 
-2026/01/14 17:56 gain 17に変更 
-2026/01/14 18:28 gain 15に変更 
-2026/01/14 18:35 gain 13に変更 
-2026/01/14 18:58 gain 15に変更 
-2026/01/14 19:00 gain 18に変更 
-2026/01/15 10:11 gain 19に変更し、-C 80を削除, -x削除し-e 60に設定 
-2026/01/15 17:09 gain 20に変更 
-2026/01/15 17:14 gain 19に変更(目視で飛行機が消えたため) 
-2026/01/16 06:33 -f 2, -e 40に変更 
-2026/01/16 18:00 -e 48に変更 
-2026/01/16 18:20 -e 50に変更 
-2026/01/17 08:30 -f 1 -e 60に変更 
-2026/01/17 21:19 サンプリングレート-m 12に変更 
-2026/01/18 08:27 -w 4に変更 
-2026/01/18 11:33 -w 3に変更 
-2026/1/19 21:33 -R snrを追加 
-2026/1/19 21:43 -R snrを削除 
-2026/01/22 20:55 GAIN 18に変更
-2026/01/23 22:42 深夜0時から朝6時までGAIN autoに設定。/usr/local/sbin/airspy_gain_guard.py
-2026/01/25 07:42 -m 20に変更 -e 30(検討して現在-m 12 -e 60に戻した)→ポジション機変化無し、メッセージレート１０％程度低下
-2026/01/25 07:42 深夜0時から朝6時までGAIN 21に設定。
-2026/01/26 20:00 すべてGAIN19に変更。/usr/local/sbin/airspy_gain_guard.pyを停止。
-2026/01/26 19:40 GAIN18に変更。
-2026/01/29 09:27 夜間GAIN19に変更。/usr/local/sbin/airspy_gain_guard.pyを再開
-2026/02/11 9:49 -e 30に変更。サンプリングレート -m 20に変更
-2026/02/11 10:46 -f 2に変更
-2026/02/14 15:54 変換コネクター SMA-P⇔N-P(COSMTEC RESOURCES CO., LTD), コスモウェーブ 5D-FB 2mに変更
-2026/02/15 9:07 メインのGAIN 17に変更。夜間GAIN18に変更
-2026/02/26 7:21 室内引き込みケーブル（四国電線 2.5DS-QFB 50cm）にRG316 50cm(Boobrie)から変更
-2026/02/27 9:08 -m 12, -f 1, -e 60に変更
-2026/02/28 7:39 変換アダプターの変更。COSMTEC RESOURCES CO., LTDからNM-SM50+(Mini-Circuits)に変更
+2026/01/09 18:45 Switched to vinnant 8-p
+2026/01/10 10:00 Fixed gain at 33.8
+2026/01/10 22:12 Changed Threshold to 8
+2026/01/10 23:20 Changed Threshold to 9
+2026/01/11 00:13 Changed gain to 36.4
+2026/01/11 19:31 Changed gain to 38.6
+2026/01/12 09:10 Changed gain to 40.2
+2026/01/12 14:52 Changed gain to 42.1
+2026/01/12 22:10 Changed gain to 43.4
+2026/01/13 18:30 Changed Threshold to 8
+2026/01/14 17:02 Installed Airspy Mini
+2026/01/14 17:56 Changed gain to 17
+2026/01/14 18:28 Changed gain to 15
+2026/01/14 18:35 Changed gain to 13
+2026/01/14 18:58 Changed gain to 15
+2026/01/14 19:00 Changed gain to 18
+2026/01/15 10:11 Changed gain to 19, removed -C 80, removed -x, and set -e 60
+2026/01/15 17:09 Changed gain to 20
+2026/01/15 17:14 Changed gain to 19 because aircraft disappeared visually
+2026/01/16 06:33 Changed to -f 2 and -e 40
+2026/01/16 18:00 Changed -e to 48
+2026/01/16 18:20 Changed -e to 50
+2026/01/17 08:30 Changed to -f 1 and -e 60
+2026/01/17 21:19 Changed sampling rate to -m 12
+2026/01/18 08:27 Changed -w to 4
+2026/01/18 11:33 Changed -w to 3
+2026/1/19 21:33 Added -R snr
+2026/1/19 21:43 Removed -R snr
+2026/01/22 20:55 Changed GAIN to 18
+2026/01/23 22:42 Set GAIN auto from 00:00 to 06:00 using /usr/local/sbin/airspy_gain_guard.py
+2026/01/25 07:42 Changed to -m 20 and -e 30, then reverted to -m 12 and -e 60 after review; no change in position-capable aircraft, message rate decreased by about 10%
+2026/01/25 07:42 Set GAIN 21 from 00:00 to 06:00
+2026/01/26 20:00 Set all configurations to GAIN 19 and stopped /usr/local/sbin/airspy_gain_guard.py
+2026/01/26 19:40 Changed GAIN to 18
+2026/01/29 09:27 Set nighttime GAIN to 19 and restarted /usr/local/sbin/airspy_gain_guard.py
+2026/02/11 9:49 Changed -e to 30 and sampling rate to -m 20
+2026/02/11 10:46 Changed -f to 2
+2026/02/14 15:54 Changed connector to SMA-P<->N-P (COSMTEC RESOURCES CO., LTD) and cable to Cosmowave 5D-FB 2 m
+2026/02/15 9:07 Changed main GAIN to 17 and nighttime GAIN to 18
+2026/02/26 7:21 Replaced the indoor feed cable from RG316 50 cm (Boobrie) to Shikoku Cable 2.5DS-QFB 50 cm
+2026/02/27 9:08 Changed to -m 12, -f 1, and -e 60
+2026/02/28 7:39 Changed the adapter from COSMTEC RESOURCES CO., LTD to NM-SM50+ (Mini-Circuits)

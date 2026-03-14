@@ -1,6 +1,22 @@
 services:
-  arena-ci:
+  arena-tests:
     build:
       context: ..
       dockerfile: docker/Dockerfile.cpu
-    command: ["pytest", "-q"]
+    command: ["python", "-m", "pytest", "-q", "-m", "not real_data"]
+  arena-sample-smoke:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    command: ["python", "scripts/dev/run_sample_smoke.py"]
+  arena-real-data-smoke:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    environment:
+      ARENA_REAL_DATA_ROOT: /workspace/real-data
+      ARENA_REAL_ARTIFACT_BASE: /workspace/real-output
+    volumes:
+      - ${ARENA_DATA_ROOT:?set_ARENA_DATA_ROOT}:/workspace/real-data:ro
+      - ${ARENA_ARTIFACT_BASE:-../output/sample}:/workspace/real-output:ro
+    command: ["python", "scripts/dev/run_real_data_smoke.py"]

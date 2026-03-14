@@ -1,38 +1,11 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-try:
-    import tomllib  # py3.11+
-except ModuleNotFoundError:  # pragma: no cover
-    try:
-        import tomli as tomllib  # type: ignore
-    except ModuleNotFoundError:
-        tomllib = None
-
-
-def _parse_settings_fallback(text: str) -> dict:
-    settings: dict = {}
-    section = ""
-    for raw in text.splitlines():
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            section = line[1:-1].strip()
-            settings.setdefault(section, {})
-            continue
-        if "=" in line and section:
-            k, v = line.split("=", 1)
-            key = k.strip()
-            val = v.strip()
-            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-                val = val[1:-1]
-            settings.setdefault(section, {})[key] = val
-    return settings
+from arena.lib.settings_loader import find_settings_path as _find_settings_path
+from arena.lib.settings_loader import load_settings_data
 
 
 @dataclass
@@ -41,48 +14,29 @@ class SettingsSnapshot:
     data: dict[str, Any]
 
 
+_settings_cache: SettingsSnapshot | None = None
+
+
 def find_settings_path() -> Path:
-    env_path = os.getenv("ARENA_SETTINGS") or os.getenv("ADSB_SETTINGS")
-    if env_path:
-        p = Path(env_path)
-        if p.exists():
-            return p
-
-    # Prefer repo scripts/config
-    here = Path(__file__).resolve()
-    candidates = [
-        here.parents[2] / "scripts" / "config" / "settings.toml",
-    ]
-    try:
-        from arena.lib.paths import SCRIPTS_ROOT
-
-        candidates.insert(0, SCRIPTS_ROOT / "config" / "settings.toml")
-    except Exception:
-        pass
-    for p in candidates:
-        if p.exists():
-            return p
-    return candidates[0]
+    return _find_settings_path()
 
 
-def load_settings() -> SettingsSnapshot:
+def load_settings(force_reload: bool = False) -> SettingsSnapshot:
+    global _settings_cache
     path = find_settings_path()
-    if tomllib is None:
-        if path.exists():
-            try:
-                return SettingsSnapshot(
-                    path=str(path), data=_parse_settings_fallback(path.read_text(encoding="utf-8"))
-                )
-            except Exception:
-                return SettingsSnapshot(path=str(path), data={})
-        return SettingsSnapshot(path=str(path), data={})
-    if not path.exists():
-        return SettingsSnapshot(path=str(path), data={})
-    try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:  # pragma: no cover
-        return SettingsSnapshot(path=str(path), data={"error": f"failed_to_parse: {exc}"})
-    return SettingsSnapshot(path=str(path), data=data)
+    path_str = str(path)
+    if (not force_reload) and _settings_cache is not None and _settings_cache.path == path_str:
+        return _settings_cache
+
+    data = load_settings_data(path)
+    snapshot = SettingsSnapshot(path=path_str, data=data if isinstance(data, dict) else {})
+    _settings_cache = snapshot
+    return snapshot
+
+
+def clear_settings_cache() -> None:
+    global _settings_cache
+    _settings_cache = None
 
 
 def load_text(path: str) -> str:

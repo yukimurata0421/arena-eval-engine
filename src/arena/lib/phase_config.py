@@ -37,41 +37,32 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from arena.lib.settings_loader import find_scripts_root
+
 
 # ============================================================
 # Event dataclass
 # ============================================================
 @dataclass
 class Event:
-    date: str  # "2026-01-14"
-    label: str  # "Airspy Mini Intro"
-    hardware: str  # "airspy_mini" or "" (no change)
-    color: str  # "#e74c3c"
+    date: str       # "2026-01-14"
+    label: str      # "Airspy Mini Intro"
+    hardware: str   # "airspy_mini" or "" (no change)
+    color: str      # "#e74c3c"
 
 
 # ============================================================
 # Default colors (when not specified)
 # ============================================================
 _DEFAULT_COLORS = [
-    "#2c3e50",
-    "#e74c3c",
-    "#2980b9",
-    "#27ae60",
-    "#8e44ad",
-    "#d35400",
-    "#16a085",
-    "#f39c12",
-    "#c0392b",
-    "#7f8c8d",
-    "#1abc9c",
-    "#3498db",
-    "#9b59b6",
-    "#e67e22",
-    "#34495e",
+    "#2c3e50", "#e74c3c", "#2980b9", "#27ae60", "#8e44ad",
+    "#d35400", "#16a085", "#f39c12", "#c0392b", "#7f8c8d",
+    "#1abc9c", "#3498db", "#9b59b6", "#e67e22", "#34495e",
 ]
 
 _PRETTY_HW = {
     "rtl-sdr": "RTL-SDR",
+    "rtl_sdr_gain_tuned": "RTL-SDR Gain Tuned",
     "airspy_mini": "Airspy Mini",
     "airspy_mini_plus_cable": "Airspy+Cable",
 }
@@ -85,18 +76,13 @@ def _find_config() -> Path:
     if env_path and Path(env_path).exists():
         return Path(env_path)
 
-    here = Path(__file__).resolve().parent  # lib/
-    try:
-        from arena.lib.paths import SCRIPTS_ROOT
-
-        preferred = SCRIPTS_ROOT / "config" / "phases.txt"
-        if preferred.exists():
-            return preferred
-    except Exception:
-        pass
+    here = Path(__file__).resolve().parent   # lib/
+    preferred = find_scripts_root() / "config" / "phases.txt"
+    if preferred.exists():
+        return preferred
     # Prefer repo/scripts/config when present (source-of-truth in this repo layout)
     try:
-        repo_root = here.parents[2]  # .../src/scripts/lib -> .../
+        repo_root = here.parents[2]  # .../src/arena/lib -> .../
         legacy = repo_root / "scripts" / "config" / "phases.txt"
         if legacy.exists():
             return legacy
@@ -116,13 +102,14 @@ def _find_config() -> Path:
 @dataclass
 class PhaseConfig:
     config_path: str = ""
-    events: list = field(default_factory=list)  # List[Event]
+    events: list[Event] = field(default_factory=list)
 
     # [settings]
     post_change_date: str = "2026-01-10"
+    alt_baseline_date: str = ""
     intervention_date: str = "2026-02-11"
     report_start_date: str = "2026-01-08"
-    _fringe_boundary: list = field(default_factory=lambda: ["2026-01-31", "2026-02-14"])
+    _fringe_boundary: list[str] = field(default_factory=lambda: ["2026-01-31", "2026-02-14"])
 
     # ---- Backward-compat fields/methods ----
 
@@ -233,7 +220,7 @@ class PhaseConfig:
         names = ["1_Old_Settings", "2_New_Filter", "3_Post_Cable_Fix"]
         for i, bd in enumerate(boundaries):
             if date_str <= bd:
-                return names[i] if i < len(names) else f"Phase{i + 1}"
+                return names[i] if i < len(names) else f"Phase{i+1}"
         return names[-1] if names else "Unknown"
 
     @property
@@ -260,7 +247,7 @@ def load_phase_config(path: Optional[str] = None) -> PhaseConfig:
     cfg = PhaseConfig(config_path=str(config_path))
 
     if not config_path.exists():
-        print(f"  [phase_config] WARNING: {config_path} not found, using defaults")
+        print(f"  [phase_config] warning: {config_path} was not found; using defaults")
         return cfg
 
     cp = ConfigParser()
@@ -276,15 +263,10 @@ def load_phase_config(path: Optional[str] = None) -> PhaseConfig:
 
     # [settings]
     if cp.has_section("settings"):
-        cfg.post_change_date = cp.get(
-            "settings", "post_change_date", fallback=cfg.post_change_date
-        ).strip()
-        cfg.intervention_date = cp.get(
-            "settings", "intervention_date", fallback=cfg.intervention_date
-        ).strip()
-        cfg.report_start_date = cp.get(
-            "settings", "report_start_date", fallback=cfg.report_start_date
-        ).strip()
+        cfg.post_change_date = cp.get("settings", "post_change_date", fallback=cfg.post_change_date).strip()
+        cfg.alt_baseline_date = cp.get("settings", "alt_baseline_date", fallback=cfg.alt_baseline_date).strip()
+        cfg.intervention_date = cp.get("settings", "intervention_date", fallback=cfg.intervention_date).strip()
+        cfg.report_start_date = cp.get("settings", "report_start_date", fallback=cfg.report_start_date).strip()
         fb = cp.get("settings", "fringe_boundary", fallback="").strip()
         if fb:
             cfg._fringe_boundary = [d.strip() for d in fb.split(",")]
@@ -294,10 +276,25 @@ def load_phase_config(path: Optional[str] = None) -> PhaseConfig:
 
 # ---- Module-level singleton ----
 _cached: Optional[PhaseConfig] = None
+_cached_key: str = ""
 
 
-def get_config(path: Optional[str] = None) -> PhaseConfig:
-    global _cached
-    if _cached is None or path is not None:
-        _cached = load_phase_config(path)
+def clear_config_cache() -> None:
+    global _cached, _cached_key
+    _cached = None
+    _cached_key = ""
+
+
+def _resolve_cache_key(path: Optional[str]) -> str:
+    if path:
+        return str(Path(path))
+    return str(_find_config())
+
+
+def get_config(path: Optional[str] = None, force_reload: bool = False) -> PhaseConfig:
+    global _cached, _cached_key
+    key = _resolve_cache_key(path)
+    if force_reload or _cached is None or _cached_key != key:
+        _cached = load_phase_config(key)
+        _cached_key = key
     return _cached

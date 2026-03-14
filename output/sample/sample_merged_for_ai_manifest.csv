@@ -102,7 +102,7 @@ included,reason,rel_path,abs_path,ext,size_bytes,mtime_iso
 0,ext_not_included,performance/phase_evaluator_boxplot.png,E:\output\performance\phase_evaluator_boxplot.png,.png,46418,2026-02-28T15:45:33
 1,ok,performance/phase_evaluator_report.txt,E:\output\performance\phase_evaluator_report.txt,.txt,914,2026-02-28T15:45:33
 1,ok,performance/phase_evaluator_results.csv,E:\output\performance\phase_evaluator_results.csv,.csv,452,2026-02-28T15:45:33
-1,ok,performance/pipeline_runs.jsonl,E:\output\performance\pipeline_runs.jsonl,.jsonl,1577571,2026-02-28T15:50:42
+1,ok,performance/pipeline_runs.jsonl,E:\output\performance\pipeline_runs.jsonl,.jsonl,9785,2026-03-14T16:00:00
 1,ok,performance/quality_binomial_summary.txt,E:\output\performance\quality_binomial_summary.txt,.txt,1445,2026-02-24T03:38:26
 1,ok,performance/test.log,E:\output\performance\test.log,.log,0,2026-02-25T11:51:06
 1,ok,performance/time_bin_detailed_stats.csv,E:\output\performance\time_bin_detailed_stats.csv,.csv,997,2026-02-28T15:45:21

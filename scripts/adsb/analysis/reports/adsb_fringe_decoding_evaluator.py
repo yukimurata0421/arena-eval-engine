@@ -16,6 +16,7 @@ from arena.lib.paths import DATA_DIR, OUTPUT_DIR as OUT_ROOT
 INPUT_DIR = str(DATA_DIR / "plao_pos")
 OUTPUT_DIR = str(OUT_ROOT / "fringe_decoding")
 TREND_CSV = os.path.join(OUTPUT_DIR, "fringe_decoding_stats.csv")
+TREND_LEGACY_CSV = os.path.join(OUTPUT_DIR, "fringe_decoding_trend.csv")
 TREND_IMG = os.path.join(OUTPUT_DIR, "fringe_decoding_trend_report.png")
 
 SITE_LAT, SITE_LON = get_site_latlon()
@@ -106,12 +107,34 @@ def process_fringe_decoding():
             "dist_0_100", "dist_100_200", "dist_200_300", "dist_300_plus"
         ])
         df.to_csv(TREND_CSV, index=False)
+        pd.DataFrame(
+            columns=[
+                "date",
+                "total",
+                "dist_0_100",
+                "dist_100_200",
+                "dist_200_300",
+                "dist_300_plus",
+                "fringe_ratio_pct",
+            ]
+        ).to_csv(TREND_LEGACY_CSV, index=False)
         print(f"\n ⚠️ No target data; wrote empty CSV: {TREND_CSV}")
         return
 
     df = pd.DataFrame(results).sort_values('date')
     if len(df) > 2: df = df.iloc[1:-1].copy()
     df.to_csv(TREND_CSV, index=False)
+    pd.DataFrame(
+        {
+            "date": df["date"],
+            "total": df["total"],
+            "dist_0_100": df["dist_0_100"],
+            "dist_100_200": df["dist_100_200"],
+            "dist_200_300": df["dist_200_300"],
+            "dist_300_plus": df["dist_300_plus"],
+            "fringe_ratio_pct": df["fringe_ratio"],
+        }
+    ).to_csv(TREND_LEGACY_CSV, index=False)
     print(f"\n Created CSV with corrected distance data: {TREND_CSV}")
 
 if __name__ == "__main__":
