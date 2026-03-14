@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.4] - 2026-03-14
+
+### Fixed
+- Aligned the packaged project version with the published Docker full-run release.
+- Added the missing release metadata so the changelog and package version match the latest public tag.
+
+---
+
+## [0.2.3] - 2026-03-14
+
+### Fixed
+- Corrected changelog alignment after the Docker full-run release.
+
+---
+
 ## [0.2.2] - 2026-03-14
 
 ### Added
