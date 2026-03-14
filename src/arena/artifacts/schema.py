@@ -4,7 +4,6 @@ from copy import deepcopy
 
 from jsonschema import validate
 
-
 STATE_NAMES = [
     "ok",
     "missing_required",

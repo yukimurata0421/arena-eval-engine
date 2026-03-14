@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from test_artifacts_e2e_full import _build_artifact_fixture, _patch_artifact_subsystem
+
 from arena.artifacts.integrity import verify_artifact_bundle
 from arena.artifacts.replay import replay_artifact_bundle
 from scripts.tools.artifacts import app
-
-from test_artifacts_e2e_full import _build_artifact_fixture, _patch_artifact_subsystem
 
 
 def _export_bundle(tmp_path: Path, monkeypatch) -> Path:

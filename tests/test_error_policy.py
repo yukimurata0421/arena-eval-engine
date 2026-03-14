@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from arena.pipeline.error_policy import error_code_for_record, recommended_actions, summarize_issue_reason
+from arena.pipeline.error_policy import (
+    error_code_for_record,
+    recommended_actions,
+    summarize_issue_reason,
+)
 from arena.pipeline.stages import RunRecord
 
 

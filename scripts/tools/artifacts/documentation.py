@@ -1,3 +1,5 @@
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import json
@@ -11,10 +13,12 @@ for candidate in (ROOT, SRC):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
-from arena.lib.config import get_quality_thresholds
-from arena.lib.runtime_config import load_settings
-
-from arena.artifacts.models import AICandidateFile, AICandidateStatus, AIExportIntegrity, AIManifestRecord
+from arena.artifacts.models import (
+    AICandidateFile,
+    AICandidateStatus,
+    AIExportIntegrity,
+    AIManifestRecord,
+)
 from arena.artifacts.policies import (
     AI_ANALYSIS_DESIGN_MD_FILENAME,
     AI_ANALYSIS_METHODOLOGY_MD_FILENAME,
@@ -27,6 +31,8 @@ from arena.artifacts.policies import (
     AI_SETTINGS_SNAPSHOT_JSON_FILENAME,
     AI_SETTINGS_SUMMARY_MD_FILENAME,
 )
+from arena.lib.config import get_quality_thresholds
+from arena.lib.runtime_config import load_settings
 
 
 def _display_generated_path(path: Path, export_dir: Path, deterministic: bool) -> str:

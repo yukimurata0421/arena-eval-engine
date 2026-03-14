@@ -7,8 +7,8 @@ from pathlib import Path
 from arena.lib.phase_config import load_phase_config
 from arena.lib.runtime_config import build_snapshot
 from arena.pipeline.backend import (
-    BATCH_ENV,
     BASE_MODULES,
+    BATCH_ENV,
     STAGE4_MODULES,
     STAGE5_MODULES,
     STAGE5_PYMC,
@@ -24,8 +24,7 @@ from arena.pipeline.backend import (
     wsl_available,
 )
 from arena.pipeline.runner import PipelineRunner
-from arena.pipeline.stages import RunConfig, STAGE_NAMES, build_pipeline, validate_outputs
-
+from arena.pipeline.stages import STAGE_NAMES, RunConfig, build_pipeline, validate_outputs
 
 CHANGE_POINT_REQUIRED_OUTPUTS = [
     "change_point/change_point_report.txt",
@@ -288,7 +287,7 @@ def run(cfg: RunConfig) -> int:
         cp_contract_path = output_root_native / "performance" / "change_point_contract_latest.txt"
         cp_lines = [
             f"generated_at: {now_iso()}",
-            f"pipeline_stage5_planned: 1",
+            "pipeline_stage5_planned: 1",
             f"change_point_required_ok: {int(cp_ok)}",
             "required_outputs:",
             *[f"- {x}" for x in CHANGE_POINT_REQUIRED_OUTPUTS],

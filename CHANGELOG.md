@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.1] - 2026-03-14
+
+### Fixed
+- Fixed Ruff lint failures in artifact tool entrypoints caused by intentional early `sys.path` initialization.
+- Added file-level `E402` exceptions for artifact entrypoint modules that must modify `sys.path` before local imports.
+- Normalized import ordering across affected modules with Ruff autofix.
+
+### Tests
+- Confirmed `ruff check src tests scripts/tools/artifacts scripts/dev` passes.
+- Confirmed `python -m pytest -q -m "not real_data"` passes.
+- Confirmed non-editable install validation flow, compatibility checks, and `scripts/dev/run_sample_smoke.py` pass.
+
+### Notes
+- Docker smoke was not re-run in this fix environment.
+
+---
+
 ## [0.2.0] - 2026-03-14
 
 ### Summary

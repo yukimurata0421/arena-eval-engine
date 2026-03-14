@@ -64,7 +64,7 @@ Change log:
       Outputs two views: Section 1 (vs Phase 0) + Section 2 (vs Alt Baseline).
 """
 
-from arena.pipeline.stages import RunConfig, RunRecord, Step
 from arena.pipeline.entrypoint import run
+from arena.pipeline.stages import RunConfig, RunRecord, Step
 
 __all__ = ["run", "RunConfig", "Step", "RunRecord"]

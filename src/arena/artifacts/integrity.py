@@ -7,14 +7,14 @@ from pathlib import Path
 from arena.artifacts.hash_utils import compute_bundle_sha256, read_artifact_hashes, sha256_file
 from arena.artifacts.models import AIExportIntegrity, AIManifestRecord
 from arena.artifacts.policies import (
+    AI_ARTIFACT_HASHES_FILENAME,
     AI_ARTIFACT_INDEX_FILENAME,
     AI_ARTIFACT_LINEAGE_FILENAME,
     AI_ARTIFACT_PROVENANCE_FILENAME,
-    AI_ARTIFACT_HASHES_FILENAME,
     AI_CANDIDATE_STATUS_CSV_FILENAME,
     AI_INTEGRITY_SUMMARY_JSON_FILENAME,
-    AI_MANIFEST_FILENAME,
     AI_MANIFEST_EXTENDED_FILENAME,
+    AI_MANIFEST_FILENAME,
     AI_PACK_DIR_GEMINI,
     AI_PACK_DIR_GPT,
     AI_PACK_DIR_GROK,

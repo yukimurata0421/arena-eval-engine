@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from arena.pipeline.record_io import append_jsonl, build_config_snapshot_payload, build_run_record_payload
+from arena.pipeline.record_io import (
+    append_jsonl,
+    build_config_snapshot_payload,
+    build_run_record_payload,
+)
 from arena.pipeline.stages import RunRecord
 
 

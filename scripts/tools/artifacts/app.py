@@ -1,3 +1,5 @@
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import argparse
@@ -16,19 +18,13 @@ for candidate in (ROOT, SRC):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
-from arena.lib.runtime_config import load_settings
-
 from arena.artifacts.discovery import enumerate_files, normalize_rel, resolve_optional_export_source
-from scripts.tools.artifacts.documentation import (
-    write_ai_change_point_note,
-    write_ai_export_summary,
-    write_ai_settings_snapshot,
-    write_analysis_design_note,
-    write_analysis_methodology,
-    write_hardware_date_recommendation,
-    write_needed_files_for_statistics,
+from arena.artifacts.hash_utils import (
+    compute_bundle_sha256,
+    read_artifact_hashes,
+    update_record_hashes,
+    write_artifact_hashes,
 )
-from arena.artifacts.hash_utils import compute_bundle_sha256, read_artifact_hashes, update_record_hashes, write_artifact_hashes
 from arena.artifacts.integrity import run_ai_export_integrity_check, write_integrity_summary_json
 from arena.artifacts.lineage import write_artifact_lineage
 from arena.artifacts.manifest import (
@@ -39,14 +35,13 @@ from arena.artifacts.manifest import (
     write_candidate_status_csv,
 )
 from arena.artifacts.models import AIManifestRecord, FileItem
-from scripts.tools.artifacts.packaging import create_ai_review_packs, resolve_timestamped_export_dir
 from arena.artifacts.policies import (
+    AI_ARTIFACT_HASHES_FILENAME,
     AI_ARTIFACT_INDEX_FILENAME,
     AI_ARTIFACT_LINEAGE_FILENAME,
     AI_ARTIFACT_PROVENANCE_FILENAME,
     AI_CANDIDATE_STATUS_CSV_FILENAME,
     AI_EXPORT_DIR_PREFIX,
-    AI_ARTIFACT_HASHES_FILENAME,
     AI_INTEGRITY_SUMMARY_JSON_FILENAME,
     AI_MANIFEST_EXTENDED_FILENAME,
     AI_MANIFEST_FILENAME,
@@ -55,10 +50,10 @@ from arena.artifacts.policies import (
     AI_PACK_DIR_GROK,
     AI_RUN_METADATA_FILENAME,
     AI_SUMMARY_FILENAME,
-    ARTIFACT_SUBSYSTEM_VERSION,
-    ALWAYS_EXCLUDE_DIRS,
     ALWAYS_EXCLUDE_DIR_PREFIXES,
+    ALWAYS_EXCLUDE_DIRS,
     ALWAYS_EXCLUDE_REL_PATHS,
+    ARTIFACT_SUBSYSTEM_VERSION,
     NORMAL_MODE_OPTIONAL_EXPORT_FILES,
 )
 from arena.artifacts.provenance import write_artifact_provenance
@@ -66,6 +61,17 @@ from arena.artifacts.repro_stamp import resolve_generated_at, write_reproducibil
 from arena.artifacts.run_metadata import write_run_metadata
 from arena.artifacts.schema import export_schema_catalog, validate_artifact_index
 from arena.artifacts.selection import get_ai_candidate_files, iter_ai_targets
+from arena.lib.runtime_config import load_settings
+from scripts.tools.artifacts.documentation import (
+    write_ai_change_point_note,
+    write_ai_export_summary,
+    write_ai_settings_snapshot,
+    write_analysis_design_note,
+    write_analysis_methodology,
+    write_hardware_date_recommendation,
+    write_needed_files_for_statistics,
+)
+from scripts.tools.artifacts.packaging import create_ai_review_packs, resolve_timestamped_export_dir
 
 
 def iso_mtime(path: Path) -> str:

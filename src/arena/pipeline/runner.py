@@ -9,9 +9,18 @@ from typing import Sequence
 
 from arena.pipeline.backend import BATCH_ENV, Backend, now_iso, resolve_default_workers, tail_text
 from arena.pipeline.decision import can_soft_fail, should_skip_existing, should_skip_no_inputs
-from arena.pipeline.error_policy import error_code_for_record, recommended_actions, summarize_issue_reason
-from arena.pipeline.record_io import append_jsonl, build_config_snapshot_payload, build_run_record_payload
+from arena.pipeline.error_policy import (
+    error_code_for_record,
+    recommended_actions,
+    summarize_issue_reason,
+)
+from arena.pipeline.record_io import (
+    append_jsonl,
+    build_config_snapshot_payload,
+    build_run_record_payload,
+)
 from arena.pipeline.stages import STAGE_NAMES, RunRecord, Step, validate_outputs
+
 
 class PipelineRunner:
     def __init__(
