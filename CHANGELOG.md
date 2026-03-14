@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.2] - 2026-03-14
+
+### Added
+- Docker full-run support for `arena run` in the public CPU image.
+- `arena-run` service in `docker/docker-compose.yml` for running the pipeline through Docker Compose.
+
+### Changed
+- Updated `docker/Dockerfile.cpu` to install the full pipeline dependency set required by Stage 4 and Stage 5.
+- Expanded README Docker documentation to distinguish smoke validation from full pipeline execution.
+
+### Validation
+- Verified Docker build succeeds with the full dependency set.
+- Verified `arena validate` and `arena run --only 1 --dry-run --skip-plao` through the new Compose service.
+- Verified the full Stage 1-8 pipeline against real telemetry in a scratch output tree using Docker.
+
+---
+
 ## [0.2.1] - 2026-03-14
 
 ### Fixed
