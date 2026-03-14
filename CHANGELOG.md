@@ -10,11 +10,13 @@ All notable changes to this project will be documented in this file.
 - Fixed Ruff lint failures in artifact tool entrypoints caused by intentional early `sys.path` initialization.
 - Added file-level `E402` exceptions for artifact entrypoint modules that must modify `sys.path` before local imports.
 - Normalized import ordering across affected modules with Ruff autofix.
+- Fixed an OS-dependent runner test that expected Windows path separators and failed on Linux CI.
 
 ### Tests
 - Confirmed `ruff check src tests scripts/tools/artifacts scripts/dev` passes.
 - Confirmed `python -m pytest -q -m "not real_data"` passes.
-- Confirmed non-editable install validation flow, compatibility checks, and `scripts/dev/run_sample_smoke.py` pass.
+- Confirmed the non-real-data test suite passes on WSL Ubuntu 22.04 with Python 3.11.
+- Confirmed `coverage run -m pytest -q -m "not real_data" && coverage report` passes in the same Linux environment.
 
 ### Notes
 - Docker smoke was not re-run in this fix environment.

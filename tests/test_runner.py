@@ -258,7 +258,7 @@ def test_runner_classifies_not_found_failure(tmp_path: Path) -> None:
     assert ok is False
     assert runner.records[-1].status == "NOT_FOUND"
     assert runner.records[-1].error_code == "S8-02-E32"
-    assert runner.records[-1].missing_outputs[0].endswith("adsb\\analysis\\missing.py")
+    assert Path(runner.records[-1].missing_outputs[0]).as_posix().endswith("adsb/analysis/missing.py")
 
 
 def test_runner_records_skip_existing_consistently(tmp_path: Path, monkeypatch) -> None:
