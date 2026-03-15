@@ -258,7 +258,7 @@ cd arena-eval-engine
 
 ### 2. Install dependencies
 
-Recommended (development install):
+Recommended (development install for validate/tests/smoke):
 
 ```bash
 pip install -e ".[dev]"
@@ -268,6 +268,22 @@ Minimal install:
 
 ```bash
 pip install -e .
+```
+
+Pipeline runtime extras (verified with real data at `E:\arena\data` on 2026-03-15):
+
+- Stage 4 execution (`arena run --only 4 --no-gpu`) requires JAX/NumPyro:
+
+```bash
+pip install -e ".[dev,gpu]"
+# or: pip install -e ".[run_cpu]"
+```
+
+- Stage 5 / full pipeline execution (`arena run --only 5` or default full run) additionally requires PyMC/ArviZ:
+
+```bash
+pip install -e ".[dev,bayes,gpu]"
+# or: pip install -e ".[run_full]"
 ```
 
 ### 3. Validate environment

@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.5] - 2026-03-15
+
+### Added
+- Added runtime optional dependency groups in `pyproject.toml`:
+  - `run_cpu` for Stage 4 execution (`jax`, `jaxlib`, `numpyro`)
+  - `run_full` for full pipeline execution including Stage 5 (`jax`, `jaxlib`, `numpyro`, `pymc`, `arviz`)
+
+### Changed
+- Updated dependency installation guidance in `README.md` to explicitly distinguish:
+  - validate/tests/smoke setup (`.[dev]`)
+  - Stage 4 runtime setup (`.[dev,gpu]` or `.[run_cpu]`)
+  - Stage 5/full runtime setup (`.[dev,bayes,gpu]` or `.[run_full]`)
+- Updated `all` extra to follow the full runtime dependency path.
+- Improved pipeline missing-module guidance in `arena.pipeline.entrypoint`:
+  - Stage 4 missing modules now suggest `.[dev,gpu]`
+  - Stage 5 missing modules now suggest `.[dev,bayes,gpu]`
+  - Duplicate missing module names are de-duplicated in error output
+
+### Validation
+- Verified with real data root `E:\arena\data`:
+  - Stage 1 executes successfully with `--only 1 --no-gpu --skip-plao`
+  - Stage 4 executes successfully after installing `jax`/`numpyro`
+  - Stage 5 requires and executes successfully after adding `pymc`/`arviz`
+- Verified artifact export/verify/replay workflow succeeds in the updated environment.
+
+---
+
 ## [0.2.4] - 2026-03-14
 
 ### Fixed

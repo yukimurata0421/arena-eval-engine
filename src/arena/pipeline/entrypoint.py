@@ -145,14 +145,29 @@ def run(cfg: RunConfig) -> int:
             req += STAGE5_PYMC
     miss = missing_modules(backend, req, env=env)
     if miss:
+        uniq_miss = list(dict.fromkeys(miss))
+        missing_set = set(uniq_miss)
+        needs_stage4 = bool(missing_set.intersection(STAGE4_MODULES))
+        needs_stage5_pymc = bool(missing_set.intersection(STAGE5_PYMC))
+
+        if needs_stage5_pymc:
+            install_hint_native = 'pip install -e ".[dev,bayes,gpu]"'
+            install_hint_wsl = 'pip3 install -e ".[dev,bayes,gpu]"'
+        elif needs_stage4:
+            install_hint_native = 'pip install -e ".[dev,gpu]"'
+            install_hint_wsl = 'pip3 install -e ".[dev,gpu]"'
+        else:
+            install_hint_native = 'pip install -e ".[dev]"'
+            install_hint_wsl = 'pip3 install -e ".[dev]"'
+
         print("\n[ERROR] Missing Python modules in the execution environment:")
-        for m in miss:
+        for m in uniq_miss:
             print(f"  - {m}")
         print("\nSuggested action:")
         if backend.kind == "native":
-            print("  pip install -e \".[dev]\"  (or install the missing modules individually)")
+            print(f"  {install_hint_native}  (or install the missing modules individually)")
         else:
-            print("  In WSL: pip3 install -e \".[dev]\"  (or install the missing modules individually)")
+            print(f"  In WSL: {install_hint_wsl}  (or install the missing modules individually)")
         return 1
 
     # GPU detect (in execution environment)

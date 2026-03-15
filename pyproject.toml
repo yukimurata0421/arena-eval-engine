@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arena-eval-engine"
-version = "0.2.4"
+version = "0.2.5"
 description = "ARENA: reproducible statistical validation engine for ADS-B performance optimization."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -38,8 +38,22 @@ gpu = [
   "jaxlib>=0.4.30",
   "numpyro>=0.15",
 ]
+# Runtime deps for Stage 4 (`arena run --only 4 --no-gpu`) and any run including Stage 4.
+run_cpu = [
+  "jax>=0.4.30",
+  "jaxlib>=0.4.30",
+  "numpyro>=0.15",
+]
+# Runtime deps for default/full pipeline execution including Stage 5 Bayesian steps.
+run_full = [
+  "jax>=0.4.30",
+  "jaxlib>=0.4.30",
+  "numpyro>=0.15",
+  "pymc>=5.16",
+  "arviz>=0.18",
+]
 all = [
-  "arena-eval-engine[dev,bayes,gpu]",
+  "arena-eval-engine[dev,run_full]",
 ]
 
 [project.scripts]
