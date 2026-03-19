@@ -24,6 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the public flow on smoke sample input and verify against frozen expected outputs.",
     )
     parser.add_argument("--sample-root", default=str(DEFAULT_SAMPLE_ROOT), help="Sample root directory.")
+    parser.add_argument(
+        "--expected-dir",
+        default="",
+        help="Optional expected outputs directory override. Defaults to <sample-root>/expected.",
+    )
     parser.add_argument("--mode", choices=SUPPORTED_MODES, default=DEFAULT_MODE, help="Flow mode. from-real is reserved for future cutout support.")
     parser.add_argument("--python-exe", default=sys.executable, help="Python executable used to run artifact CLI.")
     parser.add_argument("--work-dir", default="", help="Optional fixed work directory for generated flow outputs.")
@@ -53,7 +58,7 @@ def _load_expected(expected_dir: Path, expected_names: list[str]) -> dict[str, s
 def run_from_args(args: argparse.Namespace) -> int:
     sample_root = Path(args.sample_root).resolve()
     input_dir = sample_root / INPUT_DIRNAME
-    expected_dir = sample_root / EXPECTED_DIRNAME
+    expected_dir = Path(args.expected_dir).resolve() if args.expected_dir.strip() else sample_root / EXPECTED_DIRNAME
     manifest_path = sample_root / MANIFEST_NAME
 
     try:
@@ -78,8 +83,15 @@ def run_from_args(args: argparse.Namespace) -> int:
 
     expected_names = sorted(str(x) for x in manifest.get("expected_outputs_written", []))
     if not expected_names:
-        print("[ERROR] manifest.expected_outputs_written is empty. Run freeze_expected_outputs first.", file=sys.stderr)
-        return 2
+        if args.expected_dir.strip():
+            expected_names = sorted(path.name for path in expected_dir.iterdir() if path.is_file())
+            if not expected_names:
+                print(f"[ERROR] expected directory is empty: {expected_dir}", file=sys.stderr)
+                return 2
+            print("[INFO] manifest.expected_outputs_written is empty; using --expected-dir file list.")
+        else:
+            print("[ERROR] manifest.expected_outputs_written is empty. Run freeze_expected_outputs first.", file=sys.stderr)
+            return 2
 
     remove_workdir = False
     if args.work_dir.strip():

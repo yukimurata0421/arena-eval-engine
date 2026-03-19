@@ -35,7 +35,8 @@ jobs:
         id: bundle
         run: |
           set -euo pipefail
-          BUNDLE_ROOT="$RUNNER_TEMP/artifacts-verify-replay/bundles"
+          BUNDLE_ROOT="$RUNNER_TEMP/artifacts-verify-replay/bundles/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          rm -rf "$BUNDLE_ROOT"
           mkdir -p "$BUNDLE_ROOT"
           python -m arena.artifact_cli run \
             --base "$RUNNER_TEMP/artifacts-verify-replay/smoke/input" \
@@ -43,11 +44,13 @@ jobs:
             --deterministic \
             --export-ai-folder | tee "$RUNNER_TEMP/artifacts-verify-replay/logs/artifact-run.log"
 
-          BUNDLE_DIR="$(find "$BUNDLE_ROOT" -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
-          if [ -z "$BUNDLE_DIR" ]; then
-            echo "::error::No artifact bundle was generated under $BUNDLE_ROOT"
+          mapfile -t BUNDLE_DIRS < <(find "$BUNDLE_ROOT" -mindepth 1 -maxdepth 1 -type d | sort)
+          if [ "${#BUNDLE_DIRS[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one generated bundle under $BUNDLE_ROOT, got ${#BUNDLE_DIRS[@]}"
+            printf '%s\n' "${BUNDLE_DIRS[@]}"
             exit 1
           fi
+          BUNDLE_DIR="${BUNDLE_DIRS[0]}"
           echo "bundle_dir=$BUNDLE_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Verify artifact bundle

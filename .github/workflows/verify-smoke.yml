@@ -36,6 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/tools/sample_data/verify_sample_outputs.py \
+            --sample-root "$RUNNER_TEMP/public_smoke_sample" \
+            --expected-dir "sample_data/smoke/expected" \
             | tee "$RUNNER_TEMP/verify-smoke-logs/verify.log"
 
       - name: Upload smoke verify logs

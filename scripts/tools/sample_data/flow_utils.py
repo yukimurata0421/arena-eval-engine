@@ -66,6 +66,8 @@ def _normalize_text_common(text: str, sample_root: Path, input_dir: Path, run_ou
         normalized = normalized.replace(value, "<SAMPLE_ROOT>")
     for value in _path_variants(run_output_dir):
         normalized = normalized.replace(value, "<RUN_OUTPUT>")
+    for token in ("<SAMPLE_INPUT>", "<SAMPLE_ROOT>", "<RUN_OUTPUT>"):
+        normalized = normalized.replace(f"{token}\\", f"{token}/")
     return normalized
 
 

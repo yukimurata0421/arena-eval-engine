@@ -68,6 +68,7 @@ Exit code is non-zero when verification fails.
 - Input file mtimes are fixed to a constant epoch.
 - The freeze/verify flow runs `artifact run` in deterministic legacy mode.
 - Output comparison uses explicit normalization for absolute-path and zip metadata stability.
+- `manifest.normalized.csv` is part of versioned expected outputs to verify file-inventory and normalized-path stability explicitly.
 - `arena.lib.platform_setup` contains environment-dependent GPU/CUDA branches.
   Public tests cover deterministic CPU/fallback paths; hardware-specific paths are intentionally limited.
 
@@ -75,7 +76,8 @@ Exit code is non-zero when verification fails.
 
 - `verify-smoke` workflow (`.github/workflows/verify-smoke.yml`):
   lightweight release-layer smoke verification on `push`, `pull_request`, and `workflow_dispatch`.
-  It runs deterministic sample build in CI temp storage and verifies current outputs against frozen expected outputs.
+  It runs deterministic sample build in CI temp storage and verifies against repository-fixed expected outputs in `sample_data/smoke/expected`.
+  Expected outputs are repository-fixed (`sample_data/smoke/expected`), while CI temp build validates generator behavior.
   It intentionally does not run freeze in normal CI.
 - `artifacts-verify-replay` workflow (`.github/workflows/artifacts-verify-replay.yml`):
   heavier manual audit/revalidation path on `workflow_dispatch` only.

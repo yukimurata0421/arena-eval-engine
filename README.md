@@ -61,7 +61,8 @@ Scope note:
 ## GitHub Actions Workflows
 - `verify-smoke` (`.github/workflows/verify-smoke.yml`):
   lightweight deterministic smoke verification for the release layer (push/PR/manual).
-  It builds a synthetic smoke sample in CI temp storage and verifies against versioned frozen expected outputs.
+  It builds a synthetic smoke sample in CI temp storage and verifies it against repo-fixed expected outputs (`sample_data/smoke/expected`).
+  The verify step reads repo-fixed expected outputs under `sample_data/smoke/expected`.
   It intentionally does not run `freeze_expected_outputs.py` in CI.
 - `artifacts-verify-replay` (`.github/workflows/artifacts-verify-replay.yml`):
   manual heavier audit/revalidation path (`workflow_dispatch` only).
