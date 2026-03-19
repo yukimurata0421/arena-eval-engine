@@ -4,7 +4,6 @@ import argparse
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src"
 
@@ -12,9 +11,9 @@ for candidate in (ROOT, SRC):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
+from arena.artifacts.policies import TEXT_EXT_DEFAULT
 from arena.lib.paths import OUTPUT_DIR
 from scripts.tools.artifacts.app import run_from_args
-from arena.artifacts.policies import TEXT_EXT_DEFAULT
 
 
 def build_parser() -> argparse.ArgumentParser:

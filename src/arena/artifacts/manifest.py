@@ -4,8 +4,8 @@ import csv
 import shutil
 from pathlib import Path
 
-from arena.artifacts.hash_utils import sha256_file
 from arena.artifacts.discovery import iso_mtime, resolve_ai_source_path
+from arena.artifacts.hash_utils import sha256_file
 from arena.artifacts.models import AICandidateStatus, AIManifestRecord
 from arena.artifacts.policies import AI_FILES_SUBDIR, check_ai_export_exclusion, infer_category
 from arena.artifacts.schema import validate_candidate_status_rows, validate_manifest_record_rows

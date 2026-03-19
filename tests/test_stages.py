@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import pytest
-
 from arena.pipeline.stages import PipelineBuildOptions, Step, build_pipeline
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

@@ -3,8 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
-
 from arena.pipeline import entrypoint
 from arena.pipeline.stages import Step
 

@@ -25,7 +25,6 @@ from arena.artifacts.policies import (
 from arena.artifacts.repro_stamp import resolve_generated_at
 from arena.artifacts.schema import validate_pack_manifest_payload
 
-
 AI_PACK_MANIFEST_FILENAMES = {
     AI_PACK_DIR_GEMINI: "gemini_pack.txt",
     AI_PACK_DIR_GPT: "GPT_pack.txt",

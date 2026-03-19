@@ -11,9 +11,6 @@ for candidate in (ROOT, SRC):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
-from arena.lib.config import get_quality_thresholds
-from arena.lib.runtime_config import load_settings
-
 from arena.artifacts.models import AICandidateFile, AICandidateStatus, AIExportIntegrity, AIManifestRecord
 from arena.artifacts.policies import (
     AI_ANALYSIS_DESIGN_MD_FILENAME,
@@ -27,6 +24,8 @@ from arena.artifacts.policies import (
     AI_SETTINGS_SNAPSHOT_JSON_FILENAME,
     AI_SETTINGS_SUMMARY_MD_FILENAME,
 )
+from arena.lib.config import get_quality_thresholds
+from arena.lib.runtime_config import load_settings
 
 
 def _display_generated_path(path: Path, export_dir: Path, deterministic: bool) -> str:
@@ -186,13 +185,7 @@ def append_statistical_context_to_summary(
     )
     for status in candidate_statuses:
         lines.append(
-            "- {} | path={} | exists={} | copied_to_export={} | priority={}".format(
-                status.logical_name,
-                status.expected_path,
-                int(status.exists),
-                int(status.copied_to_export),
-                status.priority,
-            )
+            f"- {status.logical_name} | path={status.expected_path} | exists={int(status.exists)} | copied_to_export={int(status.copied_to_export)} | priority={status.priority}"
         )
     lines.append("missing candidate files list:")
     if missing:

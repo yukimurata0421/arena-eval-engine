@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from arena.pipeline.backend import Backend
 from arena.pipeline.runner import PipelineRunner
 from arena.pipeline.stages import Step

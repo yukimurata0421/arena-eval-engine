@@ -27,7 +27,14 @@ from arena.pipeline.backend import (
     wsl_available,
 )
 from arena.pipeline.runner import PipelineRunner
-from arena.pipeline.stages import STAGE_NAMES, PipelineBuildOptions, RunConfig, Step, build_pipeline, resolve_pipeline_build_options, validate_outputs
+from arena.pipeline.stages import (
+    STAGE_NAMES,
+    RunConfig,
+    Step,
+    build_pipeline,
+    resolve_pipeline_build_options,
+    validate_outputs,
+)
 
 logger = get_logger(__name__)
 

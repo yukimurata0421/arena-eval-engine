@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import csv
-from pathlib import Path
-
 import json
+from pathlib import Path
 
 import pytest
 from jsonschema import ValidationError
+from scripts.tools.artifacts import app
 from scripts.tools.artifacts.cli import build_parser
 from scripts.tools.artifacts.integrity import run_ai_export_integrity_check
 from scripts.tools.artifacts.manifest import write_ai_selected_manifest_extended
@@ -21,7 +21,6 @@ from scripts.tools.artifacts.schema import (
     validate_run_metadata,
 )
 
-from scripts.tools.artifacts import app
 from arena.artifacts import integrity as core_integrity
 from arena.artifacts import replay as core_replay
 

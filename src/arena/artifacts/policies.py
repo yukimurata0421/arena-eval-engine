@@ -5,7 +5,6 @@ from pathlib import Path
 
 from arena.lib.paths import OUTPUT_DIR as ARENA_OUTPUT_DIR
 
-
 ROOT = Path(__file__).resolve().parents[3]
 
 
