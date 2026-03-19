@@ -86,7 +86,14 @@ jobs:
           pip install ".[dev]"
       - name: Non-editable CLI path compatibility
         working-directory: tests
-        run: python -m arena.cli validate
+        run: >
+          python -m arena.cli validate
+          --scripts-root ../scripts
+          --data-dir ../data
+          --output-dir ../output
+          --settings ../scripts/config/settings.toml
+          --phase-config ../scripts/config/phases.txt
+          --create-dirs
       - name: Legacy wrapper help
         run: python scripts/tools/merge_output_for_ai/merge_output_for_ai.py --help
       - name: Artifacts CLI help

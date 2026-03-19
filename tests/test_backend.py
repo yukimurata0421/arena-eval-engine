@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from arena.pipeline import backend as be
 
 
 def test_windows_to_wsl_path_converts_drive(monkeypatch) -> None:
-    p = Path("E:/arena/scripts")
+    monkeypatch.setattr(be.os, "name", "nt", raising=False)
+    p = PureWindowsPath("E:/arena/scripts")
     assert be._windows_to_wsl_path(p).startswith("/mnt/e/")
 
 
@@ -89,4 +90,3 @@ def test_detect_gpu_jax_handles_timeout(monkeypatch, tmp_path: Path) -> None:
     info = be.detect_gpu_jax(b, env={})
     assert info["available"] is False
     assert "CPU" in str(info["device"])
-
