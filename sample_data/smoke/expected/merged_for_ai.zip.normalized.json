@@ -2,12 +2,12 @@
   "entries": [
     {
       "name": "manifest.csv",
-      "sha256": "77b59646a00d5fcae8c0a2825f4e3a1ff0b92d8b370b7f5bee473c602fccd608",
+      "sha256": "90acd1719c270a2dffd59bc2919a29e623043d572aa664e78c0180739f7581bf",
       "size": 307
     },
     {
       "name": "merged_for_ai.md",
-      "sha256": "8deb4e95b64885a913015e4d04eb6efe66270fe1fcf01454f58e8112d4116ed6",
+      "sha256": "93d297f577b6b016533e579e3580f567f41110d926e6ad678a93b06e77af5be5",
       "size": 4281
     }
   ]

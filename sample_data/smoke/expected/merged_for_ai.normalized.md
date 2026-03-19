@@ -7,9 +7,9 @@
 
 ## File Index (included)
 
-- `README.txt` (113 bytes, mtime=2024-01-01T09:00:00)
-- `daily_metrics.csv` (655 bytes, mtime=2024-01-01T09:00:00)
-- `signal_events.jsonl` (2678 bytes, mtime=2024-01-01T09:00:00)
+- `README.txt` (113 bytes, mtime=2024-01-01T00:00:00)
+- `daily_metrics.csv` (655 bytes, mtime=2024-01-01T00:00:00)
+- `signal_events.jsonl` (2678 bytes, mtime=2024-01-01T00:00:00)
 
 ## Contents
 
@@ -17,9 +17,9 @@
 
 ---
 ### README.txt
-- abs_path: `<SAMPLE_INPUT>\README.txt`
+- abs_path: `<SAMPLE_INPUT>/README.txt`
 - size_bytes: `113`
-- mtime: `2024-01-01T09:00:00`
+- mtime: `2024-01-01T00:00:00`
 - encoding: `utf-8-sig`
 
 ```
@@ -30,9 +30,9 @@ It is intended only for release-layer reproducibility checks.
 
 ---
 ### daily_metrics.csv
-- abs_path: `<SAMPLE_INPUT>\daily_metrics.csv`
+- abs_path: `<SAMPLE_INPUT>/daily_metrics.csv`
 - size_bytes: `655`
-- mtime: `2024-01-01T09:00:00`
+- mtime: `2024-01-01T00:00:00`
 - encoding: `utf-8-sig`
 
 ```csv
@@ -60,9 +60,9 @@ date,distance_band_km,auc,auc_n_used,minutes_covered,message_count
 
 ---
 ### signal_events.jsonl
-- abs_path: `<SAMPLE_INPUT>\signal_events.jsonl`
+- abs_path: `<SAMPLE_INPUT>/signal_events.jsonl`
 - size_bytes: `2678`
-- mtime: `2024-01-01T09:00:00`
+- mtime: `2024-01-01T00:00:00`
 - encoding: `utf-8-sig`
 
 ```json
