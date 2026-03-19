@@ -189,7 +189,7 @@ class PipelineRunner:
             self._record_and_log(step, rec, f"    [DRY] {step.label}{est_str}: {script_rel}")
             return True
 
-        skip_no_inputs, input_dir = self._should_skip_no_inputs(step)
+        skip_no_inputs, _input_dir = self._should_skip_no_inputs(step)
         if skip_no_inputs:
             rec = self._make_record(step, script_rel, backend_desc, status="SKIP(no input)")
             self._record_and_log(step, rec, f"    [SKIP] 入力なし - {step.label}")

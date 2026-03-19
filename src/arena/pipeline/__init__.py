@@ -71,4 +71,4 @@ Change log:
 from arena.pipeline.entrypoint import run
 from arena.pipeline.stages import RunConfig, RunRecord, Step
 
-__all__ = ["run", "RunConfig", "Step", "RunRecord"]
+__all__ = ["RunConfig", "RunRecord", "Step", "run"]
