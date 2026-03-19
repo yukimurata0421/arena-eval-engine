@@ -44,6 +44,10 @@ import matplotlib.pyplot as plt
 
 from arena.lib.config import get_site_latlon
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR
+from arena.lib.geo import haversine_km
+from arena.log import get_script_logger
+
+log = get_script_logger(__name__)
 
 # ----------------------------
 # Basic utilities
@@ -85,15 +89,6 @@ def weekday_name_from_date_yyyymmdd(s: str) -> str:
     dt = datetime.strptime(s, "%Y%m%d")
     names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     return names[dt.weekday()]
-
-def haversine_km(lat1, lon1, lat2, lon2) -> float:
-    R = 6371.0
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlmb = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlmb/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return R * c
 
 def safe_float(x) -> Optional[float]:
     try:
@@ -308,36 +303,45 @@ def detect_jax_backend() -> str:
 # Plotting
 # ----------------------------
 
-def plot_compact_total(df_used: pd.DataFrame, out_path: str) -> None:
+def plot_compact_total(df_plot: pd.DataFrame, out_path: str) -> None:
     """
-    X-axis packed: 0..N-1; ticks are dates
+    X-axis packed: 0..N-1; ticks are dates.
+    Plot hard_ok days and mark skip days.
     """
-    d = df_used.reset_index(drop=True).copy()
+    d = df_plot.reset_index(drop=True).copy()
     x = np.arange(len(d))
     labels = d["date"].tolist()
 
     plt.figure()
-    plt.plot(x, d["auc_norm_total"].values)
-    plt.title("PLAO: normalized total AUC (compact; used days only)")
-    plt.xlabel("used-day index (packed)")
+    plt.plot(x, d["auc_norm_total"].values, label="hard_ok day")
+    skipped = ~d["use_for_stats"].astype(bool)
+    if skipped.any():
+        plt.scatter(x[skipped], d.loc[skipped, "auc_norm_total"].values, marker="x", s=24, label="skipped day")
+    plt.title("PLAO: normalized total AUC (compact; hard_ok days)")
+    plt.xlabel("hard_ok-day index (packed)")
     plt.ylabel("auc_norm_total")
     # avoid overcrowding
     step = max(1, len(labels)//12)
     plt.xticks(x[::step], labels[::step], rotation=45, ha="right")
+    plt.legend()
     plt.tight_layout()
     plt.savefig(out_path, dpi=160)
     plt.close()
 
-def plot_compact_bins(df_used: pd.DataFrame, bin_labels: List[str], out_path: str) -> None:
-    d = df_used.reset_index(drop=True).copy()
+def plot_compact_bins(df_plot: pd.DataFrame, bin_labels: List[str], out_path: str) -> None:
+    d = df_plot.reset_index(drop=True).copy()
     x = np.arange(len(d))
     labels = d["date"].tolist()
 
     plt.figure()
     for lab in bin_labels:
-        plt.plot(x, d[f"auc_norm_{lab}"].values, label=lab)
-    plt.title("PLAO: normalized distance-bin AUC (compact; used days only)")
-    plt.xlabel("used-day index (packed)")
+        y = d[f"auc_norm_{lab}"].values
+        plt.plot(x, y, label=lab)
+        skipped = ~d["use_for_stats"].astype(bool)
+        if skipped.any():
+            plt.scatter(x[skipped], d.loc[skipped, f"auc_norm_{lab}"].values, marker="x", s=12, alpha=0.6)
+    plt.title("PLAO: normalized distance-bin AUC (compact; hard_ok days)")
+    plt.xlabel("hard_ok-day index (packed)")
     plt.ylabel("auc_norm_bin")
     step = max(1, len(labels)//12)
     plt.xticks(x[::step], labels[::step], rotation=45, ha="right")
@@ -411,7 +415,10 @@ def main():
     ap.add_argument("--skip-threshold-ratio", type=float, default=0.8)
 
     # plots
-    ap.add_argument("--plots", action="store_true")
+    ap.add_argument("--plots", dest="plots", action="store_true", default=True,
+                    help="Generate plots (default: on)")
+    ap.add_argument("--no-plots", dest="plots", action="store_false",
+                    help="Disable plot generation")
     ap.add_argument("--plot-mode", choices=["compact", "calendar"], default="compact",
                     help="compact: pack x-axis to used days only; calendar: keep real dates with gaps")
 
@@ -435,10 +442,10 @@ def main():
 
     site_latlon = (float(args.site_lat), float(args.site_lon))
 
-    print(f"[INFO] Input files: {len(paths)}  dir={args.input_dir} pattern={args.pattern}")
-    print(f"[INFO] Site(lat,lon)=({site_latlon[0]:.8f},{site_latlon[1]:.8f})")
-    print(f"[INFO] JAX backend detect: {jax_backend}")
-    print(f"[INFO] bin_edges={bin_edges}")
+    log.info(f"[INFO] 入力ファイル数: {len(paths)}  dir={args.input_dir} pattern={args.pattern}")
+    log.info(f"[INFO] サイト(lat,lon)=({site_latlon[0]:.8f},{site_latlon[1]:.8f})")
+    log.info(f"[INFO] JAX バックエンド検出: {jax_backend}")
+    log.info(f"[INFO] bin_edges={bin_edges}")
 
     # ----------------------------
     # Aggregate all days
@@ -446,7 +453,7 @@ def main():
     day_results: List[DayResult] = []
     for i, p in enumerate(paths, start=1):
         date = parse_date_from_filename(p) or "unknown"
-        print(f"[RUN] ({i}/{len(paths)}) {os.path.basename(p)} date={date}")
+        log.info(f"[RUN] ({i}/{len(paths)}) {os.path.basename(p)} date={date}")
 
         r = compute_day_auc_plao_pos(
             jsonl_path=p,
@@ -455,7 +462,7 @@ def main():
         )
         day_results.append(r)
 
-        print(f"      lines={r.n_lines:,} used={r.n_used:,} minutes_covered={r.minutes_covered:,} auc_total={r.auc_total:,.0f} auc_norm_total={r.auc_norm_total:,.1f}")
+        log.info(f"      lines={r.n_lines:,} used={r.n_used:,} minutes_covered={r.minutes_covered:,} auc_total={r.auc_total:,.0f} auc_norm_total={r.auc_norm_total:,.1f}")
 
     # build daily dataframe
     rows = []
@@ -475,6 +482,12 @@ def main():
         rows.append(row)
 
     df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+
+    # Guardrail: if all normalized totals are zero, input/site config is likely broken.
+    if len(df) > 0 and float(df["auc_norm_total"].sum()) == 0.0:
+        raise SystemExit(
+            "[ERROR] auc_norm_total is all zeros. Check site lat/lon and input data schema before plotting."
+        )
 
     # add intervention flag
     if args.intervention_date:
@@ -555,14 +568,16 @@ def main():
                 groups.append(v)
                 group_names.append(f"{wd}(n={len(v)})")
         if len(groups) >= 2:
-            all_vals = np.concatenate(groups) if groups else np.array([])
-            if len(all_vals) == 0 or np.unique(all_vals).size <= 1:
-                lines.append(f"groups: {', '.join(group_names)}")
-                lines.append("Kruskal-Wallis skipped: all numbers are identical.")
+            lines.append(f"groups: {', '.join(group_names)}")
+            all_vals = np.concatenate(groups)
+            if len(all_vals) > 0 and np.allclose(all_vals, all_vals[0]):
+                lines.append("H=N/A p=N/A (all values are identical; Kruskal skipped)")
             else:
-                st = kruskal(*groups)
-                lines.append(f"groups: {', '.join(group_names)}")
-                lines.append(f"H={st.statistic:.4f} p={st.pvalue:.6g}")
+                try:
+                    st = kruskal(*groups)
+                    lines.append(f"H={st.statistic:.4f} p={st.pvalue:.6g}")
+                except ValueError as e:
+                    lines.append(f"H=N/A p=N/A (Kruskal skipped: {e})")
         else:
             lines.append("Not enough weekday groups with n>=2.")
         lines.append("")
@@ -597,24 +612,25 @@ def main():
 
     # plots
     if args.plots:
-        df_used = df[df["use_for_stats"]].copy()
+        df_plot = df[df["hard_ok"]].copy()
         if args.plot_mode == "compact":
-            plot_compact_total(df_used, os.path.join(out_dir, "plao_auc_norm_total_trend_compact.png"))
-            plot_compact_bins(df_used, bin_labels, os.path.join(out_dir, "plao_auc_norm_bins_trend_compact.png"))
+            if len(df_plot) >= 2:
+                plot_compact_total(df_plot, os.path.join(out_dir, "plao_auc_norm_total_trend_compact.png"))
+                plot_compact_bins(df_plot, bin_labels, os.path.join(out_dir, "plao_auc_norm_bins_trend_compact.png"))
         else:
             plot_calendar_total(df, os.path.join(out_dir, "plao_auc_norm_total_trend_calendar.png"))
             plot_calendar_bins(df, bin_labels, os.path.join(out_dir, "plao_auc_norm_bins_trend_calendar.png"))
 
-    print("")
-    print(f"[OK] wrote: {daily_csv}")
-    print(f"[OK] wrote: {report_txt}")
-    print(f"[OK] wrote: {os.path.join(out_dir, 'plao_skipped_days.csv')}")
-    print(f"[OK] out_dir: {out_dir}")
-    print(f"[INFO] use_for_stats_days={int(df['use_for_stats'].sum())}/{len(df)}")
-    print(f"[INFO] quality_threshold(auc_norm_total)={thr:.3f} (ratio={args.skip_threshold_ratio})")
-    print(f"[INFO] plot_mode={args.plot_mode}")
+    log.info("")
+    log.info(f"[OK] 出力: {daily_csv}")
+    log.info(f"[OK] 出力: {report_txt}")
+    log.info(f"[OK] 出力: {os.path.join(out_dir, 'plao_skipped_days.csv')}")
+    log.info(f"[OK] out_dir: {out_dir}")
+    log.info(f"[INFO] use_for_stats_days={int(df['use_for_stats'].sum())}/{len(df)}")
+    log.info(f"[INFO] quality_threshold(auc_norm_total)={thr:.3f} (ratio={args.skip_threshold_ratio})")
+    log.info(f"[INFO] plot_mode={args.plot_mode}")
     if args.intervention_date:
-        print(f"[INFO] intervention_date={args.intervention_date}")
+        log.info(f"[INFO] intervention_date={args.intervention_date}")
 
 
 if __name__ == "__main__":

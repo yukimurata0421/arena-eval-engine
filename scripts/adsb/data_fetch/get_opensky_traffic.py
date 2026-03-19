@@ -4,20 +4,16 @@ get_opensky_traffic.py
 Fetch daily arrival/departure counts for Haneda/Narita from the OpenSky API.
 
 Credentials:
-  Read credentials.json (recommended).
-
-  Default path:
-    <project>/scripts/secrets/opensky_credentials.json
-    (template: <project>/scripts/secrets/opensky_credentials.example.json)
+  Environment variables are preferred:
+    OPENSKY_CLIENT_ID
+    OPENSKY_CLIENT_SECRET
 
   Alternative path (PowerShell):
     $env:OPENSKY_CREDENTIALS_JSON = "<path>\opensky_credentials.json"
 
-  JSON key examples (either is OK):
+  JSON key examples (optional fallback file):
     {"clientId":"xxx","clientSecret":"yyy"}
     {"client_id":"xxx","client_secret":"yyy"}
-
-Never commit credentials.json to Git (.gitignore is recommended).
 """
 
 
@@ -29,37 +25,52 @@ import sys
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
+from collections import defaultdict
 
 
 from arena.lib.paths import DATA_DIR, SCRIPTS_ROOT
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 DEFAULT_CRED_PATH = SCRIPTS_ROOT / "secrets" / "opensky_credentials.json"
 CRED_PATH = Path(os.environ.get("OPENSKY_CREDENTIALS_JSON", str(DEFAULT_CRED_PATH)))
 
 
 def load_opensky_credentials(cred_path: Path):
     """
-    Read credentials.json and return (client_id, client_secret).
-    Supports both clientId/clientSecret and client_id/client_secret.
+    Resolve OpenSky credentials and return (client_id, client_secret).
+    Priority:
+      1) OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET
+      2) OPENSKY_CREDENTIALS_JSON file (clientId/clientSecret or client_id/client_secret)
     """
+    env_client_id = str(os.environ.get("OPENSKY_CLIENT_ID", "")).strip()
+    env_client_secret = str(os.environ.get("OPENSKY_CLIENT_SECRET", "")).strip()
+    if env_client_id and env_client_secret:
+        return env_client_id, env_client_secret
+    if env_client_id or env_client_secret:
+        log.info("  エラー: OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET は両方設定してください。")
+        return "", ""
+
     if not cred_path.exists():
-        print(f"  Error: credentials.json  not found: {cred_path}")
-        print("  Action:")
-        print(f"   - Place it at the default path: {DEFAULT_CRED_PATH}")
-        print('   - Or set OPENSKY_CREDENTIALS_JSON to the full path')
+        log.info("  エラー: OpenSky 認証情報が見つかりません。")
+        log.info("  対処:")
+        log.info("   - OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET を設定")
+        log.info(f"   - もしくは OPENSKY_CREDENTIALS_JSON を設定 (現在: {cred_path})")
         return "", ""
 
     try:
         obj = json.loads(cred_path.read_text(encoding="utf-8"))
     except Exception as e:
-        print(f"  Error: failed to read credentials.json: {cred_path} ({e})")
+        log.info(f"  エラー: credentials.json の読み込みに失敗: {cred_path} ({e})")
         return "", ""
 
     client_id = (obj.get("clientId") or obj.get("client_id") or "").strip()
     client_secret = (obj.get("clientSecret") or obj.get("client_secret") or "").strip()
 
     if not client_id or not client_secret:
-        print(f"  Error: credentials.json missing clientId/clientSecret (or client_id/client_secret): {cred_path}")
+        log.info(f"  エラー: credentials.json に clientId/clientSecret がありません: {cred_path}")
         return "", ""
 
     return client_id, client_secret
@@ -71,22 +82,67 @@ TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protoc
 BASE_URL  = "https://opensky-network.org/api/flights"
 AIRPORTS  = {"HND": "RJTT", "NRT": "RJAA"}
 
-OUTPUT_DIR  = str(DATA_DIR / "flight_data")
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "airport_movements.csv")
+FLIGHT_DATA_DIR  = str(DATA_DIR / "flight_data")
+OUTPUT_FILE = os.path.join(FLIGHT_DATA_DIR, "airport_movements.csv")
 
 START_DATE = datetime(2025, 12, 1)
-END_DATE   = datetime.now()
+TODAY      = datetime.now().date()
 
 MAX_RETRIES      = 3
 RETRY_WAIT_SEC   = 10
 REQUEST_INTERVAL = 2
+DEFAULT_REFRESH_DAYS = 7
+DEFAULT_INCLUDE_TODAY = True
+DEFAULT_STABLE_DAYS_LAG = 2
+DEFAULT_MIN_DAILY_MOVEMENTS = 700
+DEFAULT_SHARD_HOURS = 12
+DEFAULT_MAX_RUNTIME_SEC = 240
+DEFAULT_REQUEST_TIMEOUT_SEC = 15
+DEFAULT_AUTO_REPAIR_LOOKBACK_DAYS = 14
+DEFAULT_MAX_AUTO_REPAIR_DATES = 3
+
+
+def parse_int_env(name, default, min_value=0):
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value >= min_value else default
+
+
+def budget_remaining_sec(deadline_monotonic):
+    if deadline_monotonic is None:
+        return None
+    return deadline_monotonic - time.monotonic()
+
+
+def budget_exceeded(deadline_monotonic):
+    rem = budget_remaining_sec(deadline_monotonic)
+    return rem is not None and rem <= 0
+
+
+def sleep_with_budget(seconds, deadline_monotonic):
+    if seconds <= 0:
+        return True
+
+    rem = budget_remaining_sec(deadline_monotonic)
+    if rem is not None and rem <= 0:
+        return False
+
+    sleep_sec = min(seconds, rem) if rem is not None else seconds
+    if sleep_sec > 0:
+        time.sleep(sleep_sec)
+    return not budget_exceeded(deadline_monotonic)
 
 
 def get_access_token():
     """Get OAuth2 token."""
     if not CLIENT_ID or not CLIENT_SECRET:
-        print("  Error: OpenSky credentials are not configured.")
-        print(f"  Expected path: {CRED_PATH}")
+        log.info("  エラー: OpenSky 認証情報が設定されていません。")
+        log.info(f"  期待パス: {CRED_PATH}")
         return None
 
     payload = {
@@ -100,59 +156,132 @@ def get_access_token():
         res.raise_for_status()
         token = res.json().get("access_token")
         if token:
-            print("  Authentication success")
+            log.info("  認証成功")
         return token
 
     except requests.exceptions.HTTPError as e:
         status = getattr(e.response, "status_code", "unknown")
-        print(f"  Auth error (HTTP {status}): {e}")
+        log.info(f"  認証エラー (HTTP {status}): {e}")
         return None
     except Exception as e:
-        print(f"  Auth error: {e}")
+        log.info(f"  認証エラー: {e}")
         return None
 
 
-def get_flight_count(token, icao, start_ts, end_ts, mode):
-    """Fetch flight count for a given airport/direction (with retries)."""
+def get_flight_records(
+    token,
+    icao,
+    start_ts,
+    end_ts,
+    mode,
+    *,
+    max_retries,
+    retry_wait_sec,
+    request_timeout_sec,
+    deadline_monotonic,
+):
+    """Fetch flights list for a given airport/direction (with retries)."""
     headers = {"Authorization": f"Bearer {token}"}
     params  = {"airport": icao, "begin": int(start_ts), "end": int(end_ts)}
 
-    for attempt in range(MAX_RETRIES):
+    for attempt in range(max_retries):
+        if budget_exceeded(deadline_monotonic):
+            return "TIME_BUDGET_EXCEEDED"
+
+        timeout = request_timeout_sec
+        rem = budget_remaining_sec(deadline_monotonic)
+        if rem is not None:
+            if rem <= 1:
+                return "TIME_BUDGET_EXCEEDED"
+            timeout = max(1, min(request_timeout_sec, int(rem)))
+
         try:
             res = requests.get(
                 f"{BASE_URL}/{mode}",
                 params=params,
                 headers=headers,
-                timeout=30
+                timeout=timeout,
             )
 
             if res.status_code == 200:
-                return len(res.json())
+                data = res.json()
+                if isinstance(data, list):
+                    return data
+                return []
             elif res.status_code == 404:
-                return 0
+                return []
             elif res.status_code == 429:
                 return "LIMIT_REACHED"
             elif res.status_code == 401:
                 return "AUTH_EXPIRED"
             else:
-                print(f"\n    HTTP {res.status_code} ({icao}/{mode})", end="")
-                if attempt < MAX_RETRIES - 1:
-                    time.sleep(RETRY_WAIT_SEC)
+                log.info(f"\n    HTTP {res.status_code} ({icao}/{mode})")
+                if attempt < max_retries - 1:
+                    if not sleep_with_budget(retry_wait_sec, deadline_monotonic):
+                        return "TIME_BUDGET_EXCEEDED"
                     continue
-                return 0
+                return []
 
         except requests.exceptions.Timeout:
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_WAIT_SEC)
+            if attempt < max_retries - 1:
+                if not sleep_with_budget(retry_wait_sec, deadline_monotonic):
+                    return "TIME_BUDGET_EXCEEDED"
                 continue
-            return 0
+            return []
         except Exception:
-            return 0
+            return []
 
-    return 0
+    return []
 
 
-def fetch_day_counts(token, day_date):
+def unique_flight_count(records):
+    """
+    Count unique flights defensively.
+    - Keep API-call count low by deduplicating when time-sharded queries are used.
+    """
+    if not records:
+        return 0
+
+    uniq = set()
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        key = (
+            str(r.get("icao24", "")),
+            int(r.get("firstSeen", 0) or 0),
+            int(r.get("lastSeen", 0) or 0),
+            str(r.get("estDepartureAirport", "")),
+            str(r.get("estArrivalAirport", "")),
+        )
+        uniq.add(key)
+    return len(uniq)
+
+
+def split_time_ranges(start_ts, end_ts, shard_hours):
+    step = max(1, int(shard_hours)) * 3600
+    cur = int(start_ts)
+    end_ts = int(end_ts)
+    out = []
+    while cur < end_ts:
+        nxt = min(cur + step, end_ts)
+        out.append((cur, nxt))
+        cur = nxt
+    return out
+
+
+def fetch_day_counts(
+    token,
+    day_date,
+    min_daily_movements,
+    stable_days_lag,
+    shard_hours,
+    *,
+    max_retries,
+    retry_wait_sec,
+    request_timeout_sec,
+    request_interval_sec,
+    deadline_monotonic,
+):
     """Fetch daily arrivals/departures and return as dict. Refresh token if needed."""
     # Accept both datetime.date and datetime.datetime
     if isinstance(day_date, datetime):
@@ -167,26 +296,110 @@ def fetch_day_counts(token, day_date):
     day_results = {"date": date_str}
     total = 0
 
+    day_records = defaultdict(list)
     for name, icao in AIRPORTS.items():
         for mode in ["arrival", "departure"]:
-            count = get_flight_count(token, icao, s_ts, e_ts, mode)
+            recs = get_flight_records(
+                token,
+                icao,
+                s_ts,
+                e_ts,
+                mode,
+                max_retries=max_retries,
+                retry_wait_sec=retry_wait_sec,
+                request_timeout_sec=request_timeout_sec,
+                deadline_monotonic=deadline_monotonic,
+            )
 
-            if count == "LIMIT_REACHED":
+            if recs == "TIME_BUDGET_EXCEEDED":
+                return None, token, "TIME_BUDGET_EXCEEDED"
+
+            if recs == "LIMIT_REACHED":
                 return None, token, "LIMIT_REACHED"
 
-            elif count == "AUTH_EXPIRED":
-                print("\n  Token expired. Refreshing...", end=" ")
+            elif recs == "AUTH_EXPIRED":
+                log.info("\n  トークン期限切れ。更新中...")
                 token = get_access_token()
                 if not token:
                     return None, token, "AUTH_EXPIRED"
 
-                count = get_flight_count(token, icao, s_ts, e_ts, mode)
-                if count in ("LIMIT_REACHED", "AUTH_EXPIRED"):
+                recs = get_flight_records(
+                    token,
+                    icao,
+                    s_ts,
+                    e_ts,
+                    mode,
+                    max_retries=max_retries,
+                    retry_wait_sec=retry_wait_sec,
+                    request_timeout_sec=request_timeout_sec,
+                    deadline_monotonic=deadline_monotonic,
+                )
+                if recs == "LIMIT_REACHED":
+                    return None, token, "LIMIT_REACHED"
+                if recs == "TIME_BUDGET_EXCEEDED":
+                    return None, token, "TIME_BUDGET_EXCEEDED"
+                if recs == "AUTH_EXPIRED":
                     return None, token, "AUTH_EXPIRED"
 
+            day_records[(name, mode)] = recs
+            count = unique_flight_count(recs)
             day_results[f"{name.lower()}_{mode[:3]}"] = count
             total += count
-            time.sleep(REQUEST_INTERVAL)
+            if not sleep_with_budget(request_interval_sec, deadline_monotonic):
+                return None, token, "TIME_BUDGET_EXCEEDED"
+
+    # If a stable historical day looks implausibly low, run one sharded verification.
+    # This limits additional API calls only to suspicious days.
+    if day_dt.date() <= (TODAY - timedelta(days=stable_days_lag)) and total < min_daily_movements:
+        verified_total = 0
+        for name, icao in AIRPORTS.items():
+            for mode in ["arrival", "departure"]:
+                merged = []
+                for ss, ee in split_time_ranges(s_ts, e_ts, shard_hours):
+                    recs = get_flight_records(
+                        token,
+                        icao,
+                        ss,
+                        ee,
+                        mode,
+                        max_retries=max_retries,
+                        retry_wait_sec=retry_wait_sec,
+                        request_timeout_sec=request_timeout_sec,
+                        deadline_monotonic=deadline_monotonic,
+                    )
+                    if recs == "TIME_BUDGET_EXCEEDED":
+                        return None, token, "TIME_BUDGET_EXCEEDED"
+                    if recs == "LIMIT_REACHED":
+                        return None, token, "LIMIT_REACHED"
+                    if recs == "AUTH_EXPIRED":
+                        token = get_access_token()
+                        if not token:
+                            return None, token, "AUTH_EXPIRED"
+                        recs = get_flight_records(
+                            token,
+                            icao,
+                            ss,
+                            ee,
+                            mode,
+                            max_retries=max_retries,
+                            retry_wait_sec=retry_wait_sec,
+                            request_timeout_sec=request_timeout_sec,
+                            deadline_monotonic=deadline_monotonic,
+                        )
+                        if recs == "LIMIT_REACHED":
+                            return None, token, "LIMIT_REACHED"
+                        if recs == "TIME_BUDGET_EXCEEDED":
+                            return None, token, "TIME_BUDGET_EXCEEDED"
+                        if recs == "AUTH_EXPIRED":
+                            return None, token, "AUTH_EXPIRED"
+                    merged.extend(recs if isinstance(recs, list) else [])
+                    if not sleep_with_budget(request_interval_sec, deadline_monotonic):
+                        return None, token, "TIME_BUDGET_EXCEEDED"
+
+                vcount = unique_flight_count(merged)
+                day_results[f"{name.lower()}_{mode[:3]}"] = vcount
+                verified_total += vcount
+        total = verified_total
 
     day_results["hnd_nrt_movements"] = total
     return day_results, token, None
@@ -201,6 +414,59 @@ def load_existing_data():
         except Exception:
             pass
     return pd.DataFrame(), set()
+
+
+def parse_force_dates():
+    """Parse comma-separated force dates from OPENSKY_FORCE_DATES (YYYY-MM-DD)."""
+    raw = os.environ.get("OPENSKY_FORCE_DATES", "").strip()
+    if not raw:
+        return set()
+
+    parsed = set()
+    for token in raw.split(","):
+        date_str = token.strip()
+        if not date_str:
+            continue
+        try:
+            parsed.add(datetime.strptime(date_str, "%Y-%m-%d").date())
+        except ValueError:
+            log.info(f"  警告: OPENSKY_FORCE_DATES の日付形式が不正: {date_str}")
+    return parsed
+
+
+def detect_suspicious_dates(
+    df_all,
+    min_daily_movements,
+    stable_days_lag,
+    auto_repair_lookback_days,
+    max_auto_repair_dates,
+):
+    """
+    Auto-mark obviously broken days for repair.
+    Keeps API usage low by only selecting low-total stable days.
+    """
+    if df_all.empty or "date" not in df_all.columns or "hnd_nrt_movements" not in df_all.columns:
+        return set()
+
+    if auto_repair_lookback_days <= 0:
+        return set()
+
+    out = []
+    lower_bound = TODAY - timedelta(days=auto_repair_lookback_days)
+    upper_bound = TODAY - timedelta(days=stable_days_lag)
+    for _, r in df_all.iterrows():
+        try:
+            d = datetime.strptime(str(r["date"]), "%Y-%m-%d").date()
+            total = int(r["hnd_nrt_movements"])
+        except Exception:
+            continue
+        if lower_bound <= d <= upper_bound and total < min_daily_movements:
+            out.append(d)
+
+    out = sorted(set(out), reverse=True)
+    if max_auto_repair_dates > 0:
+        out = out[:max_auto_repair_dates]
+    return set(out)
 
 
 def day_differs(df_all, day_results):
@@ -230,17 +496,17 @@ def upsert_day(df_all, day_results):
 
 
 def main():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(FLIGHT_DATA_DIR, exist_ok=True)
 
     if not CLIENT_ID or not CLIENT_SECRET:
         if os.path.exists(OUTPUT_FILE):
             try:
                 os.utime(OUTPUT_FILE, None)
-                print("  Credentials missing; touched existing CSV.")
+                log.info("  認証情報なしのため既存CSVのmtimeを更新しました。")
                 return
             except Exception:
                 pass
-        print("  Error: OpenSky credentials are not configured.")
+        log.info("  エラー: OpenSky 認証情報が設定されていません。")
         sys.exit(1)
 
     token = get_access_token()
@@ -249,31 +515,134 @@ def main():
 
     df_existing, existing_dates = load_existing_data()
     if existing_dates:
-        print(f"  Existing data: {len(existing_dates)}  days")
+        log.info(f"  既存データ: {len(existing_dates)} 日分")
 
-    current_date = START_DATE
+    try:
+        refresh_days = int(os.environ.get("OPENSKY_REFRESH_DAYS", str(DEFAULT_REFRESH_DAYS)))
+    except ValueError:
+        refresh_days = DEFAULT_REFRESH_DAYS
+    refresh_days = max(refresh_days, 0)
+
+    try:
+        stable_days_lag = int(os.environ.get("OPENSKY_STABLE_DAYS_LAG", str(DEFAULT_STABLE_DAYS_LAG)))
+    except ValueError:
+        stable_days_lag = DEFAULT_STABLE_DAYS_LAG
+    stable_days_lag = max(stable_days_lag, 0)
+
+    try:
+        min_daily_movements = int(os.environ.get("OPENSKY_MIN_DAILY_MOVEMENTS", str(DEFAULT_MIN_DAILY_MOVEMENTS)))
+    except ValueError:
+        min_daily_movements = DEFAULT_MIN_DAILY_MOVEMENTS
+    min_daily_movements = max(min_daily_movements, 0)
+
+    try:
+        shard_hours = int(os.environ.get("OPENSKY_SHARD_HOURS", str(DEFAULT_SHARD_HOURS)))
+    except ValueError:
+        shard_hours = DEFAULT_SHARD_HOURS
+    shard_hours = max(1, min(shard_hours, 24))
+
+    max_runtime_sec = parse_int_env("OPENSKY_MAX_RUNTIME_SEC", DEFAULT_MAX_RUNTIME_SEC, min_value=0)
+    request_timeout_sec = parse_int_env("OPENSKY_REQUEST_TIMEOUT_SEC", DEFAULT_REQUEST_TIMEOUT_SEC, min_value=1)
+    max_retries = parse_int_env("OPENSKY_MAX_RETRIES", MAX_RETRIES, min_value=1)
+    retry_wait_sec = parse_int_env("OPENSKY_RETRY_WAIT_SEC", RETRY_WAIT_SEC, min_value=0)
+    request_interval_sec = parse_int_env("OPENSKY_REQUEST_INTERVAL_SEC", REQUEST_INTERVAL, min_value=0)
+    auto_repair_lookback_days = parse_int_env(
+        "OPENSKY_AUTO_REPAIR_LOOKBACK_DAYS",
+        DEFAULT_AUTO_REPAIR_LOOKBACK_DAYS,
+        min_value=0,
+    )
+    max_auto_repair_dates = parse_int_env(
+        "OPENSKY_MAX_AUTO_REPAIR_DATES",
+        DEFAULT_MAX_AUTO_REPAIR_DATES,
+        min_value=0,
+    )
+
+    include_today = os.environ.get("OPENSKY_INCLUDE_TODAY", "1" if DEFAULT_INCLUDE_TODAY else "0").strip() not in (
+        "0", "false", "False"
+    )
+
+    deadline_monotonic = None
+    if max_runtime_sec > 0:
+        deadline_monotonic = time.monotonic() + max_runtime_sec
+
+    refresh_from = TODAY - timedelta(days=refresh_days)
+    force_dates = {d for d in parse_force_dates() if d <= TODAY}
+    auto_suspicious_dates = detect_suspicious_dates(
+        df_existing,
+        min_daily_movements,
+        stable_days_lag,
+        auto_repair_lookback_days=auto_repair_lookback_days,
+        max_auto_repair_dates=max_auto_repair_dates,
+    )
+    force_dates |= auto_suspicious_dates
+
+    date_cursor = START_DATE.date()
+    normal_dates = []
+    stop_date = TODAY if include_today else (TODAY - timedelta(days=1))
+    while date_cursor <= stop_date:
+        normal_dates.append(date_cursor)
+        date_cursor += timedelta(days=1)
+
+    if existing_dates:
+        recent_window_start = max(START_DATE.date(), refresh_from)
+        recent_dates = [d for d in normal_dates if d >= recent_window_start]
+        older_forced = sorted([d for d in force_dates if d < recent_window_start], reverse=True)
+        all_dates = []
+        seen_dates = set()
+        for d in recent_dates + older_forced:
+            if d in seen_dates:
+                continue
+            seen_dates.add(d)
+            all_dates.append(d)
+    else:
+        all_dates = sorted(set(normal_dates) | force_dates)
     new_records = []
+    updated_days = 0
 
-    while current_date < END_DATE:
+    for current_date in all_dates:
+        if budget_exceeded(deadline_monotonic):
+            log.info("\n  実行時間予算に到達したため、残り日付は次回に繰り越します。")
+            break
+
         date_str = current_date.strftime("%Y-%m-%d")
+        should_refresh = current_date >= refresh_from or current_date in force_dates
 
-        if date_str in existing_dates:
-            current_date += timedelta(days=1)
+        if date_str in existing_dates and not should_refresh:
             continue
 
-        print(f"  {date_str} ...", end=" ", flush=True)
-        day_results, token, err = fetch_day_counts(token, current_date)
+        log.info(f"  {date_str} ...")
+        day_results, token, err = fetch_day_counts(
+            token,
+            current_date,
+            min_daily_movements=min_daily_movements,
+            stable_days_lag=stable_days_lag,
+            shard_hours=shard_hours,
+            max_retries=max_retries,
+            retry_wait_sec=retry_wait_sec,
+            request_timeout_sec=request_timeout_sec,
+            request_interval_sec=request_interval_sec,
+            deadline_monotonic=deadline_monotonic,
+        )
 
+        if err == "TIME_BUDGET_EXCEEDED":
+            log.info("\n  実行時間予算に到達したため、残り日付は次回に繰り越します。")
+            break
         if err == "LIMIT_REACHED":
-            print("\n  Rate limit reached. Aborting.")
+            log.info("\n  レート制限に到達。中断します。")
             sys.exit(2)
         if err == "AUTH_EXPIRED":
             sys.exit(3)
 
-        new_records.append(day_results)
-        print(f"{day_results['hnd_nrt_movements']} flights")
-
-        current_date += timedelta(days=1)
+        if date_str in existing_dates:
+            if day_differs(df_existing, day_results):
+                df_existing = upsert_day(df_existing, day_results)
+                updated_days += 1
+                log.info(f"{day_results['hnd_nrt_movements']} 便 (更新)")
+            else:
+                log.info(f"{day_results['hnd_nrt_movements']} 便 (変更なし)")
+        else:
+            new_records.append(day_results)
+            log.info(f"{day_results['hnd_nrt_movements']} 便 (追加)")
 
     if new_records:
         df_new = pd.DataFrame(new_records)
@@ -285,52 +654,15 @@ def main():
         df_all = df_existing
 
     if not df_all.empty:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        latest_date = df_all["date"].max()
-        if latest_date == today_str:
-            print("\n  Today is the last day. Starting update check from yesterday.")
-            today_date = datetime.now().date()
-            date_cursor = today_date - timedelta(days=1)
-            backfill_updates = 0
-
-            while True:
-                date_str = date_cursor.strftime("%Y-%m-%d")
-                print(f"  {date_str} (backfill) ...", end=" ", flush=True)
-
-                day_results, token, err = fetch_day_counts(token, date_cursor)
-                if err == "LIMIT_REACHED":
-                    print("\n  Rate limit reached. Aborting.")
-                    break
-                if err == "AUTH_EXPIRED":
-                    break
-
-                if day_differs(df_all, day_results):
-                    df_all = upsert_day(df_all, day_results)
-                    backfill_updates += 1
-                    print("Updates found")
-                    date_cursor -= timedelta(days=1)
-                    continue
-
-                print("No updates")
-                if date_cursor >= today_date:
-                    break
-                date_cursor += timedelta(days=1)
-                if date_cursor > today_date:
-                    break
-
-            if backfill_updates:
-                print(f"  Backfill updates: {backfill_updates} days")
-
-    if not df_all.empty:
         df_all.to_csv(OUTPUT_FILE, index=False)
         added_days = len(new_records)
-        print(f"\n  Saved: {OUTPUT_FILE} ({added_days} days added, total {len(df_all)} days)")
+        log.info(f"\n  保存しました: {OUTPUT_FILE}（追加 {added_days} 日、更新 {updated_days} 日、合計 {len(df_all)} 日）")
     else:
-        print("\n  No new data.")
+        log.info("\n  新規データなし。")
         if os.path.exists(OUTPUT_FILE):
             try:
                 os.utime(OUTPUT_FILE, None)
-                print("  Touched existing CSV to refresh mtime.")
+                log.info("  既存CSVのmtimeを更新しました。")
             except Exception:
                 pass
 

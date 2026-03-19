@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from scripts.tools.artifacts import integrity as legacy_integrity
+from scripts.tools.artifacts import replay as legacy_replay
+from scripts.tools.artifacts import selection as legacy_selection
+
 from arena import cli as arena_cli
 from arena.artifacts import integrity as core_integrity
 from arena.artifacts import replay as core_replay
 from arena.artifacts import schema as core_schema
 from arena.artifacts import selection as core_selection
-from scripts.tools.artifacts import integrity as legacy_integrity
-from scripts.tools.artifacts import replay as legacy_replay
-from scripts.tools.artifacts import selection as legacy_selection
 
 
 def test_legacy_core_modules_alias_public_core() -> None:

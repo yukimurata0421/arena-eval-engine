@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
+from arena.log import get_logger
 from arena.pipeline.stages import Step, _resolve_expected_path, validate_outputs
+
+logger = get_logger(__name__)
 
 
 def latest_dependency_mtime(output_root_native: Path, dependencies: Sequence[str]) -> float | None:
@@ -23,7 +26,13 @@ def latest_dependency_mtime(output_root_native: Path, dependencies: Sequence[str
                 mtimes.append(max(p.stat().st_mtime for p in files))
             else:
                 mtimes.append(fp.stat().st_mtime)
-        except Exception:
+        except OSError as e:
+            logger.warning(
+                "依存ファイルの mtime 取得に失敗 (%s): %s: %s" " - スキップ判定に依存関係を使用しません",
+                fp,
+                type(e).__name__,
+                e,
+            )
             return None
     return max(mtimes) if mtimes else None
 
@@ -99,6 +108,13 @@ def should_skip_no_inputs(step: Step, data_root_native: Path) -> tuple[bool, Pat
     input_dir, pattern = resolve_input_probe(step, data_root_native)
     try:
         has_inputs = any(input_dir.glob(pattern))
-    except Exception:
+    except OSError as e:
+        logger.warning(
+            "input_pattern の glob に失敗 (%s / '%s'): %s: %s" " - 入力なしとしてステップをスキップします",
+            input_dir,
+            pattern,
+            type(e).__name__,
+            e,
+        )
         has_inputs = False
     return (not has_inputs), input_dir, pattern

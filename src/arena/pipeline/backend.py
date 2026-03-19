@@ -4,10 +4,14 @@ import os
 import shlex
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Sequence
+
+from arena.log import get_logger
+
+logger = get_logger(__name__)
 
 BATCH_ENV = {
     "ADSB_BATCH_MODE": "1",
@@ -74,7 +78,7 @@ def wsl_available() -> bool:
             timeout=15,
         )
         return p.returncode == 0 and p.stdout.strip().endswith("0")
-    except Exception:
+    except (OSError, subprocess.TimeoutExpired):
         return False
 
 
@@ -105,7 +109,7 @@ class Backend:
     """
     - native: run scripts with current python (sys.executable) and native file paths.
     - wsl:    run scripts via `wsl bash -lc` using /mnt/<drive>/... paths for execution,
-              while validating outputs via Windows native paths (E:\\...) if master runs on Windows.
+              while validating outputs via Windows native paths (<drive>:\\...) if master runs on Windows.
     """
 
     kind: str  # "native" or "wsl"
@@ -146,7 +150,7 @@ class Backend:
         cmd = ["wsl", "-e", "bash", "-lc", f"python3 -c {code_q}"]
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, env=env)
 
-    def build_script_cmd(self, script_rel_posix: str, extra_args: list[str] | None = None) -> tuple[list[str], Optional[str]]:
+    def build_script_cmd(self, script_rel_posix: str, extra_args: list[str] | None = None) -> tuple[list[str], str | None]:
         """
         Return (cmd, cwd) for subprocess.run.
         - script_rel_posix must be posix-style relative path, e.g. "adsb/aggregators/adsb_aggregator.py"
@@ -171,27 +175,28 @@ class Backend:
         cmd = ["wsl", "-e", "bash", "-lc", payload]
         return cmd, None
 
+
 BASE_MODULES = ["numpy", "pandas", "scipy", "statsmodels", "matplotlib", "folium", "requests"]
-STAGE4_MODULES = ["jax", "numpyro"]         # phase eval (NumPyro NUTS)
-STAGE5_MODULES = ["jax", "numpyro"]         # change point / numpyro
-STAGE5_PYMC = ["pymc", "arviz"]             # PyMC bayesian scripts
+STAGE4_MODULES = ["jax", "numpyro"]  # phase eval (NumPyro NUTS)
+STAGE5_MODULES = ["jax", "numpyro"]  # change point / numpyro
+STAGE5_PYMC = ["pymc", "arviz"]  # PyMC bayesian scripts
 
 
 def missing_modules(backend: Backend, modules: Sequence[str], env: dict[str, str]) -> list[str]:
     mods = list(modules)
-    code = (
-        "import importlib.util as u; "
-        f"mods={mods!r}; "
-        "miss=[m for m in mods if u.find_spec(m) is None]; "
-        "print('\\n'.join(miss))"
-    )
+    code = "import importlib.util as u; " f"mods={mods!r}; " "miss=[m for m in mods if u.find_spec(m) is None]; " "print('\\n'.join(miss))"
     try:
         proc = backend.run_python_snippet(code, env=env, timeout_s=30)
         out = (proc.stdout or "").strip()
         if not out:
             return []
         return [line.strip() for line in out.splitlines() if line.strip()]
-    except Exception:
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.warning(
+            "Pythonモジュール確認のサブプロセスが失敗しました: %s: %s" " - モジュール確認をスキップし、全モジュールが不在として扱います",
+            type(exc).__name__,
+            exc,
+        )
         return list(modules)
 
 
@@ -217,6 +222,10 @@ def detect_gpu_jax(backend: Backend, env: dict[str, str]) -> dict:
             info["available"] = True
             info["jax"] = True
             info["device"] = lines[1].strip() if len(lines) > 1 else "GPU"
-    except Exception:
-        pass
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.warning(
+            "GPU (JAX) 検出中に例外が発生しました: %s: %s - CPU モードにフォールバックします",
+            type(exc).__name__,
+            exc,
+        )
     return info

@@ -4,6 +4,90 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.8] - 2026-03-19
+
+### Changed
+- Aligned package metadata with public branding:
+  - `project.name`: `adsb-scripts` -> `arena-eval-engine`
+  - updated project description to ARENA-focused wording
+- Aligned release/version metadata across package and changelog:
+  - `pyproject.toml` version -> `0.2.8`
+  - `arena.__version__` -> `0.2.8`
+- Aligned Python version baseline with documented release policy:
+  - `requires-python` -> `>=3.11`
+  - tooling targets updated to Python 3.11 (`ruff`, `mypy`)
+- Removed ineffective `tool.setuptools.package-data.scripts` entry to avoid install-time ambiguity between editable/non-editable environments.
+
+### Fixed
+- Corrected cross-stage parallel scheduling so Stage 3 no longer races Stage 2 outputs (`fringe_decoding_stats.csv` dependency).
+- Updated orchestration contract test expectations for the new stage-group behavior.
+- Replaced broad exception handlers in `src` critical paths with `except Exception as exc` + debug logging:
+  - `arena.lib.input_utils`
+  - `arena.lib.platform_setup`
+  - `arena.artifacts.repro_stamp`
+
+### Validation
+- Re-ran Docker real-data full pipeline (`arena-real-full`) through Stage 1-8.
+- Confirmed artifact packaging flow works on real-data outputs:
+  - `python -m arena.artifact_cli run`
+  - `python -m arena.cli artifacts verify`
+  - `python -m arena.cli artifacts replay`
+- Re-ran test suite and coverage in public release tree:
+  - `coverage run -m pytest -q`
+  - `coverage report -m` (TOTAL 86%)
+- Verified non-editable install flow:
+  - `pip install .`
+  - `python -m arena.cli --help`
+  - `python -m arena.cli validate`
+  - `arena --help`
+  - `artifact --help`
+
+### Docs
+- Updated environment setup guidance for:
+  - minimum public setup (`.[dev]`)
+  - full Stage 1-8 runtime dependencies
+  - Docker real-data prerequisites and cleanup steps
+- Added reproducible public zip packaging guidance using `scripts/tools/build_public_zip.py`.
+
+### Security
+- Removed runtime-injected private inputs after verification (`docker/.env`, temporary real-output directories).
+- Added explicit clean-distribution packaging flow to exclude VCS/build/cache residues from release zips.
+
+### Tech Debt
+- Broad `except Exception` blocks remain in multiple `scripts/` modules by design for now.
+- These are tracked as future refactor targets to improve error granularity and diagnostics.
+
+---
+
+## [0.2.7] - 2026-03-19
+
+### Changed
+- Updated Docker runtime defaults for public release:
+  - removed dependency on deleted `scripts/dev/*` smoke scripts
+  - switched container default command to CLI help
+  - made container data/output directories runtime-created
+- Added real-data Docker execution path with host-mounted settings/phase/credentials via `docker/.env`.
+- Added documentation for opt-in real-data validation without persisting private data in repository.
+
+### Security
+- Added `.env` / `docker/.env` ignore rules to prevent accidental credential/path commits.
+
+---
+
+## [0.2.6] - 2026-03-19
+
+### Changed
+- Split pipeline builder responsibilities into modular stage constructors and shared orchestration flow.
+- Standardized pipeline build-time environment separation with `PipelineBuildOptions`.
+- Hardened public release defaults to avoid local absolute paths and private host/user settings.
+- Updated OpenSky credential handling to prefer environment variables (`OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`).
+
+### Tests
+- Increased CLI-oriented coverage (`--help`, `validate`, staged run entrypoints and env resolution paths).
+- Strengthened pipeline contract tests around stage ordering, options resolution, and entrypoint orchestration.
+
+---
+
 ## [0.2.5] - 2026-03-15
 
 ### Added
@@ -23,7 +107,7 @@ All notable changes to this project will be documented in this file.
   - Duplicate missing module names are de-duplicated in error output
 
 ### Validation
-- Verified with real data root `E:\arena\data`:
+- Verified with real data root `<local_data_root>`:
   - Stage 1 executes successfully with `--only 1 --no-gpu --skip-plao`
   - Stage 4 executes successfully after installing `jax`/`numpyro`
   - Stage 5 requires and executes successfully after adding `pymc`/`arviz`

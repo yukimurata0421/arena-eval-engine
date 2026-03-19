@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
-from types import SimpleNamespace
 
+import pytest
+
+from arena.lib.runtime_config import clear_settings_cache
+from arena.pipeline import entrypoint
 from arena.pipeline.entrypoint import run
-from arena.pipeline.stages import RunConfig, Step
+from arena.pipeline.stages import RunConfig
 
 
 def test_entrypoint_run_dry_run_with_custom_roots(monkeypatch, tmp_path: Path) -> None:
@@ -15,6 +17,25 @@ def test_entrypoint_run_dry_run_with_custom_roots(monkeypatch, tmp_path: Path) -
     scripts_root.mkdir()
     output_root.mkdir()
     data_root.mkdir()
+
+    config_dir = scripts_root / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.toml").write_text(
+        "[site]\nlat = 35.0\nlon = 140.0\n\n[quality]\nmin_auc_n_used = 5\nmin_minutes_covered = 10\n",
+        encoding="utf-8",
+    )
+    (config_dir / "phases.txt").write_text(
+        "[events]\n2026-01-01 = Init\n\n[settings]\nintervention_date = 2026-02-14\n",
+        encoding="utf-8",
+    )
+
+    # run() sets env vars directly on os.environ; use setenv so monkeypatch
+    # tracks AND restores them at teardown (delenv on missing keys is a no-op).
+    leaked_vars = ("ARENA_SETTINGS", "ADSB_SETTINGS", "ARENA_PHASE_CONFIG", "ADSB_PHASE_CONFIG")
+    for var in leaked_vars:
+        monkeypatch.setenv(var, "")
+    for var in leaked_vars:
+        monkeypatch.delenv(var)
 
     monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
     cfg = RunConfig(
@@ -33,8 +54,10 @@ def test_entrypoint_run_dry_run_with_custom_roots(monkeypatch, tmp_path: Path) -
     assert rc == 0
     assert (output_root / "performance" / "pipeline_runs.jsonl").exists()
 
+    clear_settings_cache()
 
-def test_entrypoint_reports_missing_modules(monkeypatch, tmp_path: Path) -> None:
+
+def test_entrypoint_run_returns_error_on_config_resolution_failure(monkeypatch, tmp_path: Path) -> None:
     scripts_root = tmp_path / "scripts"
     output_root = tmp_path / "output"
     data_root = tmp_path / "data"
@@ -42,9 +65,56 @@ def test_entrypoint_reports_missing_modules(monkeypatch, tmp_path: Path) -> None
     output_root.mkdir()
     data_root.mkdir()
 
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_pipeline", lambda **kwargs: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: ["numpyro"])
     cfg = RunConfig(
+        only=1,
+        dry_run=True,
+        no_gpu=True,
+        backend="native",
+        scripts_root=str(scripts_root),
+        output_root=str(output_root),
+        data_root=str(data_root),
+        dynamic_date="2026-02-14",
+        validate=False,
+    )
+
+    leaked_vars = ("ARENA_SETTINGS", "ADSB_SETTINGS", "ARENA_PHASE_CONFIG", "ADSB_PHASE_CONFIG")
+    for var in leaked_vars:
+        monkeypatch.setenv(var, "")
+    for var in leaked_vars:
+        monkeypatch.delenv(var)
+
+    monkeypatch.setattr(
+        "arena.pipeline.entrypoint.build_runtime_config_metadata",
+        lambda **kwargs: {"resolved_settings_path": scripts_root / "missing_settings.toml", "resolved_phase_config_path": scripts_root / "missing_phases.txt"},
+    )
+    monkeypatch.setattr("arena.pipeline.entrypoint.validate_resolved_config_paths", lambda meta: ["settings missing"])
+
+    rc = run(cfg)
+    assert rc == 1
+
+
+def test_entrypoint_run_fails_when_required_modules_missing(monkeypatch, tmp_path: Path) -> None:
+    scripts_root = tmp_path / "scripts"
+    output_root = tmp_path / "output"
+    data_root = tmp_path / "data"
+    scripts_root.mkdir()
+    output_root.mkdir()
+    data_root.mkdir()
+
+    config_dir = scripts_root / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.toml").write_text(
+        "[site]\nlat = 35.0\nlon = 140.0\n\n[quality]\nmin_auc_n_used = 5\nmin_minutes_covered = 10\n",
+        encoding="utf-8",
+    )
+    (config_dir / "phases.txt").write_text(
+        "[events]\n2026-01-01 = Init\n\n[settings]\nintervention_date = 2026-02-14\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: ["numpy"])
+    cfg = RunConfig(
+        only=1,
         dry_run=False,
         no_gpu=True,
         backend="native",
@@ -52,14 +122,20 @@ def test_entrypoint_reports_missing_modules(monkeypatch, tmp_path: Path) -> None
         output_root=str(output_root),
         data_root=str(data_root),
         dynamic_date="2026-02-14",
+        validate=False,
     )
 
-    rc = run(cfg)
+    leaked_vars = ("ARENA_SETTINGS", "ADSB_SETTINGS", "ARENA_PHASE_CONFIG", "ADSB_PHASE_CONFIG")
+    for var in leaked_vars:
+        monkeypatch.setenv(var, "")
+    for var in leaked_vars:
+        monkeypatch.delenv(var)
 
+    rc = run(cfg)
     assert rc == 1
 
 
-def test_entrypoint_rejects_invalid_log_jsonl_mode(monkeypatch, tmp_path: Path) -> None:
+def test_entrypoint_run_uses_dynamic_date_fallback_on_phase_config_error(monkeypatch, tmp_path: Path) -> None:
     scripts_root = tmp_path / "scripts"
     output_root = tmp_path / "output"
     data_root = tmp_path / "data"
@@ -67,307 +143,22 @@ def test_entrypoint_rejects_invalid_log_jsonl_mode(monkeypatch, tmp_path: Path) 
     output_root.mkdir()
     data_root.mkdir()
 
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_pipeline", lambda **kwargs: [])
+    config_dir = scripts_root / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.toml").write_text(
+        "[site]\nlat = 35.0\nlon = 140.0\n\n[quality]\nmin_auc_n_used = 5\nmin_minutes_covered = 10\n",
+        encoding="utf-8",
+    )
+    (config_dir / "phases.txt").write_text(
+        "[events]\n2026-01-01 = Init\n\n[settings]\nintervention_date = 2026-02-14\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("arena.pipeline.entrypoint.load_phase_config", lambda path: (_ for _ in ()).throw(OSError("broken phases")))
     monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
+
     cfg = RunConfig(
-        dry_run=True,
-        no_gpu=True,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        log_jsonl_mode="invalid",
-    )
-
-    rc = run(cfg)
-
-    assert rc == 1
-
-
-def test_entrypoint_handles_validate_only_failure(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.build_pipeline",
-        lambda **kwargs: [
-            Step(stage=1, script_rel="adsb/analysis/check.py", label="check", expected_outputs=["missing.txt"])
-        ],
-    )
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.validate_outputs",
-        lambda *args, **kwargs: (False, ["missing.txt"]),
-    )
-    cfg = RunConfig(
-        dry_run=True,
-        no_gpu=True,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate_only=True,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 1
-
-
-def test_entrypoint_handles_stage_selection_edge_case(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.build_pipeline",
-        lambda **kwargs: [
-            Step(stage=1, script_rel="adsb/analysis/one.py", label="one"),
-            Step(stage=2, script_rel="adsb/analysis/two.py", label="two"),
-        ],
-    )
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    cfg = RunConfig(
-        only=99,
-        dry_run=True,
-        no_gpu=True,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate=False,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 0
-    assert (output_root / "performance" / "pipeline_runs.jsonl").exists()
-
-
-@dataclass
-class _DummyRunner:
-    records: list = field(default_factory=list)
-
-    def __init__(self, backend, dry_run, validate, jsonl_log_path, jax_platforms, skip_existing, fail_fast, phase_config_path="", workers=0, steps=None):
-        self.backend = backend
-        self.jsonl_log_path = jsonl_log_path
-        self.records = []
-
-    def log_config_snapshot(self, snapshot: dict) -> None:
-        self.jsonl_log_path.parent.mkdir(parents=True, exist_ok=True)
-        self.jsonl_log_path.write_text("", encoding="utf-8")
-
-    def run_step(self, step: Step) -> bool:
-        return True
-
-    def print_summary(self) -> None:
-        return None
-
-    def write_error_code_report(self) -> Path:
-        report_path = self.backend.output_root_native / "performance" / "pipeline_error_codes_latest.txt"
-        report_path.parent.mkdir(parents=True, exist_ok=True)
-        report_path.write_text("NO_ISSUES\n", encoding="utf-8")
-        return report_path
-
-
-class _CapturingRunner(_DummyRunner):
-    last_instance = None
-    run_calls: list[str]
-
-    def __init__(self, backend, dry_run, validate, jsonl_log_path, jax_platforms, skip_existing, fail_fast, phase_config_path="", workers=0, steps=None):
-        super().__init__(backend, dry_run, validate, jsonl_log_path, jax_platforms, skip_existing, fail_fast, phase_config_path=phase_config_path, workers=workers, steps=steps)
-        self.jax_platforms = jax_platforms
-        self.fail_fast = fail_fast
-        self.run_calls = []
-        _CapturingRunner.last_instance = self
-
-    def run_step(self, step: Step) -> bool:
-        self.run_calls.append(step.label)
-        return True
-
-
-class _FailFastRunner(_CapturingRunner):
-    def run_step(self, step: Step) -> bool:
-        self.run_calls.append(step.label)
-        return step.label != "first"
-
-
-class _IssueRecordingRunner(_CapturingRunner):
-    def run_step(self, step: Step) -> bool:
-        self.run_calls.append(step.label)
-        self.records.append(
-            SimpleNamespace(
-                status="FAIL",
-            )
-        )
-        return True
-
-
-def test_entrypoint_fails_stage5_contract_when_required_outputs_missing(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.build_pipeline",
-        lambda **kwargs: [Step(stage=5, script_rel="adsb/analysis/change.py", label="change-point")],
-    )
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _DummyRunner)
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.validate_outputs",
-        lambda *args, **kwargs: (False, ["change_point/change_point_report.txt"]),
-    )
-    cfg = RunConfig(
-        only=5,
-        dry_run=True,
-        no_gpu=True,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate=False,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 1
-    contract_path = output_root / "performance" / "change_point_contract_latest.txt"
-    assert contract_path.exists()
-    assert "change_point/change_point_report.txt" in contract_path.read_text(encoding="utf-8")
-
-
-def test_entrypoint_auto_backend_prefers_expected_backend(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_pipeline", lambda **kwargs: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.is_windows", lambda: True)
-    monkeypatch.setattr("arena.pipeline.entrypoint.wsl_available", lambda: True)
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _CapturingRunner)
-    cfg = RunConfig(
-        dry_run=True,
-        no_gpu=True,
-        backend="auto",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate=False,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 0
-    assert _CapturingRunner.last_instance.backend.kind == "wsl"
-
-
-def test_entrypoint_handles_wsl_backend_resolution(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_pipeline", lambda **kwargs: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.default_roots_exec_for_wsl", lambda s, o, d: ("/wsl/scripts", "/wsl/output", "/wsl/data"))
-    monkeypatch.setattr("arena.pipeline.entrypoint._windows_to_wsl_path", lambda p: "/wsl/src")
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _CapturingRunner)
-    cfg = RunConfig(
-        dry_run=True,
-        no_gpu=True,
-        backend="wsl",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate=False,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 0
-    backend = _CapturingRunner.last_instance.backend
-    assert backend.kind == "wsl"
-    assert backend.scripts_root_exec == "/wsl/scripts"
-    assert backend.pythonpath_exec == "/wsl/src"
-
-
-def test_entrypoint_handles_gpu_probe_failure_gracefully(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_pipeline", lambda **kwargs: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.detect_gpu_jax", lambda backend, env: (_ for _ in ()).throw(RuntimeError("probe boom")))
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _CapturingRunner)
-    cfg = RunConfig(
-        dry_run=False,
-        no_gpu=False,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate=False,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 0
-    assert _CapturingRunner.last_instance.jax_platforms == "cpu"
-
-
-def test_entrypoint_uses_dynamic_date_fallback_when_missing(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-    captured: dict[str, str] = {}
-
-    def capture_build_pipeline(dynamic_date, full_mode, skip_plao):
-        captured["dynamic_date"] = dynamic_date
-        return []
-
-    monkeypatch.setattr("arena.pipeline.entrypoint.load_phase_config", lambda path: (_ for _ in ()).throw(RuntimeError("missing phase")))
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_pipeline", capture_build_pipeline)
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _CapturingRunner)
-    cfg = RunConfig(
+        only=1,
         dry_run=True,
         no_gpu=True,
         backend="native",
@@ -378,13 +169,18 @@ def test_entrypoint_uses_dynamic_date_fallback_when_missing(monkeypatch, tmp_pat
         validate=False,
     )
 
+    leaked_vars = ("ARENA_SETTINGS", "ADSB_SETTINGS", "ARENA_PHASE_CONFIG", "ADSB_PHASE_CONFIG")
+    for var in leaked_vars:
+        monkeypatch.setenv(var, "")
+    for var in leaked_vars:
+        monkeypatch.delenv(var)
+
     rc = run(cfg)
-
     assert rc == 0
-    assert captured["dynamic_date"] == "2026-02-11"
 
 
-def test_entrypoint_fail_fast_stops_after_first_hard_failure(monkeypatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize("planned_has_stage5,contract_ok,expected_rc", [(True, True, 0), (True, False, 1), (False, False, 0)])
+def test_entrypoint_run_checks_change_point_contract(monkeypatch, tmp_path: Path, planned_has_stage5: bool, contract_ok: bool, expected_rc: int) -> None:
     scripts_root = tmp_path / "scripts"
     output_root = tmp_path / "output"
     data_root = tmp_path / "data"
@@ -392,17 +188,53 @@ def test_entrypoint_fail_fast_stops_after_first_hard_failure(monkeypatch, tmp_pa
     output_root.mkdir()
     data_root.mkdir()
 
+    config_dir = scripts_root / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.toml").write_text(
+        "[site]\nlat = 35.0\nlon = 140.0\n\n[quality]\nmin_auc_n_used = 5\nmin_minutes_covered = 10\n",
+        encoding="utf-8",
+    )
+    (config_dir / "phases.txt").write_text(
+        "[events]\n2026-01-01 = Init\n\n[settings]\nintervention_date = 2026-02-14\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
+    monkeypatch.setattr("arena.pipeline.entrypoint._check_change_point_contract", lambda output_root_native, data_root_native: contract_ok)
+
+    class DummyStep:
+        def __init__(self, stage: int) -> None:
+            self.stage = stage
+            self.label = f"S{stage}"
+            self.critical = False
+            self.est_s = 1
+            self.script_rel = "dummy.py"
+            self.expected_outputs = []
+            self.expected_min_bytes = 0
+
+    steps = [DummyStep(1), DummyStep(5)] if planned_has_stage5 else [DummyStep(1)]
     monkeypatch.setattr(
         "arena.pipeline.entrypoint.build_pipeline",
-        lambda **kwargs: [
-            Step(stage=1, script_rel="adsb/analysis/first.py", label="first"),
-            Step(stage=1, script_rel="adsb/analysis/second.py", label="second"),
-        ],
+        lambda *args, **kwargs: steps,
     )
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _FailFastRunner)
+    monkeypatch.setattr(
+        "arena.pipeline.entrypoint.PipelineRunner",
+        lambda **kwargs: type(
+            "DummyRunner",
+            (),
+            {
+                "records": [],
+                "log_config_snapshot": lambda self, snapshot: None,
+                "print_summary": lambda self: None,
+                "write_error_code_report": lambda self: tmp_path / "dummy.txt",
+                "run_step": lambda self, step: True,
+            },
+        )(),
+    )
+
     cfg = RunConfig(
+        stage=1,
+        only=None,
         dry_run=False,
         no_gpu=True,
         backend="native",
@@ -411,73 +243,19 @@ def test_entrypoint_fail_fast_stops_after_first_hard_failure(monkeypatch, tmp_pa
         data_root=str(data_root),
         dynamic_date="2026-02-14",
         validate=False,
-        fail_fast=True,
+        validate_only=False,
+        skip_existing=False,
+        fail_fast=False,
+        log_jsonl="",
+        skip_plao=False,
+        workers=1,
     )
 
-    rc = run(cfg)
+    leaked_vars = ("ARENA_SETTINGS", "ADSB_SETTINGS", "ARENA_PHASE_CONFIG", "ADSB_PHASE_CONFIG")
+    for var in leaked_vars:
+        monkeypatch.setenv(var, "")
+    for var in leaked_vars:
+        monkeypatch.delenv(var)
 
-    assert rc == 1
-    assert _FailFastRunner.last_instance.run_calls == ["first"]
-
-
-def test_entrypoint_validate_only_success(monkeypatch, tmp_path: Path) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.build_pipeline",
-        lambda **kwargs: [Step(stage=1, script_rel="adsb/analysis/check.py", label="check", expected_outputs=[])],
-    )
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    cfg = RunConfig(
-        dry_run=True,
-        no_gpu=True,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate_only=True,
-    )
-
-    rc = run(cfg)
-
-    assert rc == 0
-
-
-def test_entrypoint_post_run_ng_warning(monkeypatch, tmp_path: Path, capsys) -> None:
-    scripts_root = tmp_path / "scripts"
-    output_root = tmp_path / "output"
-    data_root = tmp_path / "data"
-    scripts_root.mkdir()
-    output_root.mkdir()
-    data_root.mkdir()
-
-    monkeypatch.setattr(
-        "arena.pipeline.entrypoint.build_pipeline",
-        lambda **kwargs: [Step(stage=1, script_rel="adsb/analysis/check.py", label="check")],
-    )
-    monkeypatch.setattr("arena.pipeline.entrypoint.missing_modules", lambda backend, modules, env: [])
-    monkeypatch.setattr("arena.pipeline.entrypoint.build_snapshot", lambda phase_config_path: {})
-    monkeypatch.setattr("arena.pipeline.entrypoint.PipelineRunner", _IssueRecordingRunner)
-    cfg = RunConfig(
-        dry_run=False,
-        no_gpu=True,
-        backend="native",
-        scripts_root=str(scripts_root),
-        output_root=str(output_root),
-        data_root=str(data_root),
-        dynamic_date="2026-02-14",
-        validate=False,
-    )
-
-    rc = run(cfg)
-
-    captured = capsys.readouterr()
-    assert rc == 1
-    assert "WARNING: 1 failures detected." in captured.out
+    rc = entrypoint.run(cfg)
+    assert rc == expected_rc

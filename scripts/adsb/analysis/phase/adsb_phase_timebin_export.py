@@ -10,23 +10,21 @@ from typing import Any
 
 import pandas as pd
 
-from arena.lib.paths import resolve_output_dir
+from arena.lib.paths import ADSB_DAILY_SUMMARY_V2, OUTPUT_DIR
 from arena.lib.phase_config import Event, get_config
 
+from arena.log import get_script_logger
 
-def _resolve_output_paths() -> dict[str, Path]:
-    output_root = resolve_output_dir()
-    performance_dir = output_root / "performance"
-    return {
-        "daily_summary": output_root / "adsb_daily_summary_v2.csv",
-        "timebin_summary": output_root / "time_resolved" / "adsb_timebin_summary.csv",
-        "performance_dir": performance_dir,
-        "mapping_csv": performance_dir / "phase_config_daily_mapping.csv",
-        "mapping_json": performance_dir / "phase_config_daily_mapping.json",
-        "phase_timebin_csv": performance_dir / "phase_timebin_summary.csv",
-        "phase_timebin_json": performance_dir / "phase_timebin_summary.json",
-        "report": performance_dir / "phase_timebin_export_report.txt",
-    }
+
+
+log = get_script_logger(__name__)
+PERFORMANCE_DIR = Path(OUTPUT_DIR) / "performance"
+TIMEBIN_SUMMARY_PATH = Path(OUTPUT_DIR) / "time_resolved" / "adsb_timebin_summary.csv"
+MAPPING_CSV_PATH = PERFORMANCE_DIR / "phase_config_daily_mapping.csv"
+MAPPING_JSON_PATH = PERFORMANCE_DIR / "phase_config_daily_mapping.json"
+PHASE_TIMEBIN_CSV_PATH = PERFORMANCE_DIR / "phase_timebin_summary.csv"
+PHASE_TIMEBIN_JSON_PATH = PERFORMANCE_DIR / "phase_timebin_summary.json"
+REPORT_PATH = PERFORMANCE_DIR / "phase_timebin_export_report.txt"
 
 
 @dataclass
@@ -180,9 +178,9 @@ def _extract_cable_type(label: str, hardware: str) -> tuple[str, bool]:
 
 def _extract_adapter_type(label: str, hardware: str) -> tuple[str, bool]:
     low = (label or "").lower()
-    match = re.search(r"adapter[^()]*\(([^)]+)\)", label or "", flags=re.IGNORECASE)
-    if match and match.group(1).strip():
-        return match.group(1).strip(), False
+    m = re.search(r"adapter[^()]*\(([^)]+)\)", label or "", flags=re.IGNORECASE)
+    if m and m.group(1).strip():
+        return m.group(1).strip(), False
     if "adapter" in low or "adapter" in (hardware or "").lower():
         return "adapter_changed", True
     return "", False
@@ -209,10 +207,7 @@ def _build_hardware_stack(fields: dict[str, str]) -> str:
 
 
 def _config_hash(fields: dict[str, str]) -> str:
-    raw = "|".join(
-        (fields.get(k, "") or "").strip()
-        for k in ["phase_name", "sdr_type", "gain_profile", "cable_type", "adapter_type", "filter_type"]
-    )
+    raw = "|".join((fields.get(k, "") or "").strip() for k in ["phase_name", "sdr_type", "gain_profile", "cable_type", "adapter_type", "filter_type"])
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 
@@ -239,9 +234,9 @@ def build_phase_config_daily_mapping(daily_df: pd.DataFrame, timebin_df: pd.Data
     transition_dates = {st.phase_start_date for st in states}
 
     rows: list[dict[str, Any]] = []
-    for day in all_dates:
-        st = _phase_for_day(day, states)
-        ev = _latest_event_for_day(day, events)
+    for d in all_dates:
+        st = _phase_for_day(d, states)
+        ev = _latest_event_for_day(d, events)
         event_label = ev.label if ev else st.start_event_label
 
         sdr_type, sdr_inferred = _extract_sdr_type(st.phase_name)
@@ -271,49 +266,41 @@ def build_phase_config_daily_mapping(daily_df: pd.DataFrame, timebin_df: pd.Data
             "filter_type": filter_type,
         }
         stack = _build_hardware_stack(core_fields)
-        rows.append(
-            {
-                "date": _fmt_date(day),
-                "phase_id": st.phase_id,
-                "phase_name": st.phase_name,
-                "phase_label": st.phase_label,
-                "sdr_type": sdr_type,
-                "gain": gain_profile,
-                "gain_profile": gain_profile,
-                "cable_type": cable_type,
-                "adapter_type": adapter_type,
-                "filter_type": filter_type,
-                "notes": event_label,
-                "source": "phase_config.events",
-                "phase_start_date": _fmt_date(st.phase_start_date),
-                "phase_end_date": _fmt_date(st.phase_end_date),
-                "hardware_stack": stack,
-                "config_hash": _config_hash(core_fields),
-                "is_transition_day": int(day in transition_dates),
-                "has_daily_summary_v2": int(day in daily_dates),
-                "has_timebin_summary": int(day in timebin_dates),
-                "inferred_fields": ",".join(inferred_fields),
-            }
-        )
+        row = {
+            "date": _fmt_date(d),
+            "phase_id": st.phase_id,
+            "phase_name": st.phase_name,
+            "phase_label": st.phase_label,
+            "sdr_type": sdr_type,
+            "gain": gain_profile,
+            "gain_profile": gain_profile,
+            "cable_type": cable_type,
+            "adapter_type": adapter_type,
+            "filter_type": filter_type,
+            "notes": event_label,
+            "source": "phase_config.events",
+            "phase_start_date": _fmt_date(st.phase_start_date),
+            "phase_end_date": _fmt_date(st.phase_end_date),
+            "hardware_stack": stack,
+            "config_hash": _config_hash(core_fields),
+            "is_transition_day": int(d in transition_dates),
+            "has_daily_summary_v2": int(d in daily_dates),
+            "has_timebin_summary": int(d in timebin_dates),
+            "inferred_fields": ",".join(inferred_fields),
+        }
+        rows.append(row)
 
     mapping = pd.DataFrame(rows)
-    mapping["changed_from_previous_day"] = 0
-    mapping["changed_fields"] = ""
-    watched = [
-        "phase_id",
-        "phase_name",
-        "sdr_type",
-        "gain_profile",
-        "cable_type",
-        "adapter_type",
-        "filter_type",
-        "config_hash",
-    ]
-    for idx in range(1, len(mapping)):
-        changed = [col for col in watched if str(mapping.at[idx, col]) != str(mapping.at[idx - 1, col])]
-        if changed:
-            mapping.at[idx, "changed_from_previous_day"] = 1
-            mapping.at[idx, "changed_fields"] = ",".join(changed)
+    watched = ["phase_id", "phase_name", "sdr_type", "gain_profile", "cable_type", "adapter_type", "filter_type", "config_hash"]
+    # ベクトル化: per-cell ループ → shift() による一括比較
+    _str = mapping[watched].astype(str)
+    _prev = _str.shift(1)
+    _changed_mask = _str != _prev
+    _changed_mask.iloc[0] = False  # 最初の行は比較対象なし
+    mapping["changed_from_previous_day"] = _changed_mask.any(axis=1).astype(int)
+    mapping["changed_fields"] = _changed_mask.apply(
+        lambda row: ",".join(col for col, v in row.items() if v), axis=1
+    )
 
     return mapping, warnings
 
@@ -349,16 +336,16 @@ def build_phase_timebin_summary(timebin_df: pd.DataFrame, mapping_df: pd.DataFra
         warnings.append("timebin_summary_missing_or_empty")
         return pd.DataFrame(columns=out_cols), warnings
 
-    working = timebin_df.copy()
-    working["date"] = pd.to_datetime(working["date"], errors="coerce").dt.date
-    working = working[working["date"].notna()].copy()
-    if working.empty:
+    wb = timebin_df.copy()
+    wb["date"] = pd.to_datetime(wb["date"], errors="coerce").dt.date
+    wb = wb[wb["date"].notna()].copy()
+    if wb.empty:
         warnings.append("timebin_summary_has_no_valid_date")
         return pd.DataFrame(columns=out_cols), warnings
 
     map_use = mapping_df[["date", "phase_id", "phase_name", "phase_label"]].copy()
     map_use["date"] = pd.to_datetime(map_use["date"], errors="coerce").dt.date
-    merged = working.merge(map_use, on="date", how="left")
+    merged = wb.merge(map_use, on="date", how="left")
 
     for col in ["auc_sum", "minutes"]:
         if col not in merged.columns:
@@ -366,39 +353,44 @@ def build_phase_timebin_summary(timebin_df: pd.DataFrame, mapping_df: pd.DataFra
         merged[col] = pd.to_numeric(merged[col], errors="coerce")
 
     group_cols = ["phase_id", "phase_name", "phase_label", "time_bin"]
+    grp = merged.groupby(group_cols, dropna=False)
+    # lambda を使わず Cython 高速パスを維持するため quantile は別途計算して merge
     agg = (
-        merged.groupby(group_cols, dropna=False)
-        .agg(
+        grp.agg(
             n_days=("date", "nunique"),
             n_rows=("date", "size"),
             n_used=("minutes", "sum"),
             mean_auc_n_used=("auc_sum", "mean"),
             median_auc_n_used=("auc_sum", "median"),
             std_auc_n_used=("auc_sum", "std"),
-            q25_auc_n_used=("auc_sum", lambda s: s.quantile(0.25)),
-            q75_auc_n_used=("auc_sum", lambda s: s.quantile(0.75)),
             min_auc_n_used=("auc_sum", "min"),
             max_auc_n_used=("auc_sum", "max"),
             mean_minutes_covered=("minutes", "mean"),
             median_minutes_covered=("minutes", "median"),
         )
-        .reset_index()
     )
+    agg["q25_auc_n_used"] = grp["auc_sum"].quantile(0.25)
+    agg["q75_auc_n_used"] = grp["auc_sum"].quantile(0.75)
+    agg = agg.reset_index()
 
     agg["usable_days"] = agg["n_days"]
     phase_total_days = mapping_df.groupby("phase_id", dropna=False)["date"].nunique().to_dict()
     agg["dropped_days"] = agg.apply(
-        lambda row: max(int(phase_total_days.get(row["phase_id"], row["n_days"])) - int(row["n_days"]), 0),
+        lambda r: max(int(phase_total_days.get(r["phase_id"], r["n_days"])) - int(r["n_days"]), 0),
         axis=1,
     )
 
     if "capture_ratio" in merged.columns:
-        cap = merged.groupby(group_cols, dropna=False)["capture_ratio"].mean().reset_index(name="mean_capture_ratio")
+        cap = (
+            merged.groupby(group_cols, dropna=False)["capture_ratio"]
+            .mean()
+            .reset_index(name="mean_capture_ratio")
+        )
         agg = agg.merge(cap, on=group_cols, how="left")
     else:
         agg["mean_capture_ratio"] = pd.NA
 
-    valid_phase_ids = sorted(x for x in agg["phase_id"].dropna().unique())
+    valid_phase_ids = sorted([x for x in agg["phase_id"].dropna().unique()])
     baseline_id = int(valid_phase_ids[0]) if valid_phase_ids else 0
     baseline = agg[agg["phase_id"] == baseline_id][["time_bin", "mean_auc_n_used"]].rename(
         columns={"mean_auc_n_used": "baseline_auc"}
@@ -406,10 +398,7 @@ def build_phase_timebin_summary(timebin_df: pd.DataFrame, mapping_df: pd.DataFra
     agg = agg.merge(baseline, on="time_bin", how="left")
     agg["phase_vs_baseline_ratio"] = agg["mean_auc_n_used"] / agg["baseline_auc"]
     agg["phase_vs_baseline_diff_pct"] = (agg["phase_vs_baseline_ratio"] - 1.0) * 100.0
-    agg.loc[
-        agg["baseline_auc"].isna() | (agg["baseline_auc"] == 0),
-        ["phase_vs_baseline_ratio", "phase_vs_baseline_diff_pct"],
-    ] = pd.NA
+    agg.loc[agg["baseline_auc"].isna() | (agg["baseline_auc"] == 0), ["phase_vs_baseline_ratio", "phase_vs_baseline_diff_pct"]] = pd.NA
     agg = agg.drop(columns=["baseline_auc"])
 
     phase_ranges = (
@@ -427,62 +416,57 @@ def build_phase_timebin_summary(timebin_df: pd.DataFrame, mapping_df: pd.DataFra
 
 def _write_json_records(path: Path, df: pd.DataFrame) -> None:
     records = df.to_dict(orient="records")
-    with path.open("w", encoding="utf-8", newline="\n") as handle:
-        json.dump(records, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        json.dump(records, f, ensure_ascii=False, indent=2)
+        f.write("\n")
 
 
 def main() -> int:
-    paths = _resolve_output_paths()
-    performance_dir = paths["performance_dir"]
-    performance_dir.mkdir(parents=True, exist_ok=True)
+    PERFORMANCE_DIR.mkdir(parents=True, exist_ok=True)
     warnings: list[str] = []
 
-    daily_summary_path = paths["daily_summary"]
-    timebin_summary_path = paths["timebin_summary"]
-
-    daily_df = _read_csv_with_date(daily_summary_path)
+    daily_df = _read_csv_with_date(Path(ADSB_DAILY_SUMMARY_V2))
     if daily_df.empty:
-        warnings.append(f"daily_summary_missing_or_empty={daily_summary_path}")
+        warnings.append(f"daily_summary_missing_or_empty={ADSB_DAILY_SUMMARY_V2}")
 
-    timebin_df = _read_csv_with_date(timebin_summary_path)
+    timebin_df = _read_csv_with_date(TIMEBIN_SUMMARY_PATH)
     if timebin_df.empty:
-        warnings.append(f"timebin_summary_missing_or_empty={timebin_summary_path}")
+        warnings.append(f"timebin_summary_missing_or_empty={TIMEBIN_SUMMARY_PATH}")
 
     mapping_df, map_warnings = build_phase_config_daily_mapping(daily_df=daily_df, timebin_df=timebin_df)
     warnings.extend(map_warnings)
-    mapping_df.to_csv(paths["mapping_csv"], index=False, encoding="utf-8-sig")
-    _write_json_records(paths["mapping_json"], mapping_df)
+    mapping_df.to_csv(MAPPING_CSV_PATH, index=False, encoding="utf-8-sig")
+    _write_json_records(MAPPING_JSON_PATH, mapping_df)
 
     phase_timebin_df, agg_warnings = build_phase_timebin_summary(timebin_df=timebin_df, mapping_df=mapping_df)
     warnings.extend(agg_warnings)
-    phase_timebin_df.to_csv(paths["phase_timebin_csv"], index=False, encoding="utf-8-sig")
-    _write_json_records(paths["phase_timebin_json"], phase_timebin_df)
+    phase_timebin_df.to_csv(PHASE_TIMEBIN_CSV_PATH, index=False, encoding="utf-8-sig")
+    _write_json_records(PHASE_TIMEBIN_JSON_PATH, phase_timebin_df)
 
     lines = [
         "Phase Time-bin Export Report",
         f"generated_at: {datetime.now().isoformat(timespec='seconds')}",
-        f"daily_summary_path: {daily_summary_path}",
-        f"timebin_summary_path: {timebin_summary_path}",
-        f"mapping_csv: {paths['mapping_csv']}",
-        f"mapping_json: {paths['mapping_json']}",
-        f"phase_timebin_csv: {paths['phase_timebin_csv']}",
-        f"phase_timebin_json: {paths['phase_timebin_json']}",
+        f"daily_summary_path: {ADSB_DAILY_SUMMARY_V2}",
+        f"timebin_summary_path: {TIMEBIN_SUMMARY_PATH}",
+        f"mapping_csv: {MAPPING_CSV_PATH}",
+        f"mapping_json: {MAPPING_JSON_PATH}",
+        f"phase_timebin_csv: {PHASE_TIMEBIN_CSV_PATH}",
+        f"phase_timebin_json: {PHASE_TIMEBIN_JSON_PATH}",
         f"mapping_rows: {len(mapping_df)}",
         f"phase_timebin_rows: {len(phase_timebin_df)}",
         "warnings:",
     ]
     if warnings:
-        lines.extend(f"- {warning}" for warning in warnings)
+        lines.extend([f"- {w}" for w in warnings])
     else:
         lines.append("- (none)")
 
-    with paths["report"].open("w", encoding="utf-8", newline="\n") as handle:
-        handle.write("\n".join(lines) + "\n")
+    with REPORT_PATH.open("w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
 
-    print(f"[OK] {paths['mapping_csv']}")
-    print(f"[OK] {paths['phase_timebin_csv']}")
-    print(f"[OK] {paths['report']}")
+    log.info(f"[OK] {MAPPING_CSV_PATH}")
+    log.info(f"[OK] {PHASE_TIMEBIN_CSV_PATH}")
+    log.info(f"[OK] {REPORT_PATH}")
     return 0
 
 

@@ -31,6 +31,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+.env
+.env.*
+docker/.env
 
 # --- arena private ---
 data/*

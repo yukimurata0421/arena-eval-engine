@@ -1,5 +1,3 @@
-# ruff: noqa: E402
-
 from __future__ import annotations
 
 import argparse
@@ -18,13 +16,19 @@ for candidate in (ROOT, SRC):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
+from arena.lib.runtime_config import load_settings
+
 from arena.artifacts.discovery import enumerate_files, normalize_rel, resolve_optional_export_source
-from arena.artifacts.hash_utils import (
-    compute_bundle_sha256,
-    read_artifact_hashes,
-    update_record_hashes,
-    write_artifact_hashes,
+from scripts.tools.artifacts.documentation import (
+    write_ai_change_point_note,
+    write_ai_export_summary,
+    write_ai_settings_snapshot,
+    write_analysis_design_note,
+    write_analysis_methodology,
+    write_hardware_date_recommendation,
+    write_needed_files_for_statistics,
 )
+from arena.artifacts.hash_utils import compute_bundle_sha256, read_artifact_hashes, update_record_hashes, write_artifact_hashes
 from arena.artifacts.integrity import run_ai_export_integrity_check, write_integrity_summary_json
 from arena.artifacts.lineage import write_artifact_lineage
 from arena.artifacts.manifest import (
@@ -35,25 +39,28 @@ from arena.artifacts.manifest import (
     write_candidate_status_csv,
 )
 from arena.artifacts.models import AIManifestRecord, FileItem
+from scripts.tools.artifacts.packaging import create_ai_review_packs, resolve_timestamped_export_dir
 from arena.artifacts.policies import (
-    AI_ARTIFACT_HASHES_FILENAME,
     AI_ARTIFACT_INDEX_FILENAME,
     AI_ARTIFACT_LINEAGE_FILENAME,
     AI_ARTIFACT_PROVENANCE_FILENAME,
     AI_CANDIDATE_STATUS_CSV_FILENAME,
     AI_EXPORT_DIR_PREFIX,
+    AI_ARTIFACT_HASHES_FILENAME,
     AI_INTEGRITY_SUMMARY_JSON_FILENAME,
     AI_MANIFEST_EXTENDED_FILENAME,
     AI_MANIFEST_FILENAME,
+    AI_PACK_DIR_CLAUDE,
     AI_PACK_DIR_GEMINI,
     AI_PACK_DIR_GPT,
     AI_PACK_DIR_GROK,
+    AI_PACK_MANIFESTS_DIR,
     AI_RUN_METADATA_FILENAME,
     AI_SUMMARY_FILENAME,
-    ALWAYS_EXCLUDE_DIR_PREFIXES,
-    ALWAYS_EXCLUDE_DIRS,
-    ALWAYS_EXCLUDE_REL_PATHS,
     ARTIFACT_SUBSYSTEM_VERSION,
+    ALWAYS_EXCLUDE_DIRS,
+    ALWAYS_EXCLUDE_DIR_PREFIXES,
+    ALWAYS_EXCLUDE_REL_PATHS,
     NORMAL_MODE_OPTIONAL_EXPORT_FILES,
 )
 from arena.artifacts.provenance import write_artifact_provenance
@@ -61,17 +68,6 @@ from arena.artifacts.repro_stamp import resolve_generated_at, write_reproducibil
 from arena.artifacts.run_metadata import write_run_metadata
 from arena.artifacts.schema import export_schema_catalog, validate_artifact_index
 from arena.artifacts.selection import get_ai_candidate_files, iter_ai_targets
-from arena.lib.runtime_config import load_settings
-from scripts.tools.artifacts.documentation import (
-    write_ai_change_point_note,
-    write_ai_export_summary,
-    write_ai_settings_snapshot,
-    write_analysis_design_note,
-    write_analysis_methodology,
-    write_hardware_date_recommendation,
-    write_needed_files_for_statistics,
-)
-from scripts.tools.artifacts.packaging import create_ai_review_packs, resolve_timestamped_export_dir
 
 
 def iso_mtime(path: Path) -> str:
@@ -254,6 +250,7 @@ def export_ai_folder(
     base_dir: Path,
     output_root: Path,
     deterministic: bool = False,
+    zip_only_profiles: bool = False,
 ) -> tuple[Path, list[AIManifestRecord]]:
     export_dir = resolve_timestamped_export_dir(output_root, AI_EXPORT_DIR_PREFIX)
     copied_source_map: dict[str, str] = {}
@@ -344,6 +341,7 @@ def export_ai_folder(
             candidate_status_csv_path,
         ],
         deterministic=deterministic,
+        zip_only_profiles=zip_only_profiles,
     )
     return export_dir, records
 
@@ -354,16 +352,40 @@ def resolve_ai_export_root(out_dir: Path, ai_export_root: str, use_out_parent: b
     return out_dir
 
 
+def prune_to_pack_dirs(export_dir: Path) -> None:
+    keep_names = {
+        AI_PACK_DIR_GEMINI,
+        AI_PACK_DIR_GPT,
+        AI_PACK_DIR_GROK,
+        AI_PACK_DIR_CLAUDE,
+        AI_PACK_MANIFESTS_DIR,
+    }
+    for child in export_dir.iterdir():
+        if child.name not in keep_names:
+            if child.is_dir():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+            continue
+
+
 def run_ai_export_with_summary(
     base_dir: Path,
     output_root: Path,
     deterministic: bool = False,
+    zip_only_profiles: bool = False,
 ) -> tuple[Path, list[AIManifestRecord]]:
-    export_dir, records = export_ai_folder(base_dir, output_root, deterministic=deterministic)
+    export_dir, records = export_ai_folder(
+        base_dir,
+        output_root,
+        deterministic=deterministic,
+        zip_only_profiles=zip_only_profiles,
+    )
     manifest_path = export_dir / AI_MANIFEST_FILENAME
     extended_manifest_path = export_dir / AI_MANIFEST_EXTENDED_FILENAME
     summary_path = export_dir / AI_SUMMARY_FILENAME
     candidate_status_csv_path = export_dir / AI_CANDIDATE_STATUS_CSV_FILENAME
+    claude_pack_dir = export_dir / AI_PACK_DIR_CLAUDE
     gemini_pack_dir = export_dir / AI_PACK_DIR_GEMINI
     gpt_pack_dir = export_dir / AI_PACK_DIR_GPT
     grok_pack_dir = export_dir / AI_PACK_DIR_GROK
@@ -372,13 +394,21 @@ def run_ai_export_with_summary(
     duplicate_skipped = sum(1 for record in records if record.status == "duplicate_source_skipped")
     copied_total = sum(1 for record in records if record.copied)
     print(f"[OK] ai_export_dir: {export_dir}")
-    print(f"[OK] ai_manifest: {manifest_path}")
-    print(f"[OK] ai_manifest_extended: {extended_manifest_path}")
-    print(f"[OK] ai_summary: {summary_path}")
-    print(f"[OK] ai_candidate_status: {candidate_status_csv_path}")
-    print(f"[OK] ai_pack_gemini: {gemini_pack_dir}")
-    print(f"[OK] ai_pack_gpt: {gpt_pack_dir}")
-    print(f"[OK] ai_pack_grok: {grok_pack_dir}")
+    if zip_only_profiles:
+        prune_to_pack_dirs(export_dir)
+        print(f"[OK] ai_pack_gemini: {gemini_pack_dir}")
+        print(f"[OK] ai_pack_gpt: {gpt_pack_dir}")
+        print(f"[OK] ai_pack_grok: {grok_pack_dir}")
+        print(f"[OK] ai_pack_claude_zip: {claude_pack_dir / f'{AI_PACK_DIR_CLAUDE}.zip'}")
+    else:
+        print(f"[OK] ai_manifest: {manifest_path}")
+        print(f"[OK] ai_manifest_extended: {extended_manifest_path}")
+        print(f"[OK] ai_summary: {summary_path}")
+        print(f"[OK] ai_candidate_status: {candidate_status_csv_path}")
+        print(f"[OK] ai_pack_gemini: {gemini_pack_dir}")
+        print(f"[OK] ai_pack_gpt: {gpt_pack_dir}")
+        print(f"[OK] ai_pack_grok: {grok_pack_dir}")
+        print(f"[OK] ai_pack_claude_zip: {claude_pack_dir / f'{AI_PACK_DIR_CLAUDE}.zip'}")
     print(
         f"[SUMMARY] copied_total={copied_total} "
         f"required_missing={required_missing} recommended_missing={recommended_missing} "
@@ -390,19 +420,40 @@ def run_ai_export_with_summary(
 def run_from_args(args: argparse.Namespace) -> int:
     base_dir = Path(args.base)
     out_dir = Path(args.out)
+
+    if not base_dir.exists():
+        print(f"[ERROR] base_dir が見つかりません: {base_dir}", file=sys.stderr)
+        return 2
+
+    legacy_flat_output = bool(getattr(args, "legacy_flat_output", False))
+    if not legacy_flat_output and not args.dry_run:
+        if args.no_ai_export:
+            print("[WARN] --no-ai-export は profile zip mode では無視されます。")
+        if args.ai_export_use_out_parent and not args.ai_export_root:
+            print("[WARN] --ai-export-use-out-parent は非推奨です。出力先は --out を使用します。")
+        output_root = resolve_ai_export_root(out_dir, args.ai_export_root, args.ai_export_use_out_parent)
+        run_ai_export_with_summary(
+            base_dir=base_dir,
+            output_root=output_root,
+            deterministic=args.deterministic,
+            zip_only_profiles=True,
+        )
+        return 0
+
     include_ext = [ext.strip().lower() for ext in args.include_ext.split(",") if ext.strip()]
     exclude_dirs = {directory.strip() for directory in args.exclude_dir.split(",") if directory.strip()}
     exclude_dirs.update(ALWAYS_EXCLUDE_DIRS)
 
-    if not base_dir.exists():
-        print(f"[ERROR] base_dir not found: {base_dir}", file=sys.stderr)
-        return 2
-
     if args.export_ai_folder:
         if args.ai_export_use_out_parent and not args.ai_export_root:
-            print("[WARN] --ai-export-use-out-parent is deprecated. Output still uses --out.")
+            print("[WARN] --ai-export-use-out-parent は非推奨です。出力先は --out を使用します。")
         output_root = resolve_ai_export_root(out_dir, args.ai_export_root, args.ai_export_use_out_parent)
-        run_ai_export_with_summary(base_dir, output_root, deterministic=args.deterministic)
+        run_ai_export_with_summary(
+            base_dir=base_dir,
+            output_root=output_root,
+            deterministic=args.deterministic,
+            zip_only_profiles=False,
+        )
         return 0
 
     items: list[FileItem] = []
@@ -448,7 +499,7 @@ def run_from_args(args: argparse.Namespace) -> int:
     print(f"[OK] manifest: {manifest_path}")
 
     if args.dry_run:
-        print("[INFO] dry-run enabled: skipping merged output generation")
+        print("[INFO] dry-run 有効: マージをスキップします")
         return 0
 
     merge_to_markdown(base_dir, items, merged_path, args.max_bytes_per_file, deterministic=args.deterministic)
@@ -463,11 +514,16 @@ def run_from_args(args: argparse.Namespace) -> int:
     print(f"[SUMMARY] included={included_count} excluded={excluded_count} total={len(items)}")
 
     if args.no_ai_export:
-        print("[INFO] --no-ai-export specified: skipping AI export folder generation")
+        print("[INFO] --no-ai-export が指定されたため、AIフォルダ出力をスキップします")
         return 0
 
     if args.ai_export_use_out_parent and not args.ai_export_root:
-        print("[WARN] --ai-export-use-out-parent is deprecated. Output still uses --out.")
+        print("[WARN] --ai-export-use-out-parent は非推奨です。出力先は --out を使用します。")
     output_root = resolve_ai_export_root(out_dir, args.ai_export_root, args.ai_export_use_out_parent)
-    run_ai_export_with_summary(base_dir, output_root, deterministic=args.deterministic)
+    run_ai_export_with_summary(
+        base_dir=base_dir,
+        output_root=output_root,
+        deterministic=args.deterministic,
+        zip_only_profiles=False,
+    )
     return 0

@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -132,15 +133,16 @@ def _patch_artifact_subsystem(monkeypatch, base_dir: Path) -> list[AICandidateFi
     monkeypatch.setattr(
         packaging,
         "AI_GEMINI_PACK_KEYS",
-        ["ai_export_summary.txt", "ai_hardware_date_recommendation.md", "primary.csv"],
+        ["primary.csv", "shared_report.txt", "missing_gemini_root.csv"],
     )
     monkeypatch.setattr(packaging, "AI_GEMINI_CORE_LIMIT", 3)
     monkeypatch.setattr(
         packaging,
         "AI_GPT_PACK_KEYS",
-        ["primary.csv", "phase_config_daily_mapping.csv", "analysis_methodology.md", "shared_report.txt"],
+        ["primary.csv", "phase_config_daily_mapping.csv", "missing_gpt_root.csv", "shared_report.txt"],
     )
     monkeypatch.setattr(packaging, "AI_GPT_CORE_LIMIT", 4)
+    monkeypatch.setattr(packaging, "AI_PRIORITY_DETAILS_FILL_KEYS", ["secondary.csv", "missing_details_fill.csv"])
 
     settings_stub = SimpleNamespace(
         path=str(base_dir / "config" / "settings.toml"),
@@ -190,9 +192,14 @@ def test_ai_export_end_to_end_generates_artifacts_and_states(tmp_path: Path, mon
     methodology_path = export_dir / "analysis_methodology.md"
     analysis_design_path = export_dir / "analysis_design.md"
     needed_files_path = export_dir / "ai_needed_files_for_statistics.md"
-    gemini_pack_manifest = export_dir / "for_gemini" / "pack_manifest.txt"
-    gpt_pack_manifest = export_dir / "for_GPT" / "pack_manifest.txt"
-    grok_pack_manifest = export_dir / "for_grok" / "pack_manifest.txt"
+    manifests_dir = export_dir / "manifests"
+    gemini_pack_manifest = manifests_dir / "gemini_pack.txt"
+    gemini_selection_manifest = manifests_dir / "gemini_selection.csv"
+    gpt_pack_manifest = manifests_dir / "GPT_pack.txt"
+    gpt_selection_manifest = manifests_dir / "GPT_selection.csv"
+    grok_pack_manifest = manifests_dir / "grok_pack.txt"
+    claude_pack_manifest = manifests_dir / "claude_pack.txt"
+    claude_zip = export_dir / "for_claude" / "for_claude.zip"
 
     for path in [
         manifest_path,
@@ -213,9 +220,14 @@ def test_ai_export_end_to_end_generates_artifacts_and_states(tmp_path: Path, mon
         methodology_path,
         analysis_design_path,
         needed_files_path,
+        manifests_dir,
         gemini_pack_manifest,
+        gemini_selection_manifest,
         gpt_pack_manifest,
+        gpt_selection_manifest,
         grok_pack_manifest,
+        claude_pack_manifest,
+        claude_zip,
     ]:
         assert path.exists(), path
 
@@ -272,8 +284,16 @@ def test_ai_export_end_to_end_generates_artifacts_and_states(tmp_path: Path, mon
     assert "profile: for_gemini" in gemini_pack_manifest.read_text(encoding="utf-8")
     assert "profile: for_GPT" in gpt_pack_manifest.read_text(encoding="utf-8")
     assert "profile: for_grok" in grok_pack_manifest.read_text(encoding="utf-8")
-    assert "files/shared_report.txt" in hashes_path.read_text(encoding="utf-8")
-    assert "\"artifact_subsystem_version\"" in repro_stamp_path.read_text(encoding="utf-8")
+    assert "zip_name: for_claude.zip" in claude_pack_manifest.read_text(encoding="utf-8")
+    gpt_selection_rows = _read_csv_rows(gpt_selection_manifest)
+    assert any(row["selected_by"] == "priority_root" and row["copied"] == "1" for row in gpt_selection_rows)
+    assert any(row["selected_by"] == "priority_details_fill" and row["copied"] == "1" for row in gpt_selection_rows)
+    assert any(row["selected_by"] == "priority_root" and row["exists"] == "0" for row in gpt_selection_rows)
+    gemini_selection_rows = _read_csv_rows(gemini_selection_manifest)
+    assert any(row["selected_by"] == "priority_root" for row in gemini_selection_rows)
+    assert any(row["selected_by"] == "priority_details_fill" for row in gemini_selection_rows)
+    assert "shared_report.txt" in hashes_path.read_text(encoding="utf-8")
+    assert '"artifact_subsystem_version"' in repro_stamp_path.read_text(encoding="utf-8")
     assert json.loads(provenance_path.read_text(encoding="utf-8"))["entries"]
     assert json.loads(run_metadata_path.read_text(encoding="utf-8"))["artifact_count"] >= 1
     assert json.loads(lineage_path.read_text(encoding="utf-8"))["edges"]
@@ -313,13 +333,62 @@ def test_selection_fallback_and_duplicate_results_are_stable(tmp_path: Path, mon
     export_dir_a, records_a = app.export_ai_folder(base_dir=base_dir, output_root=output_root / "run_a")
     export_dir_b, records_b = app.export_ai_folder(base_dir=base_dir, output_root=output_root / "run_b")
     assert export_dir_a != export_dir_b
-    assert [
-        (record.relative_path, record.status, record.source_path, record.note)
-        for record in records_a
-    ] == [
-        (record.relative_path, record.status, record.source_path, record.note)
-        for record in records_b
+    assert [(record.relative_path, record.status, record.source_path, record.note) for record in records_a] == [
+        (record.relative_path, record.status, record.source_path, record.note) for record in records_b
     ]
+
+
+def test_default_cli_mode_writes_profile_zip_dirs_only(tmp_path: Path, monkeypatch) -> None:
+    base_dir = tmp_path / "fixture_output"
+    out_dir = tmp_path / "payload"
+    _build_artifact_fixture(base_dir)
+    _patch_artifact_subsystem(monkeypatch, base_dir)
+
+    rc = app.run_from_args(
+        SimpleNamespace(
+            base=str(base_dir),
+            out=str(out_dir),
+            include_ext=".txt,.log,.json,.jsonl,.csv,.html,.md",
+            exclude_dir="",
+            max_bytes_per_file=2_000_000,
+            sort="path",
+            dry_run=False,
+            export_ai_folder=False,
+            no_ai_export=False,
+            ai_export_root="",
+            ai_export_use_out_parent=False,
+            deterministic=True,
+            legacy_flat_output=False,
+        )
+    )
+
+    assert rc == 0
+    assert not (out_dir / "manifest.csv").exists()
+    assert not (out_dir / "merged_for_ai.md").exists()
+    assert not (out_dir / "merged_for_ai.zip").exists()
+
+    bundles = sorted(path for path in out_dir.iterdir() if path.is_dir())
+    assert len(bundles) == 1
+    bundle_dir = bundles[0]
+    expected_profile_dirs = {"for_gemini", "for_GPT", "for_grok", "for_claude", "manifests"}
+    assert {path.name for path in bundle_dir.iterdir() if path.is_dir()} == expected_profile_dirs
+    assert [path for path in bundle_dir.iterdir() if path.is_file()] == []
+
+    manifests_dir = bundle_dir / "manifests"
+    for manifest_name in ["gemini_pack.txt", "GPT_pack.txt", "grok_pack.txt", "claude_pack.txt"]:
+        assert (manifests_dir / manifest_name).exists()
+    for selection_name in ["gemini_selection.csv", "GPT_selection.csv"]:
+        assert (manifests_dir / selection_name).exists()
+    assert (bundle_dir / "for_gemini" / "details").exists()
+    assert (bundle_dir / "for_GPT" / "details").exists()
+    assert any((bundle_dir / "for_gemini" / "details").iterdir())
+    assert any((bundle_dir / "for_GPT" / "details").iterdir())
+
+    claude_zip = bundle_dir / "for_claude" / "for_claude.zip"
+    assert claude_zip.exists()
+    with zipfile.ZipFile(claude_zip, "r") as archive:
+        members = archive.namelist()
+    assert "ai_export_summary.txt" in members
 
 
 def test_legacy_wrapper_supports_dry_run(tmp_path: Path) -> None:
@@ -344,6 +413,6 @@ def test_legacy_wrapper_supports_dry_run(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "[INFO] dry-run enabled: skipping merged output generation" in result.stdout
+    assert "[INFO] dry-run 有効: マージをスキップします" in result.stdout
     assert (out_dir / "manifest.csv").exists()
     assert not (out_dir / "merged_for_ai.md").exists()

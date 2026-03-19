@@ -2,13 +2,27 @@
 # ADS-B Evaluation Framework — Phase Configuration (v3-airspy-baseline)
 # ============================================================
 #
+# v2 → v3 変更理由:
+#   RTL-SDR → Airspy の変化量が桁違いに大きく（+200%超）、
+#   Cable/Adapter 等の小改善がベイズ推定の事後分布上で
+#   識別不能になっていた。
 #
+#   Airspy Mini 導入日 (2026-01-14) を新しい Baseline とすることで、
+#   ケーブル交換やアダプタ変更の効果を適切に評価する。
 #
+# RTL-SDR 期間 (01/06–01/13) はイベントから除外。
+# RTL-SDR vs Airspy の比較結果は別途 v2 で保存済み。
 #
 # ============================================================
 
 [events]
+# 時系列順に「いつ・何をしたか」を記録する。
 #
+# 書式: date = label | hardware | color
+#   - label:    イベント名（必須）
+#   - hardware: ハードウェア名。変更があった日のみ記載。
+#               ここで指定した hardware は、次の hardware 指定日まで継続する。
+#   - color:    レポートの線色（省略時: 自動割り当て）
 #
 # ── Phase 0: Airspy core (Baseline) ──
 2026-01-14 = Airspy Baseline (Gain 13-18)    | airspy_mini          | #e74c3c
@@ -33,14 +47,21 @@
 2026-02-27 = -m 12 / -f 1 / -e 60           |                      | #2c3e50
 #
 # ── Phase 3: Adapter (NM-SM50+) ──
-2026-02-28 = Adapter change (NM-SM50+)       |  airspy_adapter  | #34495e
+# 実施時刻は 2026-02-28 07:39。日次集計では混在日を避けるため翌日から反映。
+2026-03-01 = Adapter change (NM-SM50+)       |  airspy_adapter  | #34495e
 
 [settings]
+# 解析パラメータ（各スクリプト共通）
 #
+# post_change_date: is_post_change フラグの基準
+#   → Airspy baseline なので Cable 導入日に変更
 post_change_date = 2026-02-14
 #
+# intervention_date: 動的評価 / ADVI のデフォルト介入日
 intervention_date = 2026-02-14
 #
+# report_start_date: 統合レポートの表示開始日
 report_start_date = 2026-01-14
 #
+# fringe_boundary: Fringe decoding のフェーズ境界
 fringe_boundary = 2026-01-29,2026-02-14

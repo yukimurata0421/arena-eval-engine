@@ -1,5 +1,3 @@
-# ruff: noqa: E402
-
 from __future__ import annotations
 
 import json
@@ -13,12 +11,10 @@ for candidate in (ROOT, SRC):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
-from arena.artifacts.models import (
-    AICandidateFile,
-    AICandidateStatus,
-    AIExportIntegrity,
-    AIManifestRecord,
-)
+from arena.lib.config import get_quality_thresholds
+from arena.lib.runtime_config import load_settings
+
+from arena.artifacts.models import AICandidateFile, AICandidateStatus, AIExportIntegrity, AIManifestRecord
 from arena.artifacts.policies import (
     AI_ANALYSIS_DESIGN_MD_FILENAME,
     AI_ANALYSIS_METHODOLOGY_MD_FILENAME,
@@ -31,8 +27,6 @@ from arena.artifacts.policies import (
     AI_SETTINGS_SNAPSHOT_JSON_FILENAME,
     AI_SETTINGS_SUMMARY_MD_FILENAME,
 )
-from arena.lib.config import get_quality_thresholds
-from arena.lib.runtime_config import load_settings
 
 
 def _display_generated_path(path: Path, export_dir: Path, deterministic: bool) -> str:
@@ -66,17 +60,17 @@ def write_hardware_date_recommendation(export_dir: Path) -> Path:
         "",
         "## Statistical Context",
         "",
-        "- The large RTL-SDR -> Airspy shift can mask later cable / adapter / parameter micro-effects,",
-        "  so Airspy-only evaluation is required.",
-        "- Use 2026-01-14 as the main-analysis boundary to represent the hardware transition cleanly.",
-        "- Use 2026-01-10 as the sensitivity-analysis boundary to test robustness when transition-period effects are included.",
-        "- Start adapter comparisons on 2026-03-01 and treat 2026-02-28 as a mixed day outside the primary conclusion.",
-        "- Keep Cable v2 as a reference comparison only, not as evidence for the main conclusion.",
+        "- RTL-SDR -> Airspy の巨大差が後続の cable / adapter / parameter 微差の評価を埋もれさせるため、",
+        "  Airspy 後限定評価が必須。",
+        "- 2026-01-14 は主解析の境界として採用し、ハードウェア更新の構造変化を安定して表現する。",
+        "- 2026-01-10 は感度分析境界として採用し、遷移期間の影響を含む場合の頑健性を確認する。",
+        "- Adapter 比較は 2026-03-01 を開始日とし、2026-02-28 は mixed day 扱いにして主結論に混ぜない。",
+        "- Cable v2 は候補比較の参考に留め、主結論の根拠には使わない。",
         "",
         "## Practical Use",
         "",
-        "- Fix the main analysis at the 2026-01-14 boundary and report the 2026-01-10 sensitivity analysis separately.",
-        "- Include an Airspy-only subset in the standard report and evaluate micro-differences there.",
+        "- 主解析は 2026-01-14 境界で固定し、別セクションで 2026-01-10 感度分析を併記する。",
+        "- Airspy 後限定サブセットを標準レポートに含め、micro-difference の比較はそこで判断する。",
     ]
     with path.open("w", encoding="utf-8", newline="\n") as file:
         file.write("\n".join(lines) + "\n")
@@ -88,7 +82,7 @@ def write_needed_files_for_statistics(export_dir: Path, candidates: list[AICandi
     lines = [
         "# Needed Files For Statistics",
         "",
-        "Candidate files required for future statistical decisions.",
+        "今後の統計判断に必要な候補ファイル一覧です。",
         "",
     ]
     for candidate in candidates:
@@ -237,12 +231,11 @@ def write_ai_settings_snapshot(export_dir: Path, generated_at: str) -> tuple[Pat
         "",
         "## Change Point Scripts Note",
         "",
-        "- `adsb_detect_change_point.py` and `adsb_detect_multi_change_points.py`",
-        "- `adsb_detect_change_point.py` and `adsb_detect_multi_change_points.py` call",
-        "  `arena.lib.config.get_quality_thresholds()` to resolve quality thresholds.",
-        "- `get_quality_thresholds()` reads `quality.min_auc_n_used` and",
-        "  `quality.min_minutes_covered` from `settings.toml` (`scripts/config/settings.toml`).",
-        "- As a result, change-point quality thresholds are managed through `settings.toml`.",
+        "- `adsb_detect_change_point.py` と `adsb_detect_multi_change_points.py` は、",
+        "  `arena.lib.config.get_quality_thresholds()` を呼び出してしきい値を取得します。",
+        "- `get_quality_thresholds()` は `settings.toml`（`scripts/config/settings.toml`）由来の",
+        "  `quality.min_auc_n_used` と `quality.min_minutes_covered` を参照します。",
+        "- そのため、change point解析の品質閾値は `settings.toml` で管理されています。",
         "",
         "## settings.toml snapshot",
         "",
@@ -261,23 +254,23 @@ def write_ai_change_point_note(export_dir: Path, settings_path: str) -> Path:
     lines = [
         "# Change Point Configuration Note",
         "",
-        "Configuration references used by the change-point analysis included in this export:",
+        "このエクスポートに含まれる change point 解析関連の設定参照先:",
         "",
-        "- Scripts:",
+        "- スクリプト:",
         "  - `scripts/adsb/analysis/change_points/adsb_detect_change_point.py`",
         "  - `scripts/adsb/analysis/change_points/adsb_detect_multi_change_points.py`",
-        "- Configuration accessor:",
+        "- 設定取得:",
         "  - `arena.lib.config.get_quality_thresholds()`",
-        "- Effective settings file:",
+        "- 実設定ファイル:",
         f"  - `{settings_path}`",
         "",
-        "Key parameters:",
+        "主要パラメータ:",
         "- `quality.min_auc_n_used`",
         "- `quality.min_minutes_covered`",
         "",
-        "Notes:",
-        "- The scripts do not read `settings.toml` directly.",
-        "- They reference it indirectly through `get_quality_thresholds()`.",
+        "注記:",
+        "- スクリプトは `settings.toml` を直接読むのではなく、",
+        "  `get_quality_thresholds()` を経由して間接的に参照します。",
     ]
     with note_path.open("w", encoding="utf-8", newline="\n") as file:
         file.write("\n".join(lines) + "\n")

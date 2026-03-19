@@ -10,9 +10,10 @@ os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
 
 import pandas as pd
 import numpy as np
-from jax import random
 import jax.numpy as jnp
+from jax import random
 import numpyro
+import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import matplotlib.pyplot as plt
 
@@ -20,38 +21,60 @@ import matplotlib.pyplot as plt
 from arena.lib.paths import OUTPUT_DIR
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
-from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_single_change_point_model
+from arena.lib.platform_setup import resolve_workers
 
-CPU_HOST = min(6, os.cpu_count() or 6)
+from arena.log import get_script_logger
+
+
+
+log = get_script_logger(__name__)
+CPU_HOST = resolve_workers(default_cap=12)
 numpyro.set_platform("cpu")
 numpyro.set_host_device_count(CPU_HOST)
 
 
 def run_cuda_analysis():
-    min_auc, _min_minutes = get_quality_thresholds()
-    df = load_summary(min_auc=min_auc, min_minutes=None, require_proxy=True)
+    min_auc, min_minutes = get_quality_thresholds()
+    df = load_summary(min_auc=min_auc, min_minutes=min_minutes, require_proxy=True)
     if df is None or df.empty:
-        print(" Error: input data is missing.")
+        log.info(" エラー: 入力データがありません。")
         return
     df = df.sort_values("date").reset_index(drop=True)
-    df = clean_nb2_df(df, require_log_traffic=True)
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["auc_n_used", "log_traffic"])
     if len(df) < 5:
-        print("  WARNING: Insufficient valid data. Skipping change-point estimation.")
+        log.info("  警告: 有効データが不足しているため、変化点推定をスキップします。")
         return
 
-    inputs = prepare_nb2_inputs(df)
-    n_days = inputs.n_days
-    model = make_single_change_point_model(alpha_name="phi")
+    y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
+    log_traffic = jnp.array(df["log_traffic"].values, dtype=jnp.float32)
+    n_days = len(df)
+    log.info(
+        f">>> 解析対象: {n_days} 日（{df['date'].min().date()} ~ {df['date'].max().date()}）"
+        f" [min_auc>{min_auc}, minutes>={min_minutes}]"
+    )
+
+    def model(y, log_traffic, n_days):
+        tau = numpyro.sample("tau", dist.DiscreteUniform(0, n_days - 1))
+        alpha_before = numpyro.sample("alpha_before", dist.Normal(10.0, 5.0))
+        alpha_after = numpyro.sample("alpha_after", dist.Normal(10.0, 5.0))
+        beta_traffic = numpyro.sample("beta_traffic", dist.Normal(1.0, 0.5))
+        phi = numpyro.sample("phi", dist.Exponential(1.0))
+
+        idx = jnp.arange(n_days)
+        intercept = jnp.where(idx < tau, alpha_before, alpha_after)
+        mu = jnp.exp(intercept + beta_traffic * log_traffic)
+        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, phi), obs=y)
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     if os.getenv("MCMC_FULL") == "1":
         num_warmup, num_samples = 1000, 2000
     else:
         num_warmup, num_samples = 50, 200
-    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=1)
+    n_chains = max(1, min(CPU_HOST, 4))
+    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=n_chains)
 
-    print(f">>> Running Bayesian inference (CPU, warmup={num_warmup}, samples={num_samples})...")
-    mcmc.run(random.PRNGKey(42), inputs.y, inputs.log_traffic, inputs.n_days)
+    log.info(f">>> ベイズ推論を実行中（CPU, warmup={num_warmup}, samples={num_samples}, chains={n_chains}）...")
+    mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
 
     samples = mcmc.get_samples()
     tau_samples = samples["tau"]
@@ -59,9 +82,9 @@ def run_cuda_analysis():
     best_tau_idx = int(vals[jnp.argmax(counts)])
     detected_date = df.iloc[best_tau_idx]["date"]
 
-    print("\n" + "=" * 40)
-    print(f" Estimated change point: {detected_date}")
-    print("=" * 40)
+    log.info("\n" + "=" * 40)
+    log.info(f" Estimated change point: {detected_date}")
+    log.info("=" * 40)
 
     plt.figure(figsize=(10, 6))
     plt.plot(pd.to_datetime(df["date"]), df["auc_n_used"], label="Daily Packets")

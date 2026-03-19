@@ -8,10 +8,10 @@ COPY pyproject.toml README.md /workspace/
 COPY scripts /workspace/scripts
 COPY src /workspace/src
 COPY tests /workspace/tests
-COPY data /workspace/data
-COPY output /workspace/output
+RUN mkdir -p /workspace/data /workspace/output /workspace/output/performance
 
 RUN python -m pip install -U pip \
- && pip install -e ".[dev,bayes,gpu]"
+ && pip install -e ".[dev]" \
+ && pip install "jax>=0.4.30" "jaxlib>=0.4.30" "numpyro>=0.15.0" "pymc>=5.0.0" "arviz>=0.17.0"
 
-CMD ["python", "scripts/dev/run_sample_smoke.py"]
+CMD ["python", "-m", "arena.cli", "--help"]

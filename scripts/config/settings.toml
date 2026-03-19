@@ -27,6 +27,14 @@ min_minutes_covered = 1380
 # Distance bins in km for evaluation
 km = [0, 50, 100, 150, 200, 9999]
 
+[rpi_sync]
+host = ""
+user = ""
+ssh_port = 22
+remote_dir = "/path/to/adsb_monitor/data/logs"
+plao_remote_dir = "/path/to/plao/data/logs/plao_pos"
+strict_host_key_checking = "accept-new"
+
 
 # post_change_date = "2026-01-14"
 # alt_baseline_date = "2026-01-29"

@@ -11,7 +11,12 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 from arena.lib.config import get_site_latlon
+from arena.lib.geo import haversine_km
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR as OUT_ROOT
+from arena.lib.platform_setup import resolve_workers
+from arena.log import get_script_logger
+
+log = get_script_logger(__name__)
 
 INPUT_DIR = str(DATA_DIR / "plao_pos")
 OUTPUT_DIR = str(OUT_ROOT / "fringe_decoding")
@@ -20,17 +25,10 @@ TREND_LEGACY_CSV = os.path.join(OUTPUT_DIR, "fringe_decoding_trend.csv")
 TREND_IMG = os.path.join(OUTPUT_DIR, "fringe_decoding_trend_report.png")
 
 SITE_LAT, SITE_LON = get_site_latlon()
-MAX_WORKERS = min(6, os.cpu_count() or 6)
 
-def calculate_distance(lat1, lon1, lat2, lon2):
-    R = 6371.0
-    lat1_rad, lon1_rad = np.radians(lat1), np.radians(lon1)
-    lat2_rad, lon2_rad = np.radians(lat2), np.radians(lon2)
-    dlat = lat2_rad - lat1_rad
-    dlon = lon2_rad - lon1_rad
-    a = np.sin(dlat / 2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2)**2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    return R * c
+
+
+MAX_WORKERS = resolve_workers(default_cap=12)
 
 def get_phase(date):
     from arena.lib.phase_config import get_config
@@ -47,7 +45,7 @@ def process_one_file(f_path: str):
     try:
         date_str = base.split('_')[1]
         record_date = datetime.strptime(date_str, "%Y%m%d").date()
-    except:
+    except Exception:
         return None
 
     counts = {'near': 0, 'mid': 0, 'far': 0, 'extreme': 0}
@@ -56,7 +54,7 @@ def process_one_file(f_path: str):
             try:
                 d = json.loads(line.strip())
                 if d.get('type') == 'pos':
-                    dist = calculate_distance(SITE_LAT, SITE_LON, d['lat'], d['lon'])
+                    dist = haversine_km(SITE_LAT, SITE_LON, d['lat'], d['lon'])
                     if dist < 100:
                         counts['near'] += 1
                     elif dist < 200:
@@ -65,7 +63,7 @@ def process_one_file(f_path: str):
                         counts['far'] += 1
                     else:
                         counts['extreme'] += 1
-            except:
+            except Exception:
                 continue
 
     total = sum(counts.values())
@@ -88,7 +86,7 @@ def process_one_file(f_path: str):
 def process_fringe_decoding():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     files = sorted(glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*")))
-    print(f">>> Recomputing distances and re-aggregating data... (workers={MAX_WORKERS})\n")
+    log.info(f">>> 距離を再計算し再集計中... (workers={MAX_WORKERS})\n")
     results = []
 
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
@@ -107,35 +105,22 @@ def process_fringe_decoding():
             "dist_0_100", "dist_100_200", "dist_200_300", "dist_300_plus"
         ])
         df.to_csv(TREND_CSV, index=False)
-        pd.DataFrame(
-            columns=[
-                "date",
-                "total",
-                "dist_0_100",
-                "dist_100_200",
-                "dist_200_300",
-                "dist_300_plus",
-                "fringe_ratio_pct",
-            ]
-        ).to_csv(TREND_LEGACY_CSV, index=False)
-        print(f"\n ⚠️ No target data; wrote empty CSV: {TREND_CSV}")
+        log.info(f"\n ⚠️ 対象データがありません。空CSVを書き出しました: {TREND_CSV}")
         return
 
     df = pd.DataFrame(results).sort_values('date')
-    if len(df) > 2: df = df.iloc[1:-1].copy()
     df.to_csv(TREND_CSV, index=False)
-    pd.DataFrame(
-        {
-            "date": df["date"],
-            "total": df["total"],
-            "dist_0_100": df["dist_0_100"],
-            "dist_100_200": df["dist_100_200"],
-            "dist_200_300": df["dist_200_300"],
-            "dist_300_plus": df["dist_300_plus"],
-            "fringe_ratio_pct": df["fringe_ratio"],
-        }
-    ).to_csv(TREND_LEGACY_CSV, index=False)
-    print(f"\n Created CSV with corrected distance data: {TREND_CSV}")
+    df_legacy = pd.DataFrame({
+        "date": df["date"],
+        "total": df["total"],
+        "dist_0_100": df["dist_0_100"],
+        "dist_100_200": df["dist_100_200"],
+        "dist_200_300": df["dist_200_300"],
+        "dist_300_plus": df["dist_300_plus"],
+        "fringe_ratio_pct": df["fringe_ratio"],
+    })
+    df_legacy.to_csv(TREND_LEGACY_CSV, index=False)
+    log.info(f"\n 距離補正済みCSVを作成しました: {TREND_CSV}")
 
 if __name__ == "__main__":
     process_fringe_decoding()

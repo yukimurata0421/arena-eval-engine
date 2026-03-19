@@ -24,8 +24,8 @@ class DistanceBinsConfig:
 
 
 def _get_settings() -> dict[str, Any]:
-    settings = load_settings().data or {}
-    return settings if isinstance(settings, dict) else {}
+    raw = load_settings().data or {}
+    return raw if isinstance(raw, dict) else {}
 
 
 def get_site_config() -> SiteConfig:

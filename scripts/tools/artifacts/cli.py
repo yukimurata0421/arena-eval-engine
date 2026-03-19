@@ -4,34 +4,28 @@ import argparse
 import sys
 from pathlib import Path
 
+
 ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src"
 
-def _bootstrap_repo_imports() -> None:
-    for candidate in (ROOT, SRC):
-        candidate_str = str(candidate)
-        if candidate_str not in sys.path:
-            sys.path.insert(0, candidate_str)
+for candidate in (ROOT, SRC):
+    if str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
 
-
-def _load_runtime_defaults() -> tuple[Path, tuple[str, ...]]:
-    _bootstrap_repo_imports()
-    from arena.artifacts.policies import TEXT_EXT_DEFAULT
-    from arena.lib.paths import resolve_output_dir
-
-    return resolve_output_dir(), tuple(TEXT_EXT_DEFAULT)
+from arena.lib.paths import OUTPUT_DIR
+from scripts.tools.artifacts.app import run_from_args
+from arena.artifacts.policies import TEXT_EXT_DEFAULT
 
 
 def build_parser() -> argparse.ArgumentParser:
-    output_dir, text_ext_default = _load_runtime_defaults()
-    parser = argparse.ArgumentParser()
-    default_base = str(output_dir)
-    default_out = str(output_dir / "merged_for_ai")
+    parser = argparse.ArgumentParser(prog="artifact run")
+    default_base = str(OUTPUT_DIR)
+    default_out = str(Path(OUTPUT_DIR) / "payload")
     parser.add_argument("--base", default=default_base, help="Base directory to scan")
     parser.add_argument("--out", default=default_out, help="Output directory")
     parser.add_argument(
         "--include-ext",
-        default=",".join(text_ext_default),
+        default=",".join(TEXT_EXT_DEFAULT),
         help="Comma-separated extensions to include (e.g. .txt,.log,.json,.csv,.html)",
     )
     parser.add_argument(
@@ -50,9 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--export-ai-folder",
         action="store_true",
-        help="Export only AI-selected files to a timestamped folder under output dir (no zip)",
+        help="(Legacy mode) Export only AI-selected files to a timestamped folder under output dir.",
     )
     parser.add_argument("--no-ai-export", action="store_true", help="Disable default AI export in normal mode")
+    parser.add_argument(
+        "--legacy-flat-output",
+        action="store_true",
+        help="Enable legacy merged_for_ai output generation (manifest.csv/merged_for_ai.md/merged_for_ai.zip).",
+    )
     parser.add_argument(
         "--ai-export-root",
         default="",
@@ -71,12 +70,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    _bootstrap_repo_imports()
-    from scripts.tools.artifacts.app import run_from_args
-
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     return run_from_args(args)
 
 

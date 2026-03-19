@@ -10,11 +10,19 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from arena.lib.config import get_site_latlon
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR as OUT_ROOT
+from arena.lib.platform_setup import resolve_workers
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 INPUT_DIR = str(DATA_DIR / "plao_pos")
 OUTPUT_DIR = str(OUT_ROOT / "heatmaps")
 SITE_LAT, SITE_LON = get_site_latlon()
-MAX_WORKERS = min(6, os.cpu_count() or 6)
+
+
+
+MAX_WORKERS = resolve_workers(default_cap=12)
 
 def process_one_file(f_path: str):
     filename = os.path.basename(f_path)
@@ -38,7 +46,7 @@ def process_one_file(f_path: str):
                             coords_mid.append([lat, lon])
                         else:
                             coords_high.append([lat, lon])
-            except:
+            except Exception:
                 continue
 
     sample_rate = 50
@@ -73,7 +81,7 @@ def process_one_file(f_path: str):
     folium.LayerControl(collapsed=False).add_to(m)
 
     m.save(out_path)
-    return f"   ✅ {filename}: Saved {out_path} (Low: {len(coords_low):,}, Mid: {len(coords_mid):,}, High: {len(coords_high):,})"
+    return f"   ✅ {filename}: 保存しました {out_path}（Low: {len(coords_low):,}, Mid: {len(coords_mid):,}, High: {len(coords_high):,}）"
 
 
 def process_daily_heatmaps_by_alt():
@@ -81,18 +89,18 @@ def process_daily_heatmaps_by_alt():
 
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        print(f"❌ File not found: {INPUT_DIR}")
+        log.info(f"❌ ファイルが見つかりません: {INPUT_DIR}")
         return
 
-    print(f">>> {len(files)}  days of data detected. Starting altitude-band parallel processing... (workers={MAX_WORKERS})\n")
+    log.info(f">>> {len(files)} 日分のデータを検出。高度帯の並列処理を開始します... (workers={MAX_WORKERS})\n")
 
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = [ex.submit(process_one_file, f_path) for f_path in files]
         for fut in as_completed(futures):
             try:
-                print(fut.result())
+                log.info(fut.result())
             except Exception as e:
-                print(f"   ⚠️ Failed: {e}")
+                log.info(f"   ⚠️ 失敗: {e}")
 
 if __name__ == "__main__":
     process_daily_heatmaps_by_alt()

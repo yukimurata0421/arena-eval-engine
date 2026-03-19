@@ -30,8 +30,14 @@ except Exception:
 
 
 from arena.lib.config import get_site_latlon
+from arena.lib.geo import haversine_km
 from arena.lib.paths import ADSB_DAILY_SUMMARY, OUTPUT_DIR, DATA_DIR, ensure_dir
+from arena.lib.platform_setup import resolve_workers
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 POS_DIR = str(DATA_DIR / "plao_pos")
 FINAL_OUTPUT = str(OUTPUT_DIR / "adsb_daily_summary_v2.csv")
 SITE_LAT, SITE_LON = get_site_latlon()
@@ -39,16 +45,10 @@ SITE_LAT, SITE_LON = get_site_latlon()
 RADII_KM = [25.0, 50.0, 100.0]
 PRIMARY_RADIUS = 50.0
 
-MAX_WORKERS = min(6, os.cpu_count() or 4)
 
 
-def haversine_km(lat1, lon1, lat2, lon2):
-    """Haversine distance (km)."""
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlam = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
-    return 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+MAX_WORKERS = resolve_workers(default_cap=12)
+
 
 
 def open_file(path):
@@ -138,13 +138,13 @@ def generate_traffic_proxy():
 
     pos_files = sorted(glob.glob(os.path.join(POS_DIR, "pos_*.jsonl*")))
     if not pos_files:
-        print(f"  Error: pos file not found: {POS_DIR}")
+        log.info(f"  エラー: pos ファイルが見つかりません: {POS_DIR}")
         return
 
-    print(f">>> Computing local traffic proxy")
-    print(f"    Target: {len(pos_files)} files")
-    print(f"    Radius: {RADII_KM} km")
-    print(f"    Parallel: {MAX_WORKERS} workers")
+    log.info(f">>> ローカル交通プロキシを計算中")
+    log.info(f"    対象: {len(pos_files)} ファイル")
+    log.info(f"    半径: {RADII_KM} km")
+    log.info(f"    並列: {MAX_WORKERS} workers")
 
     results = []
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -156,28 +156,28 @@ def generate_traffic_proxy():
                     results.append(result)
             except Exception:
                 continue
-            print(f"  [{i + 1}/{len(pos_files)}] done", end="\r")
+            log.info(f"  [{i + 1}/{len(pos_files)}] 完了")
 
-    print(f"\n  Valid data: {len(results)} days")
+    log.info(f"\n  有効データ: {len(results)} 日")
 
     if not results:
-        print("  Error: No valid data.")
+        log.info("  エラー: 有効データがありません。")
         return
 
     df_proxy = pd.DataFrame(results).sort_values('date').reset_index(drop=True)
 
     for r in RADII_KM:
         col = f"unique_hex_{int(r)}km"
-        print(f"    {col}: mean={df_proxy[col].mean():.1f}, "
+        log.info(f"    {col}: mean={df_proxy[col].mean():.1f}, "
               f"range=[{df_proxy[col].min()}, {df_proxy[col].max()}]")
 
     summary_path = str(ADSB_DAILY_SUMMARY)
     if not os.path.exists(summary_path):
         proxy_csv = str(OUTPUT_DIR / "local_traffic_proxy.csv")
         df_proxy.to_csv(proxy_csv, index=False)
-        print(f"  Saved proxy only: {proxy_csv}")
+        log.info(f"  プロキシのみ保存しました: {proxy_csv}")
         df_proxy.to_csv(FINAL_OUTPUT, index=False)
-        print(f"  Saved v2 with proxy only: {FINAL_OUTPUT}")
+        log.info(f"  v2（プロキシのみ）保存しました: {FINAL_OUTPUT}")
         return
 
     df_summary = pd.read_csv(summary_path)
@@ -195,30 +195,30 @@ def generate_traffic_proxy():
 
     n_matched = df_merged['local_traffic_proxy'].notna().sum()
     n_missing = df_merged['local_traffic_proxy'].isna().sum()
-    print(f"\n  Merge result: {n_matched} days matched, {n_missing} days missing")
+    log.info(f"\n  結合結果: 一致 {n_matched} 日、欠損 {n_missing} 日")
 
     if n_missing > 0:
         missing_dates = df_merged.loc[
             df_merged['local_traffic_proxy'].isna(), 'date'
         ].tolist()
-        print(f"  Missing dates: {missing_dates[:10]}{'...' if len(missing_dates) > 10 else ''}")
+        log.info(f"  欠損日: {missing_dates[:10]}{'...' if len(missing_dates) > 10 else ''}")
 
     df_merged.to_csv(FINAL_OUTPUT, index=False)
-    print(f"\n  Saved: {FINAL_OUTPUT}")
+    log.info(f"\n  保存しました: {FINAL_OUTPUT}")
 
     endo = run_endogeneity_check(df_merged)
-    print(f"\n  --- Endogeneity check ---")
+    log.info(f"\n  --- 内生性チェック ---")
     if 'error' in endo:
-        print(f"  Skip: {endo['error']}")
+        log.info(f"  スキップ: {endo['error']}")
     else:
-        print(f"  Pre  mean: {endo['pre_mean']}")
-        print(f"  Post mean: {endo['post_mean']}")
-        print(f"  Change: {endo['change_pct']:+.1f}%  (P = {endo['p_value']:.6f})")
+        log.info(f"  事前 平均: {endo['pre_mean']}")
+        log.info(f"  事後 平均: {endo['post_mean']}")
+        log.info(f"  変化: {endo['change_pct']:+.1f}%  (P = {endo['p_value']:.6f})")
         if endo['is_endogenous']:
-            print(f"  ⚠ Significant difference: unique aircraft within 50km increased after hardware change.")
-            print(f"    Consider using 25km values as an alternative proxy.")
+            log.info(f"  ⚠ 有意差あり: 50km以内のユニーク機数がハード変更後に増加。")
+            log.info(f"    代替として 25km 値の利用を検討してください。")
         else:
-            print(f"  ✓ Exogeneity confirmed: proxy can be used as a confounder control.")
+            log.info(f"  ✓ 外生性確認: プロキシは交絡制御に使用可能です。")
 
 
 if __name__ == "__main__":

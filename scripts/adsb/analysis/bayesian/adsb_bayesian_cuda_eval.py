@@ -1,5 +1,8 @@
 """
-adsb_bayesian_cuda_eval.py module.
+NOTE:
+旧版のCUDAベイズ評価（介入日入力型）を、フェーズ比較モデルに統一。
+GPU版の本体は以下に移動しました:
+  <project>\\scripts\\adsb\\analysis\\gpu\\adsb_bayesian_phase_cuda_eval.py
 """
 import runpy
 import sys

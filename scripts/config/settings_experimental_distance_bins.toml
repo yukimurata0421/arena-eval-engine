@@ -1,0 +1,40 @@
+# ====================================================
+# ADS-B Evaluation Framework — Experimental Settings
+# ====================================================
+#
+# Purpose:
+# - Keep production settings.toml unchanged.
+# - Evaluate finer distance bins as an A/B comparison.
+#
+# Use with:
+#   arena run --settings scripts/config/settings_experimental_distance_bins.toml
+#
+# NOTE:
+# - This file is for experiment only.
+# - Do not treat results as production replacement without stability checks.
+#
+
+[paths]
+# output_dir = ""
+
+[site]
+lat = 0.0
+lon = 0.0
+
+[quality]
+min_auc_n_used = 5000
+min_minutes_covered = 1380
+
+[distance_bins]
+# Experimental bins:
+# - Benefit: reduces dilution in 200km+ by splitting 200-250 / 250-300 / 300+
+# - Risk: smaller N per bin can increase variance and instability
+km = [0, 50, 100, 150, 200, 250, 300, 9999]
+
+[rpi_sync]
+host = ""
+user = ""
+ssh_port = 22
+remote_dir = "/path/to/adsb_monitor/data/logs"
+plao_remote_dir = "/path/to/plao/data/logs/plao_pos"
+strict_host_key_checking = "accept-new"

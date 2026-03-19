@@ -5,6 +5,7 @@ from pathlib import Path
 
 from arena.lib.paths import OUTPUT_DIR as ARENA_OUTPUT_DIR
 
+
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -12,7 +13,7 @@ OUTPUT_DIR = ARENA_OUTPUT_DIR
 
 
 TEXT_EXT_DEFAULT = [".txt", ".log", ".json", ".jsonl", ".csv", ".html", ".md"]
-ALWAYS_EXCLUDE_DIRS = {"merged_for_ai", "_tmp_check_out"}
+ALWAYS_EXCLUDE_DIRS = {"merged_for_ai", "payload", "_tmp_check_out"}
 ALWAYS_EXCLUDE_DIR_PREFIXES = ("_tmp",)
 ALWAYS_EXCLUDE_REL_PATHS = {"performance/pipeline_runs.jsonl"}
 NORMAL_MODE_OPTIONAL_EXPORT_FILES = [
@@ -21,7 +22,7 @@ NORMAL_MODE_OPTIONAL_EXPORT_FILES = [
     "performance/pipeline_runs.jsonl",
 ]
 
-AI_EXPORT_DIR_PREFIX = "_ai_review_"
+AI_EXPORT_DIR_PREFIX = ""
 AI_MANIFEST_FILENAME = "ai_selected_manifest.csv"
 AI_MANIFEST_EXTENDED_FILENAME = "ai_selected_manifest_extended.csv"
 AI_SUMMARY_FILENAME = "ai_export_summary.txt"
@@ -33,7 +34,7 @@ AI_NEEDED_FILES_FOR_STATISTICS_MD_FILENAME = "ai_needed_files_for_statistics.md"
 AI_CANDIDATE_STATUS_CSV_FILENAME = "ai_export_candidate_status.csv"
 AI_ANALYSIS_DESIGN_MD_FILENAME = "analysis_design.md"
 AI_ANALYSIS_METHODOLOGY_MD_FILENAME = "analysis_methodology.md"
-AI_FILES_SUBDIR = "files"
+AI_FILES_SUBDIR = ""
 AI_ARTIFACT_HASHES_FILENAME = "artifact_hashes.txt"
 AI_REPRODUCIBILITY_STAMP_FILENAME = "reproducibility_stamp.json"
 AI_ARTIFACT_PROVENANCE_FILENAME = "artifact_provenance.json"
@@ -44,8 +45,11 @@ AI_INTEGRITY_SUMMARY_JSON_FILENAME = "integrity_summary.json"
 AI_PACK_DIR_GEMINI = "for_gemini"
 AI_PACK_DIR_GPT = "for_GPT"
 AI_PACK_DIR_GROK = "for_grok"
+AI_PACK_DIR_CLAUDE = "for_claude"
+AI_PACK_MANIFESTS_DIR = "manifests"
 AI_PACK_DETAILS_SUBDIR = "details"
-AI_GEMINI_CORE_LIMIT = 5
+AI_PACK_SELECTION_MANIFEST_FILENAME = "selection_manifest.csv"
+AI_GEMINI_CORE_LIMIT = 10
 AI_GPT_CORE_LIMIT = 20
 ARTIFACT_SUBSYSTEM_VERSION = "1.1.0"
 POLICY_VERSION = "1.0"
@@ -65,6 +69,18 @@ AI_EXPORT_EXCLUDE_GLOB_PATTERNS = [
 ]
 AI_PRIORITY_B_ALLOWED_EXTS = {".csv", ".tsv", ".json", ".txt", ".md"}
 AI_PRIORITY_B_MAX_FILE_BYTES = 25_000_000
+AI_CHANGE_POINTS_ROOT_RELATIVE = "performance/change_points"
+AI_CHANGE_POINTS_PRIORITY_FILENAMES = [
+    "summary_report.md",
+    "run_config.json",
+    "change_point_results.json",
+    "change_point_results.csv",
+    "daily_metric_table.csv",
+    "traffic_adjusted_results.csv",
+    "traffic_unadjusted_results.csv",
+    "traffic_test_results.csv",
+    "run_manifest.csv",
+]
 AI_PRIORITY_B_DISCOVERY_INCLUDE_GLOBS = [
     "*power*analysis*.csv",
     "*power*analysis*.json",
@@ -140,6 +156,8 @@ AI_PRIORITY_B_DISCOVERY_EXCLUDE_GLOBS = [
 AI_REQUIRED_FILES = [
     "change_point/change_point_report.txt",
     "change_point/multi_change_points_report.txt",
+    "dist_1m_health_daily.csv",
+    "dist_1m_health_latest.json",
     "adsb_daily_summary_v2.csv",
     "phase_evaluator_report.txt",
     "coverage/coverage_trend.csv",
@@ -276,34 +294,98 @@ AI_FILENAME_GLOB_FALLBACKS = {
     ],
 }
 AI_GEMINI_PACK_KEYS = [
-    AI_SUMMARY_FILENAME,
-    AI_HARDWARE_DATE_RECOMMENDATION_MD_FILENAME,
-    AI_NEEDED_FILES_FOR_STATISTICS_MD_FILENAME,
-    "adsb_daily_summary_v2.csv",
-    "phase_config_daily_mapping.csv",
+    "ai_entrypoint.md",
+    "summary_report.md",
+    "run_config.json",
+    "change_point_results.json",
+    "change_point_results.csv",
+    "daily_metric_table.csv",
+    "traffic_adjusted_results.csv",
+    "traffic_unadjusted_results.csv",
+    "traffic_test_results.csv",
+    "analysis_methodology.md",
 ]
 AI_GPT_PACK_KEYS = [
-    "plao_daily_distance_auc_summary.csv",
-    "plao_distance_auc_stats_report.txt",
-    "opensky_phase_comparison_report.txt",
-    "opensky_comparison_daily_summary.csv",
+    "ai_entrypoint.md",
+    "summary_report.md",
+    "run_config.json",
+    "change_point_results.json",
+    "change_point_results.csv",
+    "daily_metric_table.csv",
+    "traffic_adjusted_results.csv",
+    "traffic_unadjusted_results.csv",
+    "traffic_test_results.csv",
+    "analysis_methodology.md",
     "phase_config_daily_mapping.csv",
     "phase_config_daily_mapping.json",
-    "phases_v3_baseline.txt",
-    "adsb_daily_summary_v2.csv",
-    "adsb_timebin_summary.csv",
-    "phase_timebin_summary.csv",
-    "phase_timebin_summary.json",
-    "multi_change_points_report.txt",
-    "multi_change_points_result.json",
-    "baseline_nb_summary.txt",
-    "baseline_nb_results.json",
-    AI_ANALYSIS_METHODOLOGY_MD_FILENAME,
     "phase_evaluator_report.txt",
     "phase_evaluator_results.csv",
-    "change_point_report.txt",
-    "change_point_result.json",
+    "opensky_comparison_daily_summary.csv",
+    "opensky_phase_comparison_report.txt",
+    "baseline_nb_summary.txt",
+    "baseline_nb_results.json",
+    "phase_timebin_summary.csv",
+    "phase_timebin_summary.json",
 ]
+AI_PRIORITY_DETAILS_FILL_KEYS = [
+    "daily_metric_table.csv",
+    "traffic_adjusted_results.csv",
+    "traffic_unadjusted_results.csv",
+    "traffic_test_results.csv",
+    "run_manifest.csv",
+    "run.log",
+    "adsb_timebin_summary.csv",
+    "distance_performance_summary.csv",
+    "distance_binomial_summary.csv",
+    "coverage_trend.csv",
+]
+AI_PRIORITY_FILENAME_ALIASES = {
+    "summary_report.md": [
+        AI_SUMMARY_FILENAME,
+        AI_ANALYSIS_DESIGN_MD_FILENAME,
+        AI_ANALYSIS_METHODOLOGY_MD_FILENAME,
+    ],
+    "run_config.json": [
+        AI_RUN_METADATA_FILENAME,
+        AI_SETTINGS_SNAPSHOT_JSON_FILENAME,
+        "settings.toml",
+    ],
+    "change_point_results.json": [
+        "change_point_result.json",
+        "multi_change_points_result.json",
+    ],
+    "change_point_results.csv": [
+        "phase_evaluator_results.csv",
+        "adsb_timebin_summary.csv",
+    ],
+    "daily_metric_table.csv": [
+        "adsb_daily_summary_v2.csv",
+        "opensky_comparison_daily_summary.csv",
+        "adsb_timebin_summary.csv",
+    ],
+    "traffic_adjusted_results.csv": [
+        "opensky_comparison_daily_summary.csv",
+        "plao_daily_distance_auc_summary.csv",
+        "distance_performance_summary.csv",
+    ],
+    "traffic_unadjusted_results.csv": [
+        "adsb_daily_summary_raw.csv",
+        "adsb_signal_daily_summary.csv",
+        "adsb_signal_range_summary.csv",
+    ],
+    "traffic_test_results.csv": [
+        "opensky_phase_comparison.csv",
+        "phase_evaluator_results.csv",
+    ],
+    "run_manifest.csv": [
+        AI_MANIFEST_FILENAME,
+        AI_MANIFEST_EXTENDED_FILENAME,
+    ],
+    "run.log": [
+        "pipeline_runs.jsonl",
+        AI_SUMMARY_FILENAME,
+    ],
+}
 CATEGORY_MAP = {
     "change_point/change_point_report.txt": "change_points",
     "change_point/multi_change_points_report.txt": "change_points",
@@ -317,6 +399,8 @@ CATEGORY_MAP = {
     "multi_change_points_result.json": "change_points",
     "change_point_histogram.png": "change_points",
     "multi_change_points_histogram.png": "change_points",
+    "dist_1m_health_daily.csv": "health",
+    "dist_1m_health_latest.json": "health",
     "adsb_daily_summary_v2.csv": "adsb",
     "adsb_daily_summary_raw.csv": "adsb",
     "coverage/coverage_trend.csv": "coverage",
@@ -379,4 +463,3 @@ def check_ai_export_exclusion(relative_path: str, source_path: Path) -> tuple[bo
         return True, "matched_exclude_rule=distance_raw_or_full_dataset"
 
     return False, ""
-

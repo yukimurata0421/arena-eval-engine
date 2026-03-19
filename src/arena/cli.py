@@ -4,15 +4,23 @@ import argparse
 import os
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
+
+from arena.log import get_logger
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from arena import pipeline
 from arena.artifacts.integrity import verify_artifact_bundle
 from arena.artifacts.replay import replay_artifact_bundle
+from arena.lib.config_resolution import build_runtime_config_metadata, validate_resolved_config_paths
 from arena.lib.paths import resolve_data_dir, resolve_output_dir, resolve_root, resolve_scripts_root
-from arena.lib.phase_config import load_phase_config
-from arena.lib.runtime_config import load_settings
+from arena.lib.runtime_config import clear_settings_cache, load_settings
+
+logger = get_logger(__name__)
 
 
 def _apply_path_overrides(args: argparse.Namespace) -> None:
@@ -26,21 +34,40 @@ def _apply_path_overrides(args: argparse.Namespace) -> None:
         os.environ["ARENA_SETTINGS"] = str(Path(args.settings).resolve())
     if getattr(args, "phase_config", None):
         os.environ["ARENA_PHASE_CONFIG"] = str(Path(args.phase_config).resolve())
+    if getattr(args, "analysis_start_date", None):
+        os.environ["ARENA_ANALYSIS_START_DATE"] = str(args.analysis_start_date).strip()
+    if getattr(args, "analysis_end_date", None):
+        os.environ["ARENA_ANALYSIS_END_DATE"] = str(args.analysis_end_date).strip()
+
+
+def _resolve_config_metadata(args: argparse.Namespace) -> dict[str, object]:
+    scripts_root = str(Path(args.scripts_root).resolve()) if getattr(args, "scripts_root", None) else os.getenv("ARENA_SCRIPTS_ROOT", "")
+    settings_override = str(Path(args.settings).resolve()) if getattr(args, "settings", None) else None
+    phase_override = str(Path(args.phase_config).resolve()) if getattr(args, "phase_config", None) else None
+    metadata = build_runtime_config_metadata(
+        settings_override=settings_override,
+        phase_override=phase_override,
+        scripts_root=scripts_root or None,
+        analysis_start_date=str(getattr(args, "analysis_start_date", "") or ""),
+        analysis_end_date=str(getattr(args, "analysis_end_date", "") or ""),
+        env={},
+    )
+    os.environ["ARENA_SETTINGS"] = str(metadata["resolved_settings_path"])
+    os.environ["ARENA_PHASE_CONFIG"] = str(metadata["resolved_phase_config_path"])
+    os.environ["ADSB_SETTINGS"] = str(metadata["resolved_settings_path"])
+    os.environ["ADSB_PHASE_CONFIG"] = str(metadata["resolved_phase_config_path"])
+    clear_settings_cache()
+    return metadata
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
     _apply_path_overrides(args)
+    config_meta = _resolve_config_metadata(args)
+    config_errors = validate_resolved_config_paths(config_meta)
 
-    settings_snapshot = load_settings()
+    settings_snapshot = load_settings(force_reload=True)
     settings_path = Path(settings_snapshot.path)
-    phase_cfg_env = os.getenv("ARENA_PHASE_CONFIG", "")
-    if phase_cfg_env:
-        phase_cfg = Path(phase_cfg_env)
-    else:
-        try:
-            phase_cfg = Path(load_phase_config().config_path)
-        except Exception:
-            phase_cfg = Path()
+    phase_cfg = Path(str(config_meta["resolved_phase_config_path"]))
 
     default_scripts_root = resolve_scripts_root()
     default_root = resolve_root(scripts_root=default_scripts_root)
@@ -50,50 +77,57 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     ok = True
     if not scripts_root.exists():
-        print(f"[NG] scripts root not found: {scripts_root}")
+        logger.error("[NG] scripts ルートが見つかりません: %s", scripts_root)
         ok = False
     if not (scripts_root / "adsb").exists():
-        print(f"[NG] scripts/adsb not found: {scripts_root / 'adsb'}")
+        logger.error("[NG] scripts/adsb が見つかりません: %s", scripts_root / "adsb")
         ok = False
 
+    logger.info("resolved_settings_path: %s", config_meta["resolved_settings_path"])
+    logger.info("resolved_phase_config_path: %s", config_meta["resolved_phase_config_path"])
+    logger.info("used_default_settings: %d", int(bool(config_meta["used_default_settings"])))
+    logger.info("used_default_phase_config: %d", int(bool(config_meta["used_default_phase_config"])))
+    logger.info("experimental_mode: %d", int(bool(config_meta["experimental_mode"])))
+    if str(config_meta.get("analysis_start_date", "")):
+        logger.info("analysis_start_date: %s", config_meta.get("analysis_start_date"))
+    if str(config_meta.get("analysis_end_date", "")):
+        logger.info("analysis_end_date: %s", config_meta.get("analysis_end_date"))
+
+    if config_errors:
+        ok = False
+        for err in config_errors:
+            logger.error("[NG] %s", err)
+
     if not settings_path.exists():
-        print(f"[NG] settings.toml not found: {settings_path}")
+        logger.error("[NG] settings.toml が見つかりません: %s", settings_path)
         ok = False
     else:
-        print(f"[OK] settings.toml: {settings_path}")
+        logger.info("[OK] settings.toml: %s", settings_path)
         data = settings_snapshot.data or {}
-        site_ok = (
-            "site" in data
-            and isinstance(data["site"], dict)
-            and {"lat", "lon"}.issubset(set(data["site"].keys()))
-        )
+        site_ok = "site" in data and isinstance(data["site"], dict) and {"lat", "lon"}.issubset(set(data["site"].keys()))
         quality_ok = (
             "quality" in data
             and isinstance(data["quality"], dict)
             and {"min_auc_n_used", "min_minutes_covered"}.issubset(set(data["quality"].keys()))
         )
-        bins_ok = (
-            "distance_bins" in data
-            and isinstance(data["distance_bins"], dict)
-            and "km" in data["distance_bins"]
-        )
+        bins_ok = "distance_bins" in data and isinstance(data["distance_bins"], dict) and "km" in data["distance_bins"]
         if not (site_ok and quality_ok and bins_ok):
-            print("[NG] settings.toml missing required keys (site/quality/distance_bins)")
+            logger.error("[NG] settings.toml に必須キーがありません (site/quality/distance_bins)")
             ok = False
         else:
             try:
                 lat = float(data["site"]["lat"])
                 lon = float(data["site"]["lon"])
                 if lat == 0.0 and lon == 0.0:
-                    print("WARNING: site.lat/lon is 0.0 (not configured). Set it in settings.toml [site].")
+                    logger.warning("警告: site.lat/lon が 0.0 です（未設定）。settings.toml の [site] を設定してください。")
             except (TypeError, ValueError):
-                print("[NG] settings.toml [site] lat/lon must be numeric")
+                logger.error("[NG] settings.toml [site] の lat/lon は数値である必要があります")
                 ok = False
 
     if phase_cfg and phase_cfg.exists():
-        print(f"[OK] phases.txt: {phase_cfg}")
+        logger.info("[OK] phases.txt: %s", phase_cfg)
     else:
-        print("[NG] phases.txt not found (set --phase-config or ARENA_PHASE_CONFIG)")
+        logger.error("[NG] phases.txt が見つかりません（--phase-config または ARENA_PHASE_CONFIG を設定）")
         ok = False
 
     if args.create_dirs:
@@ -101,22 +135,28 @@ def cmd_validate(args: argparse.Namespace) -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
 
     if not data_dir.exists():
-        print(f"[NG] data dir not found: {data_dir}")
+        logger.error("[NG] data ディレクトリが見つかりません: %s", data_dir)
         ok = False
     else:
-        print(f"[OK] data dir: {data_dir}")
+        logger.info("[OK] data dir: %s", data_dir)
 
     if not output_dir.exists():
-        print(f"[NG] output dir not found: {output_dir}")
+        logger.error("[NG] output ディレクトリが見つかりません: %s", output_dir)
         ok = False
     else:
-        print(f"[OK] output dir: {output_dir}")
+        logger.info("[OK] output dir: %s", output_dir)
 
     return 0 if ok else 1
 
 
 def cmd_run(args: argparse.Namespace) -> int:
     _apply_path_overrides(args)
+    config_meta = _resolve_config_metadata(args)
+    config_errors = validate_resolved_config_paths(config_meta)
+    if config_errors:
+        for err in config_errors:
+            logger.error("[NG] %s", err)
+        return 1
 
     cfg = pipeline.RunConfig(
         stage=args.stage,
@@ -129,13 +169,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         output_root=str(Path(args.output_dir).resolve()) if args.output_dir else "",
         data_root=str(Path(args.data_dir).resolve()) if args.data_dir else "",
         dynamic_date=args.dynamic_date or "",
-        phase_config=str(Path(args.phase_config).resolve()) if args.phase_config else "",
+        phase_config=str(config_meta["resolved_phase_config_path"]),
+        settings_path=str(config_meta["resolved_settings_path"]),
         validate=not args.no_validate,
         validate_only=args.validate_only,
         skip_existing=args.skip_existing,
         fail_fast=args.fail_fast,
         log_jsonl=args.log_jsonl or "",
-        log_jsonl_mode=args.log_jsonl_mode,
         skip_plao=args.skip_plao,
         workers=args.workers,
     )
@@ -148,27 +188,74 @@ def cmd_fetch_opensky(args: argparse.Namespace) -> int:
 
     script = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(resolve_scripts_root()))) / "adsb" / "data_fetch" / "get_opensky_traffic.py"
     if not script.exists():
-        print(f"[NG] OpenSky script not found: {script}")
+        logger.error("[NG] OpenSky スクリプトが見つかりません: %s", script)
         return 1
 
-    env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])}
-    proc = subprocess.run([sys.executable, str(script)], env=env)
+    env = {**os.environ}
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
+
+    cmd = [sys.executable, str(script)]
+    proc = subprocess.run(cmd, env=env)
+    return proc.returncode
+
+
+def cmd_sync_rpi_logs(args: argparse.Namespace) -> int:
+    _apply_path_overrides(args)
+
+    script = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(resolve_scripts_root()))) / "adsb" / "ops" / "rpi_log_sync.py"
+    if not script.exists():
+        logger.error("[NG] RPi同期スクリプトが見つかりません: %s", script)
+        return 1
+
+    env = {**os.environ}
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
+
+    cmd = [sys.executable, str(script)]
+    if args.host:
+        cmd += ["--host", args.host]
+    if args.user:
+        cmd += ["--user", args.user]
+    if args.port:
+        cmd += ["--port", str(args.port)]
+    if args.remote_dir:
+        cmd += ["--remote-dir", args.remote_dir]
+    if args.plao_remote_dir:
+        cmd += ["--plao-remote-dir", args.plao_remote_dir]
+    if args.plao_local_dir:
+        cmd += ["--plao-local-dir", args.plao_local_dir]
+    if args.ssh_key:
+        cmd += ["--ssh-key", args.ssh_key]
+    if args.strict_host_key_checking:
+        cmd += ["--strict-host-key-checking", args.strict_host_key_checking]
+    if args.output_json:
+        cmd += ["--output-json", args.output_json]
+    if args.dry_run:
+        cmd.append("--dry-run")
+    if args.fail_on_missing_remote:
+        cmd.append("--fail-on-missing-remote")
+    if args.skip_plao_sync:
+        cmd.append("--skip-plao-sync")
+
+    proc = subprocess.run(cmd, env=env)
     return proc.returncode
 
 
 def cmd_artifacts_verify(args: argparse.Namespace) -> int:
     try:
         result = verify_artifact_bundle(Path(args.artifact_bundle))
-    except Exception as exc:
-        print(f"[NG] artifact verification failed: {exc}")
+    except (OSError, ValueError, KeyError) as exc:
+        logger.error("[NG] artifact verification failed: %s", exc)
         return 1
     print(f"artifact_bundle: {Path(args.artifact_bundle).resolve()}")
-    print(f"valid: {int(result['valid'])}")
+    print(f"valid: {int(bool(result['valid']))}")
     print(f"bundle_sha256: {result['bundle_sha256']}")
-    print(f"integrity_passed: {int(bool(result['integrity_summary'].get('passed', False)))}")
-    if result["errors"]:
+    integrity_summary = result.get("integrity_summary", {})
+    if isinstance(integrity_summary, dict):
+        print(f"integrity_passed: {int(bool(integrity_summary.get('passed', False)))}")
+    errors = result.get("errors", [])
+    if isinstance(errors, list) and errors:
         print("errors:")
-        for error in result["errors"]:
+        for error in errors:
             print(f"- {error}")
     return 0 if result["valid"] else 1
 
@@ -176,23 +263,25 @@ def cmd_artifacts_verify(args: argparse.Namespace) -> int:
 def cmd_artifacts_replay(args: argparse.Namespace) -> int:
     try:
         return replay_artifact_bundle(Path(args.artifact_bundle))
-    except Exception as exc:
-        print(f"[NG] artifact replay failed: {exc}")
+    except (OSError, ValueError, KeyError) as exc:
+        logger.error("[NG] artifact replay failed: %s", exc)
         return 1
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="arena", description="ARENA evaluation engine CLI")
-    sub = parser.add_subparsers(dest="subcommand", required=True)
+    p = argparse.ArgumentParser(prog="arena", description="ARENA 評価エンジン CLI")
+    sub = p.add_subparsers(dest="subcommand", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--scripts-root", help="override scripts root")
-    common.add_argument("--data-dir", help="override data directory")
-    common.add_argument("--output-dir", help="override output directory")
-    common.add_argument("--settings", "--config", dest="settings", help="settings.toml path")
-    common.add_argument("--phase-config", help="phases.txt path")
+    common.add_argument("--scripts-root", help="scripts ルートを上書き")
+    common.add_argument("--data-dir", help="data ディレクトリを上書き")
+    common.add_argument("--output-dir", help="output ディレクトリを上書き")
+    common.add_argument("--settings", "--config", dest="settings", help="settings.toml のパス")
+    common.add_argument("--phase-config", help="phases.txt のパス")
+    common.add_argument("--analysis-start-date", help="解析対象の開始日(YYYY-MM-DD)。未指定時は全期間。")
+    common.add_argument("--analysis-end-date", help="解析対象の終了日(YYYY-MM-DD)。未指定時は全期間。")
 
-    p_run = sub.add_parser("run", parents=[common], help="run evaluation pipeline")
+    p_run = sub.add_parser("run", parents=[common], help="評価パイプラインを実行")
     p_run.add_argument("--stage", type=int, default=1)
     p_run.add_argument("--only", type=int, default=None)
     p_run.add_argument("--dry-run", action="store_true")
@@ -205,36 +294,60 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--skip-existing", action="store_true")
     p_run.add_argument("--fail-fast", action="store_true")
     p_run.add_argument("--log-jsonl", default="")
-    p_run.add_argument("--log-jsonl-mode", choices=["append", "overwrite"], default="append")
     p_run.add_argument("--skip-plao", action="store_true")
-    p_run.add_argument("--workers", type=int, default=0, help="worker count for child scripts (0=auto)")
+    p_run.add_argument(
+        "--workers",
+        type=int,
+        default=0,
+        help="並列度（0=自動: 論理CPU数）。ステージ2/3/5のステップ並列と各スクリプト内のProcessPool/ThreadPool・ベイズchain数に使用",
+    )
     p_run.set_defaults(func=cmd_run)
 
-    p_val = sub.add_parser("validate", parents=[common], help="validate config and directories")
-    p_val.add_argument("--create-dirs", action="store_true", help="create data/output if missing")
+    p_val = sub.add_parser("validate", parents=[common], help="設定とディレクトリを検証")
+    p_val.add_argument("--create-dirs", action="store_true", help="data/output が無ければ作成")
     p_val.set_defaults(func=cmd_validate)
 
-    p_fetch = sub.add_parser("fetch-opensky", parents=[common], help="fetch OpenSky traffic data")
+    p_fetch = sub.add_parser("fetch-opensky", parents=[common], help="OpenSky の交通データを取得")
     p_fetch.set_defaults(func=cmd_fetch_opensky)
 
-    p_artifacts = sub.add_parser("artifacts", help="verify or replay an artifact bundle")
+    p_sync = sub.add_parser("sync-rpi-logs", parents=[common], help="Raspberry Pi ログを差分同期")
+    p_sync.add_argument("--host", default="", help="Raspberry Pi hostname/IP")
+    p_sync.add_argument("--user", default="", help="SSH user")
+    p_sync.add_argument("--port", type=int, default=0, help="SSH port")
+    p_sync.add_argument("--remote-dir", default="", help="Remote log directory")
+    p_sync.add_argument("--plao-remote-dir", default="", help="Remote plao_pos directory")
+    p_sync.add_argument("--plao-local-dir", default="", help="Local plao_pos directory")
+    p_sync.add_argument("--ssh-key", default="", help="SSH private key path")
+    p_sync.add_argument(
+        "--strict-host-key-checking",
+        choices=["accept-new", "yes", "no"],
+        default="",
+        help="SSH StrictHostKeyChecking policy",
+    )
+    p_sync.add_argument("--output-json", default="", help="Sync report JSON path")
+    p_sync.add_argument("--dry-run", action="store_true")
+    p_sync.add_argument("--fail-on-missing-remote", action="store_true")
+    p_sync.add_argument("--skip-plao-sync", action="store_true")
+    p_sync.set_defaults(func=cmd_sync_rpi_logs)
+
+    p_artifacts = sub.add_parser("artifacts", help="artifact bundle の検証と再評価")
     artifacts_sub = p_artifacts.add_subparsers(dest="artifacts_command", required=True)
 
-    p_artifacts_verify = artifacts_sub.add_parser("verify", help="verify an artifact bundle")
+    p_artifacts_verify = artifacts_sub.add_parser("verify", help="artifact bundle を検証")
     p_artifacts_verify.add_argument("artifact_bundle", nargs="?", default=".", help="artifact bundle root")
     p_artifacts_verify.set_defaults(func=cmd_artifacts_verify)
 
-    p_artifacts_replay = artifacts_sub.add_parser("replay", help="replay artifact bundle verification")
+    p_artifacts_replay = artifacts_sub.add_parser("replay", help="artifact bundle を再評価")
     p_artifacts_replay.add_argument("artifact_bundle", help="artifact bundle root")
     p_artifacts_replay.set_defaults(func=cmd_artifacts_replay)
 
-    return parser
+    return p
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    return args.func(args)
+    p = build_parser()
+    args = p.parse_args(argv)
+    return int(args.func(args))
 
 
 if __name__ == "__main__":

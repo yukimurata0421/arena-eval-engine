@@ -46,4 +46,3 @@ def write_run_metadata(
         json.dump(payload, file, ensure_ascii=False, indent=2)
         file.write("\n")
     return destination
-

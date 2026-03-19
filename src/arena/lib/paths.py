@@ -21,7 +21,7 @@ def _win_to_wsl_path(val: str) -> str:
 
 
 def _wsl_to_win_path(val: str) -> str:
-    # /mnt/e/foo/bar -> E:\foo\bar
+    # /mnt/<drive>/foo/bar -> <DRIVE>:\foo\bar
     parts = val.split("/", 3)
     if len(parts) < 3:
         return val
@@ -75,14 +75,15 @@ def resolve_root(
     try:
         if scripts.exists() and scripts.parent.exists():
             return scripts.parent
-    except Exception:
+    except OSError:
         pass
 
     # Fallback: current working directory (repo root expected)
     try:
         return Path.cwd()
-    except Exception:
+    except OSError:
         return Path("/")
+
 
 def resolve_data_dir(*, root: Path | None = None, settings: dict[str, Any] | None = None) -> Path:
     env_data = os.getenv("ARENA_DATA_DIR") or os.getenv("ADSB_DATA_DIR")

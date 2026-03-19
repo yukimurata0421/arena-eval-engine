@@ -2,23 +2,41 @@
 # ADS-B Evaluation Framework — Phase Configuration (v4)
 # ============================================================
 #
+# 全スクリプトの日付・フェーズ定義の唯一の情報源。
 #
+# 2セクション構成:
+#   [events]   — 介入イベントの時系列（＝実験ノート）
+#   [settings] — 解析パラメータ
 #
+# v2 → v4 変更点:
+#   - 02/26, 02/28 に hardware を追加（フェーズとして認識させる）
+#   - alt_baseline_date = 2026-01-29 追加（Airspy安定期基準）
+#   - hardware名は既存スクリプト互換を維持
+#     (rtl-sdr, airspy_mini, airspy_mini_plus_cable はそのまま)
 #
 # ============================================================
 
 [events]
+# 時系列順に「いつ・何をしたか」を記録する。
+# 各スクリプトが必要な情報をここから導出する。
 #
+# 書式: date = label | hardware | color
+#   - label:    イベント名（必須）
+#   - hardware: ハードウェア名。変更があった日のみ記載。
+#               ここで指定した hardware は、次の hardware 指定日まで継続する。
+#   - color:    レポートの線色（省略時: 自動割り当て）
 #
-# ── Phase 0: RTL-SDR Baseline ──
-2026-01-06 = Baseline                 | rtl-sdr              | #7f8c8d
+# ── Phase 0: RTL-SDR Default ──
+2026-01-06 = RTL-SDR Default          | rtl-sdr              | #7f8c8d
 2026-01-09 = Vinnant 8-p              |                      | #7f8c8d
-2026-01-10 = Gain 33.8 + Thr 8/9      |                      | #95a5a6
+# ── Phase 1: RTL-SDR Gain Tuned ──
+2026-01-10 = RTL-SDR Gain Tuned (Gain 33.8 + Thr 8/9) | rtl_sdr_gain_tuned | #95a5a6
 2026-01-11 = Gain 36.4→38.6           |                      | #8c9aa3
 2026-01-12 = Gain 40.2→43.4           |                      | #9aa2a8
 2026-01-13 = Threshold 8              |                      | #a3a7ad
 #
-2026-01-14 = Airspy Mini Intro + Gain 13-18 | airspy_mini     | #e74c3c
+# ── Phase 2: Airspy Mini (構造変化 + パラメータ調整期) ──
+2026-01-14 = Airspy Baseline (Intro + Gain 13-18) | airspy_mini  | #e74c3c
 2026-01-15 = Gain19 / -e 60 (rm -C/-x) |                      | #d35400
 2026-01-16 = -f 2 / -e 50             |                      | #f39c12
 2026-01-17 = -m 12                    |                      | #8e44ad
@@ -29,10 +47,12 @@
 2026-01-25 = -m 20 / -e 30 (reverted) + Night Gain21 |        | #1abc9c
 2026-01-26 = Gain 19 (all day) / Guard stop |                 | #16a085
 #
+# ── alt_baseline_date 起点: Airspy 安定運用期 ──
 2026-01-29 = Night Gain19 Guard       |                      | #2ecc71
 2026-02-11 = -m 20 / -e 30 / -f 2     |                      | #34495e
 #
 # ── Phase 2: Cable (5D-FB & N-P) ──
+# ※ 既存 hardware名 "airspy_mini_plus_cable" を維持（後方互換）
 2026-02-14 = 5D-FB Cable & N-P        | airspy_mini_plus_cable | #c0392b
 2026-02-15 = Gain 17 (Night 18)       |                      | #c0392b
 #
@@ -41,16 +61,27 @@
 2026-02-27 = -m 12 / -f 1 / -e 60     |                      | #2c3e50
 #
 # ── Phase 4: Adapter (NM-SM50+) ──
-2026-02-28 = Adapter change (NM-SM50+) | airspy_adapter       | #34495e
+# 実施時刻は 2026-02-28 07:39。日次集計では混在日を避けるため翌日から反映。
+2026-03-01 = Adapter change (NM-SM50+) | airspy_adapter       | #34495e
 
 [settings]
+# 解析パラメータ（各スクリプト共通）
 #
+# post_change_date: 構造変化日（RTL-SDR → Airspy）
+#   → is_post_change フラグの基準。全スクリプト共通。
 post_change_date = 2026-01-14
 #
+# alt_baseline_date: Airspy安定運用期の起点
+#   → micro効果（Cable/Adapter）比較時の第二基準。
+#   → phase_evaluator_v3 の Section 2 で使用。
 alt_baseline_date = 2026-01-29
 #
+# intervention_date: 動的評価 / ADVI / data_loader のデフォルト介入日
 intervention_date = 2026-02-14
 #
+# report_start_date: 統合レポートの表示開始日
 report_start_date = 2026-01-14
 #
+# fringe_boundary: Fringe decoding のフェーズ境界（この日まで = 前フェーズ）
+# カンマ区切りで複数指定: date1,date2
 fringe_boundary = 2026-01-29,2026-02-14

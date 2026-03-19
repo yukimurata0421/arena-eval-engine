@@ -5,16 +5,13 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
-
-import matplotlib
-
-matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,9 +26,9 @@ try:
     import numpyro
     import numpyro.distributions as dist
     from numpyro.infer import DiscreteHMCGibbs, MCMC, NUTS
-except Exception as exc:  # pragma: no cover - runtime dependency guard
+except Exception as e:  # pragma: no cover - runtime dependency guard
     HAS_MCMC_DEPS = False
-    MCMC_IMPORT_ERROR = str(exc)
+    MCMC_IMPORT_ERROR = str(e)
     jax = None
     random = None
     jnp = None
@@ -44,39 +41,40 @@ except Exception as exc:  # pragma: no cover - runtime dependency guard
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
 from arena.lib.paths import resolve_output_dir
+from arena.lib.platform_setup import resolve_workers
+
+from arena.log import get_script_logger
 
 
-def _resolve_workers(default_cap: int = 12) -> int:
-    return max(1, min(os.cpu_count() or 1, default_cap))
 
-
+log = get_script_logger(__name__)
 SCRIPT_NAME = Path(__file__).name
 METRIC_NAME = "auc_n_used"
-CPU_HOST = _resolve_workers(default_cap=12)
+CPU_HOST = resolve_workers(default_cap=12)
 if HAS_MCMC_DEPS:
     numpyro.set_platform("cpu")
     numpyro.set_host_device_count(CPU_HOST)
-    print(f">>> Platform: CPU ({CPU_HOST} devices) {jax.devices()}")
+    log.info(f">>> Platform: CPU ({CPU_HOST} devices) {jax.devices()}")
 else:
-    print(f"[WARN] multi change point dependencies unavailable: {MCMC_IMPORT_ERROR}")
+    log.info(f"[WARN] multi change point dependencies unavailable: {MCMC_IMPORT_ERROR}")
 
 
 def _safe_write_text(path: Path, text: str) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-        print(f"[OK] report: {path}")
-    except Exception as exc:
-        print(f"[WARN] failed to save report: {path} ({exc})")
+        log.info(f"[OK] report: {path}")
+    except Exception as e:
+        log.info(f"[WARN] レポート保存に失敗しました: {path} ({e})")
 
 
 def _safe_write_json(path: Path, payload: dict[str, Any]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(f"[OK] json: {path}")
-    except Exception as exc:
-        print(f"[WARN] failed to save json: {path} ({exc})")
+        log.info(f"[OK] json: {path}")
+    except Exception as e:
+        log.info(f"[WARN] JSON保存に失敗しました: {path} ({e})")
 
 
 def _segment_summary(series: pd.Series) -> dict[str, Any]:
@@ -98,8 +96,8 @@ def _compute_base_drop_reasons(source_path: Path, min_auc: int, min_minutes: int
 
     try:
         raw_df = pd.read_csv(source_path)
-    except Exception as exc:
-        warnings.append(f"source_csv_read_failed: {exc}")
+    except Exception as e:
+        warnings.append(f"source_csv_read_failed: {e}")
         return 0, reasons, warnings
 
     total_rows = int(len(raw_df))
@@ -136,16 +134,16 @@ def _compute_base_drop_reasons(source_path: Path, min_auc: int, min_minutes: int
 def _build_segment_breakdown(df: pd.DataFrame, change_indices: list[int]) -> list[dict[str, Any]]:
     boundaries = [0] + sorted(change_indices) + [len(df)]
     segments: list[dict[str, Any]] = []
-    for index in range(len(boundaries) - 1):
-        lo = boundaries[index]
-        hi = boundaries[index + 1]
+    for i in range(len(boundaries) - 1):
+        lo = boundaries[i]
+        hi = boundaries[i + 1]
         seg = df.iloc[lo:hi]
         date_from = seg["date"].iloc[0].strftime("%Y-%m-%d") if not seg.empty else ""
         date_to = seg["date"].iloc[-1].strftime("%Y-%m-%d") if not seg.empty else ""
         stats = _segment_summary(seg["auc_n_used"]) if not seg.empty else _segment_summary(pd.Series(dtype=float))
         segments.append(
             {
-                "segment_index": index,
+                "segment_index": i,
                 "start_index": int(lo),
                 "end_index_exclusive": int(hi),
                 "date_from": date_from,
@@ -173,8 +171,8 @@ def _build_report_text(payload: dict[str, Any]) -> str:
         "dropped_reasons:",
     ]
     if payload["dropped_reasons"]:
-        for key, value in payload["dropped_reasons"].items():
-            lines.append(f"- {key}: {value}")
+        for k, v in payload["dropped_reasons"].items():
+            lines.append(f"- {k}: {v}")
     else:
         lines.append("- (none)")
 
@@ -209,18 +207,18 @@ def _build_report_text(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append("warnings:")
     if payload["warnings"]:
-        for warning in payload["warnings"]:
-            lines.append(f"- {warning}")
+        for w in payload["warnings"]:
+            lines.append(f"- {w}")
     else:
         lines.append("- (none)")
 
     lines.append("")
     lines.append("note:")
-    lines.append("- thresholds are derived from get_quality_thresholds() and therefore settings.toml.")
+    lines.append("- thresholds は get_quality_thresholds() 経由で settings.toml 由来です。")
     return "\n".join(lines) + "\n"
 
 
-def run_multi_discovery_analysis() -> None:
+def run_multi_discovery_analysis():
     out_root = resolve_output_dir()
     out_dir = out_root / "change_point"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -256,7 +254,7 @@ def run_multi_discovery_analysis() -> None:
         payload["warnings"].append("no_data_after_load_summary")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        print("Data file not found.")
+        log.info("データファイルが見つかりません。")
         return
 
     before_dropna_rows = int(len(df))
@@ -271,14 +269,14 @@ def run_multi_discovery_analysis() -> None:
         payload["warnings"].append(f"mcmc_dependencies_unavailable: {MCMC_IMPORT_ERROR}")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        print("[WARN] MCMC dependencies unavailable; skipping inference.")
+        log.info("[WARN] MCMC依存パッケージ未導入のため推定をスキップしました。")
         return
 
     if len(df) < 5:
         payload["warnings"].append("usable_rows_lt_5_skip_change_point")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        print("  WARNING: insufficient valid data; skipping change-point detection.")
+        log.info("  警告: 有効データが不足しているため、変化点検出をスキップします。")
         return
 
     y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
@@ -286,60 +284,51 @@ def run_multi_discovery_analysis() -> None:
     n_days = len(df)
     k_points = 3
 
-    def model(y_values, log_traffic_values, n_days_value, k_value):
+    def model(y, log_traffic, n_days, K):
         beta_traffic = numpyro.sample("beta_traffic", dist.Normal(1.0, 0.5))
         alpha_inv = numpyro.sample("alpha_inv", dist.Exponential(1.0))
-        taus = numpyro.sample("taus", dist.DiscreteUniform(0, n_days_value - 1).expand([k_value]))
-        alphas = numpyro.sample("alphas", dist.Normal(10.0, 5.0).expand([k_value + 1]))
+        taus = numpyro.sample("taus", dist.DiscreteUniform(0, n_days - 1).expand([K]))
+        alphas = numpyro.sample("alphas", dist.Normal(10.0, 5.0).expand([K + 1]))
 
-        idx = jnp.arange(n_days_value)[:, None]
+        idx = jnp.arange(n_days)[:, None]
         phase_idx = jnp.sum(idx >= jnp.sort(taus), axis=-1)
 
         intercept = alphas[phase_idx]
-        mu = jnp.exp(intercept + beta_traffic * log_traffic_values)
+        mu = jnp.exp(intercept + beta_traffic * log_traffic)
 
-        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, alpha_inv), obs=y_values)
+        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, alpha_inv), obs=y)
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     n_warmup = int(os.environ.get("ADSB_MCP_WARMUP", "1500"))
     n_samples = int(os.environ.get("ADSB_MCP_SAMPLES", "3000"))
     n_chains = int(os.environ.get("ADSB_MCP_CHAINS", str(max(1, min(CPU_HOST, 4)))))
-    mcmc = MCMC(
-        kernel,
-        num_warmup=n_warmup,
-        num_samples=n_samples,
-        num_chains=n_chains,
-        progress_bar=False,
-    )
+    mcmc = MCMC(kernel, num_warmup=n_warmup, num_samples=n_samples, num_chains=n_chains)
 
-    print(
-        f"\n>>> {k_points} change points being inferred "
-        f"(CPU, chains={n_chains}, devices={CPU_HOST}, warmup={n_warmup}, samples={n_samples})..."
-    )
+    log.info(f"\n>>> {k_points} change points being inferred (CPU, chains={n_chains}, devices={CPU_HOST}, warmup={n_warmup}, samples={n_samples})...")
     mcmc.run(random.PRNGKey(0), y, log_traffic, n_days, k_points)
 
     samples = mcmc.get_samples()
     tau_samples = np.sort(np.asarray(samples["taus"]), axis=-1)
 
     detected: list[dict[str, Any]] = []
-    print("\n" + "=" * 40)
-    print(" Major inferred intervention dates")
-    for rank in range(k_points):
-        t_vals, t_counts = np.unique(tau_samples[:, rank], return_counts=True)
+    log.info("\n" + "=" * 40)
+    log.info(" Major inferred intervention dates")
+    for i in range(k_points):
+        t_vals, t_counts = np.unique(tau_samples[:, i], return_counts=True)
         best_t = int(t_vals[np.argmax(t_counts)])
         detected_date = df.iloc[best_t]["date"]
         detected_date_str = detected_date.strftime("%Y-%m-%d") if pd.notna(detected_date) else ""
         prob = float(np.max(t_counts) / len(tau_samples) * 100)
         detected.append(
             {
-                "rank": rank + 1,
+                "rank": i + 1,
                 "index": best_t,
                 "date": detected_date_str,
                 "confidence_pct": prob,
             }
         )
-        print(f"Change point {rank + 1}: {detected_date_str} (Confidence: {prob:.1f}%)")
-    print("=" * 40)
+        log.info(f"Change point {i+1}: {detected_date_str} (Confidence: {prob:.1f}%)")
+    log.info("=" * 40)
 
     payload["detected_change_points"] = detected
     payload["summary_before_after"] = _build_segment_breakdown(df, [int(x["index"]) for x in detected])
@@ -347,12 +336,12 @@ def run_multi_discovery_analysis() -> None:
     fig = plt.figure(figsize=(12, 10))
     plt.subplot(2, 1, 1)
     plt.plot(df["date"], df["auc_n_used"], label="Daily AUC", color="gray", alpha=0.4)
-    for rank in range(k_points):
+    for i in range(k_points):
         plt.hist(
-            df["date"].values[tau_samples[:, rank].astype(int)],
+            df["date"].values[tau_samples[:, i].astype(int)],
             bins=n_days,
             alpha=0.6,
-            label=f"Change Point {rank + 1}",
+            label=f"Change Point {i+1}",
         )
     plt.title("Detected Multiple Structural Breaks")
     plt.legend()
@@ -363,16 +352,17 @@ def run_multi_discovery_analysis() -> None:
     fig.tight_layout()
     try:
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
-        print(f"[OK] plot: {plot_path}")
-    except Exception as exc:
-        payload["warnings"].append(f"plot_save_failed: {exc}")
-        print(f"[WARN] failed to save plot: {plot_path} ({exc})")
-    finally:
-        plt.close(fig)
+        log.info(f"[OK] plot: {plot_path}")
+    except Exception as e:
+        payload["warnings"].append(f"plot_save_failed: {e}")
+        log.info(f"[WARN] プロット保存に失敗しました: {plot_path} ({e})")
 
     _safe_write_text(report_path, _build_report_text(payload))
     _safe_write_json(json_path, payload)
+    plt.show()
 
 
 if __name__ == "__main__":
     run_multi_discovery_analysis()
+
+

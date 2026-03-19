@@ -17,12 +17,16 @@ Key features:
 Usage (CLI):
   arena run --stage 3
   arena run --only 2
+  arena run --workers 8
   arena run --dry-run
   arena run --no-gpu
   arena run --full
   arena run --backend auto|native|wsl
   arena run --scripts-root <project>/scripts --output-root <project>/output --data-root <project>/data
   arena validate
+
+  --workers N: 0=auto(logical CPU count). Stage 2/3/5 run steps in parallel; scripts use it for
+  ProcessPool/ThreadPool and Bayesian chains (ARENA_MAX_WORKERS, ADSB_PHASE_CHAINS).
 
 Pipeline stages:
   Stage 1: Aggregation      — daily AUC aggregation, traffic merge, signal strength aggregation

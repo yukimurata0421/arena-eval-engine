@@ -10,26 +10,29 @@ import statsmodels.formula.api as smf
 from arena.lib.config import get_quality_thresholds
 from arena.lib.input_utils import prompt_intervention_date
 from arena.lib.data_loader import load_summary
+from arena.log import get_script_logger
+
+log = get_script_logger(__name__)
 
 def run_analysis():
-    print(" ADS-B Dynamic Evaluation Engine")
-
+    log.info(" ADS-B 動的評価エンジン")
+    
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes)
     if df is None:
         return
 
-    print("\nEnter the intervention date to evaluate")
+    log.info("\nEnter the intervention date to evaluate")
     from arena.lib.phase_config import get_config as _get_cfg
     cutoff = prompt_intervention_date(_get_cfg().post_change_date)
 
     df['post'] = (df['date'] >= cutoff).astype(int)
 
 
-    print(f"--- {cutoff.date()} Estimating effect with cutoff at ---")
-
+    log.info(f"--- {cutoff.date()} Estimating effect with cutoff at ---")
+    
     formula = "auc_n_used ~ post + np.log(local_traffic_proxy)"
-
+    
     try:
         model = smf.glm(
             formula=formula,
@@ -37,18 +40,22 @@ def run_analysis():
             family=sm.families.NegativeBinomial()
         ).fit()
     except Exception as e:
-        print(f" Analysis error: {e}")
+        log.info(f" 解析エラー: {e}")
         return
 
+    if 'post' not in model.params:
+        log.info("  [WARN] モデルパラメータに 'post' が存在しません。"
+              " データに pre/post の変動がない可能性があります。解析を中止します。")
+        return
     gamma = model.params['post']
     p_value = model.pvalues['post']
     improvement_rate = (np.exp(gamma) - 1) * 100
 
-    print("\n" + "="*50)
-    print(f" Analysis target: {cutoff.date()}")
-    print(f"Estimated pure improvement rate: {improvement_rate:+.2f} %")
-    print(f"Statistical confidence (p-value)   : {p_value:.4f}")
-    print("="*50)
+    log.info("\n" + "="*50)
+    log.info(f" 解析対象: {cutoff.date()}")
+    log.info(f"Estimated pure improvement rate: {improvement_rate:+.2f} %")
+    log.info(f"Statistical confidence (p-value)   : {p_value:.4f}")
+    log.info("="*50)
 
     if p_value < 0.05:
         res = "[Significant difference]"
@@ -56,8 +63,8 @@ def run_analysis():
     else:
         res = "[No significant difference]"
         status = " Observed difference is within noise/traffic variation."
-
-    print(f"{res}\n{status}")
+    
+    log.info(f"{res}\n{status}")
 
 if __name__ == "__main__":
     run_analysis()

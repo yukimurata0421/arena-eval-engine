@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from arena.artifacts.hash_utils import compute_bundle_sha256, read_artifact_hashes, sha256_file
 from arena.artifacts.models import AIExportIntegrity, AIManifestRecord
@@ -18,6 +19,7 @@ from arena.artifacts.policies import (
     AI_PACK_DIR_GEMINI,
     AI_PACK_DIR_GPT,
     AI_PACK_DIR_GROK,
+    AI_PACK_MANIFESTS_DIR,
     AI_REPRODUCIBILITY_STAMP_FILENAME,
     AI_RUN_METADATA_FILENAME,
 )
@@ -35,7 +37,7 @@ from arena.artifacts.schema import (
 
 
 def integrity_to_payload(integrity: AIExportIntegrity) -> dict[str, object]:
-    payload = {
+    payload: dict[str, object] = {
         "duplicate_source_skipped": integrity.duplicate_source_skipped,
         "duplicate_output_paths": integrity.duplicate_output_paths,
         "copied_records": integrity.copied_records,
@@ -83,14 +85,15 @@ def run_ai_export_integrity_check(
             if sha256_file(exported_path) != expected_hash:
                 hash_mismatches += 1
 
-    payload = {
+    passed = duplicate_output_paths == 0 and missing_artifacts == 0 and hash_mismatches == 0
+    payload: dict[str, object] = {
         "duplicate_source_skipped": duplicate_source_skipped,
         "duplicate_output_paths": duplicate_output_paths,
         "copied_records": len(copied_records),
         "missing_artifacts": missing_artifacts,
         "hash_mismatches": hash_mismatches,
         "validated_hash_entries": validated_hash_entries,
-        "passed": duplicate_output_paths == 0 and missing_artifacts == 0 and hash_mismatches == 0,
+        "passed": passed,
     }
     validate_integrity_summary(payload)
 
@@ -101,7 +104,7 @@ def run_ai_export_integrity_check(
         missing_artifacts=missing_artifacts,
         hash_mismatches=hash_mismatches,
         validated_hash_entries=validated_hash_entries,
-        passed=payload["passed"],
+        passed=passed,
     )
 
 
@@ -201,8 +204,8 @@ def _parse_pack_manifest(path: Path) -> dict[str, object]:
     parsed = {
         "profile": payload.get("profile", ""),
         "generated_at": payload.get("generated_at", ""),
-        "core_files": int(payload.get("core_files", "0")),
-        "detail_files": int(payload.get("detail_files", "0")),
+        "core_files": int(str(payload.get("core_files", "0"))),
+        "detail_files": int(str(payload.get("detail_files", "0"))),
         "core_file_names": core_file_names,
         "detail_file_examples": detail_file_examples or ["(none)"],
     }
@@ -210,157 +213,84 @@ def _parse_pack_manifest(path: Path) -> dict[str, object]:
     return parsed
 
 
-def _bundle_verification_result(
-    *,
-    valid: bool,
-    errors: list[str],
-    bundle_sha256: str,
-    integrity_summary: dict[str, object] | None = None,
-    reproducibility_stamp: dict[str, object] | None = None,
-    run_metadata: dict[str, object] | None = None,
-    artifact_index: dict[str, object] | None = None,
-    missing_states: list[tuple[str, str]] | None = None,
-) -> dict[str, object]:
-    return {
-        "valid": valid,
-        "errors": errors,
-        "bundle_sha256": bundle_sha256,
-        "integrity_summary": integrity_summary or {},
-        "reproducibility_stamp": reproducibility_stamp or {},
-        "run_metadata": run_metadata or {},
-        "artifact_index": artifact_index or {},
-        "missing_states": missing_states or [],
+def _resolve_pack_manifest_path(export_dir: Path, profile_dir: str) -> Path:
+    new_names = {
+        AI_PACK_DIR_GEMINI: "gemini_pack.txt",
+        AI_PACK_DIR_GPT: "GPT_pack.txt",
+        AI_PACK_DIR_GROK: "grok_pack.txt",
     }
+    legacy_path = export_dir / profile_dir / "pack_manifest.txt"
+    modern_path = export_dir / AI_PACK_MANIFESTS_DIR / new_names[profile_dir]
+    if modern_path.exists():
+        return modern_path
+    return legacy_path
 
 
-def _load_csv_rows(
-    export_dir: Path,
-    relative_path: str,
-    *,
-    row_coercer,
-    validator,
-    errors: list[str],
-) -> list[dict[str, str]]:
-    path = export_dir / relative_path
-    try:
-        rows = _read_csv_rows(path)
-        validator([row_coercer(row) for row in rows])
-        return rows
-    except FileNotFoundError:
-        errors.append(f"{relative_path} is missing")
-    except Exception as exc:
-        errors.append(f"{relative_path} invalid: {exc}")
-    return []
+def _resolve_bundle_roots(bundle_path: Path) -> tuple[Path, Path]:
+    """Return (metadata_dir, pack_manifest_root) for pruned or unpruned bundles.
+
+    Unpruned bundles have metadata files at the root.  Pruned bundles
+    (created with ``zip_only_profiles=True``) move all metadata into the
+    ``for_grok`` pack directory while ``manifests/`` stays at root.
+    """
+    if (bundle_path / AI_MANIFEST_FILENAME).exists():
+        return bundle_path, bundle_path
+    grok_dir = bundle_path / AI_PACK_DIR_GROK
+    if (grok_dir / AI_MANIFEST_FILENAME).exists():
+        return grok_dir, bundle_path
+    raise FileNotFoundError(
+        f"Cannot locate {AI_MANIFEST_FILENAME} in {bundle_path} "
+        f"or {grok_dir}"
+    )
 
 
-def _load_json_payload(
-    export_dir: Path,
-    relative_path: str,
-    *,
-    validator=None,
-    errors: list[str],
+def _validate_bundle_schemas(
+    metadata_dir: Path,
+    pack_manifest_root: Path,
 ) -> dict[str, object]:
-    path = export_dir / relative_path
-    try:
-        payload = _read_json(path)
-        if validator is not None:
-            validator(payload)
-        return payload
-    except FileNotFoundError:
-        errors.append(f"{relative_path} is missing")
-    except Exception as exc:
-        errors.append(f"{relative_path} invalid: {exc}")
-    return {}
+    manifest_rows = _read_csv_rows(metadata_dir / AI_MANIFEST_FILENAME)
+    validate_manifest_record_rows([_coerce_manifest_row_types(row) for row in manifest_rows])
 
+    extended_rows = _read_csv_rows(metadata_dir / AI_MANIFEST_EXTENDED_FILENAME)
+    validate_manifest_record_rows([_coerce_manifest_row_types(row) for row in extended_rows])
 
-def _validate_bundle_schemas(export_dir: Path) -> tuple[dict[str, object], list[str]]:
-    errors: list[str] = []
-    manifest_rows = _load_csv_rows(
-        export_dir,
-        AI_MANIFEST_FILENAME,
-        row_coercer=_coerce_manifest_row_types,
-        validator=validate_manifest_record_rows,
-        errors=errors,
-    )
-    extended_rows = _load_csv_rows(
-        export_dir,
-        AI_MANIFEST_EXTENDED_FILENAME,
-        row_coercer=_coerce_manifest_row_types,
-        validator=validate_manifest_record_rows,
-        errors=errors,
-    )
-    candidate_rows = _load_csv_rows(
-        export_dir,
-        AI_CANDIDATE_STATUS_CSV_FILENAME,
-        row_coercer=_coerce_candidate_status_row_types,
-        validator=validate_candidate_status_rows,
-        errors=errors,
-    )
+    candidate_rows = _read_csv_rows(metadata_dir / AI_CANDIDATE_STATUS_CSV_FILENAME)
+    validate_candidate_status_rows([_coerce_candidate_status_row_types(row) for row in candidate_rows])
 
-    integrity_summary = _load_json_payload(
-        export_dir,
-        AI_INTEGRITY_SUMMARY_JSON_FILENAME,
-        validator=validate_integrity_summary,
-        errors=errors,
-    )
-    provenance = _load_json_payload(
-        export_dir,
-        AI_ARTIFACT_PROVENANCE_FILENAME,
-        validator=validate_artifact_provenance,
-        errors=errors,
-    )
-    run_metadata = _load_json_payload(
-        export_dir,
-        AI_RUN_METADATA_FILENAME,
-        validator=validate_run_metadata,
-        errors=errors,
-    )
-    lineage = _load_json_payload(
-        export_dir,
-        AI_ARTIFACT_LINEAGE_FILENAME,
-        validator=validate_artifact_lineage,
-        errors=errors,
-    )
-    artifact_index = _load_json_payload(
-        export_dir,
-        AI_ARTIFACT_INDEX_FILENAME,
-        validator=validate_artifact_index,
-        errors=errors,
-    )
+    integrity_summary = _read_json(metadata_dir / AI_INTEGRITY_SUMMARY_JSON_FILENAME)
+    validate_integrity_summary(integrity_summary)
 
-    pack_manifests: dict[str, dict[str, object]] = {}
-    for pack_dir in (AI_PACK_DIR_GEMINI, AI_PACK_DIR_GPT, AI_PACK_DIR_GROK):
-        relative_path = f"{pack_dir}/pack_manifest.txt"
-        try:
-            pack_manifests[pack_dir] = _parse_pack_manifest(export_dir / pack_dir / "pack_manifest.txt")
-        except FileNotFoundError:
-            errors.append(f"{relative_path} is missing")
-            pack_manifests[pack_dir] = {}
-        except Exception as exc:
-            errors.append(f"{relative_path} invalid: {exc}")
-            pack_manifests[pack_dir] = {}
+    provenance = _read_json(metadata_dir / AI_ARTIFACT_PROVENANCE_FILENAME)
+    validate_artifact_provenance(provenance)
 
-    reproducibility_stamp = _load_json_payload(
-        export_dir,
-        AI_REPRODUCIBILITY_STAMP_FILENAME,
-        errors=errors,
-    )
+    run_metadata = _read_json(metadata_dir / AI_RUN_METADATA_FILENAME)
+    validate_run_metadata(run_metadata)
 
-    return (
-        {
-            "manifest_rows": manifest_rows,
-            "extended_rows": extended_rows,
-            "candidate_rows": candidate_rows,
-            "integrity_summary": integrity_summary,
-            "provenance": provenance,
-            "run_metadata": run_metadata,
-            "lineage": lineage,
-            "artifact_index": artifact_index,
-            "pack_manifests": pack_manifests,
-            "reproducibility_stamp": reproducibility_stamp,
-        },
-        errors,
-    )
+    lineage = _read_json(metadata_dir / AI_ARTIFACT_LINEAGE_FILENAME)
+    validate_artifact_lineage(lineage)
+
+    artifact_index = _read_json(metadata_dir / AI_ARTIFACT_INDEX_FILENAME)
+    validate_artifact_index(artifact_index)
+
+    pack_manifests = {
+        AI_PACK_DIR_GEMINI: _parse_pack_manifest(_resolve_pack_manifest_path(pack_manifest_root, AI_PACK_DIR_GEMINI)),
+        AI_PACK_DIR_GPT: _parse_pack_manifest(_resolve_pack_manifest_path(pack_manifest_root, AI_PACK_DIR_GPT)),
+        AI_PACK_DIR_GROK: _parse_pack_manifest(_resolve_pack_manifest_path(pack_manifest_root, AI_PACK_DIR_GROK)),
+    }
+    reproducibility_stamp = _read_json(metadata_dir / AI_REPRODUCIBILITY_STAMP_FILENAME)
+
+    return {
+        "manifest_rows": manifest_rows,
+        "extended_rows": extended_rows,
+        "candidate_rows": candidate_rows,
+        "integrity_summary": integrity_summary,
+        "provenance": provenance,
+        "run_metadata": run_metadata,
+        "lineage": lineage,
+        "artifact_index": artifact_index,
+        "pack_manifests": pack_manifests,
+        "reproducibility_stamp": reproducibility_stamp,
+    }
 
 
 def _verify_provenance_consistency(
@@ -407,68 +337,45 @@ def _verify_provenance_consistency(
 
 def verify_artifact_bundle(bundle_path: Path) -> dict[str, object]:
     export_dir = bundle_path.resolve()
-    if not export_dir.exists():
-        return _bundle_verification_result(
-            valid=False,
-            errors=[f"artifact bundle not found: {export_dir}"],
-            bundle_sha256="",
-        )
-    if not export_dir.is_dir():
-        return _bundle_verification_result(
-            valid=False,
-            errors=[f"artifact bundle is not a directory: {export_dir}"],
-            bundle_sha256="",
-        )
-
-    schema_payload, errors = _validate_bundle_schemas(export_dir)
-    manifest_rows = schema_payload["manifest_rows"]
-    try:
-        records = _manifest_rows_to_records(manifest_rows)
-    except Exception as exc:
-        errors.append(f"{AI_MANIFEST_FILENAME} invalid: {exc}")
-        records = []
-
-    hash_manifest_path = export_dir / AI_ARTIFACT_HASHES_FILENAME
-    artifact_hashes: dict[str, str] = {}
-    hash_manifest_valid = hash_manifest_path.exists()
-    if not hash_manifest_path.exists():
-        errors.append("artifact_hashes.txt is missing")
-    else:
-        try:
-            artifact_hashes = read_artifact_hashes(hash_manifest_path)
-        except Exception as exc:
-            errors.append(f"artifact_hashes.txt invalid: {exc}")
-            hash_manifest_valid = False
-
+    metadata_dir, pack_manifest_root = _resolve_bundle_roots(export_dir)
+    schema_payload = _validate_bundle_schemas(metadata_dir, pack_manifest_root)
+    manifest_rows = cast(list[dict[str, str]], schema_payload["manifest_rows"])
+    records = _manifest_rows_to_records(manifest_rows)
+    hash_manifest_path = metadata_dir / AI_ARTIFACT_HASHES_FILENAME
+    artifact_hashes = read_artifact_hashes(hash_manifest_path)
     integrity = run_ai_export_integrity_check(
         records,
-        export_dir=export_dir,
-        hash_manifest_path=hash_manifest_path if hash_manifest_valid else None,
+        export_dir=metadata_dir,
+        hash_manifest_path=hash_manifest_path,
     )
     computed_integrity = integrity_to_payload(integrity)
 
+    errors: list[str] = []
+    if not hash_manifest_path.exists():
+        errors.append("artifact_hashes.txt is missing")
     copied_record_count = sum(1 for record in records if record.copied and record.copied_path)
-    if hash_manifest_valid and copied_record_count != len(artifact_hashes):
+    if copied_record_count != len(artifact_hashes):
         errors.append("artifact_hashes.txt entry count does not match copied manifest records")
-    if schema_payload["integrity_summary"] and computed_integrity != schema_payload["integrity_summary"]:
+    if computed_integrity != schema_payload["integrity_summary"]:
         errors.append("integrity_summary.json does not match recomputed integrity")
 
-    if schema_payload["provenance"]:
-        errors.extend(
-            _verify_provenance_consistency(
-                export_dir=export_dir,
-                records=records,
-                artifact_hashes=artifact_hashes,
-                provenance=schema_payload["provenance"],
-            )
+    provenance = cast(dict[str, object], schema_payload["provenance"])
+    errors.extend(
+        _verify_provenance_consistency(
+            export_dir=metadata_dir,
+            records=records,
+            artifact_hashes=artifact_hashes,
+            provenance=provenance,
         )
+    )
 
     computed_bundle_hash = compute_bundle_sha256(
         artifact_hashes=artifact_hashes,
-        manifest_rows=manifest_rows,
+        manifest_rows=cast(list[dict[str, object]], manifest_rows),
         schema_payload=export_schema_catalog(),
     )
-    if schema_payload["artifact_index"] and schema_payload["artifact_index"].get("bundle_sha256") != computed_bundle_hash:
+    artifact_index = cast(dict[str, Any], schema_payload["artifact_index"])
+    if artifact_index.get("bundle_sha256") != computed_bundle_hash:
         errors.append("artifact_index bundle_sha256 mismatch")
 
     missing_states = [
@@ -477,14 +384,13 @@ def verify_artifact_bundle(bundle_path: Path) -> dict[str, object]:
         if record.status in {"missing_required", "missing_recommended", "copy_failed"}
     ]
 
-    return _bundle_verification_result(
-        valid=(not errors and integrity.passed),
-        errors=errors,
-        bundle_sha256=computed_bundle_hash,
-        integrity_summary=computed_integrity,
-        reproducibility_stamp=schema_payload["reproducibility_stamp"],
-        run_metadata=schema_payload["run_metadata"],
-        artifact_index=schema_payload["artifact_index"],
-        missing_states=missing_states,
-    )
-
+    return {
+        "valid": not errors and integrity.passed,
+        "errors": errors,
+        "bundle_sha256": computed_bundle_hash,
+        "integrity_summary": computed_integrity,
+        "reproducibility_stamp": schema_payload["reproducibility_stamp"],
+        "run_metadata": schema_payload["run_metadata"],
+        "artifact_index": schema_payload["artifact_index"],
+        "missing_states": missing_states,
+    }

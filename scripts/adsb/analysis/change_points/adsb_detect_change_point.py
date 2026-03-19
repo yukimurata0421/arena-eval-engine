@@ -5,16 +5,13 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
-
-import matplotlib
-
-matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,9 +25,9 @@ try:
     import numpyro
     import numpyro.distributions as dist
     from numpyro.infer import DiscreteHMCGibbs, MCMC, NUTS
-except Exception as exc:  # pragma: no cover - runtime dependency guard
+except Exception as e:  # pragma: no cover - runtime dependency guard
     HAS_MCMC_DEPS = False
-    MCMC_IMPORT_ERROR = str(exc)
+    MCMC_IMPORT_ERROR = str(e)
     random = None
     jnp = None
     numpyro = None
@@ -42,39 +39,40 @@ except Exception as exc:  # pragma: no cover - runtime dependency guard
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
 from arena.lib.paths import resolve_output_dir
+from arena.lib.platform_setup import resolve_workers
+
+from arena.log import get_script_logger
 
 
-def _resolve_workers(default_cap: int = 12) -> int:
-    return max(1, min(os.cpu_count() or 1, default_cap))
 
-
+log = get_script_logger(__name__)
 SCRIPT_NAME = Path(__file__).name
 METRIC_NAME = "auc_n_used"
-CPU_HOST = _resolve_workers(default_cap=12)
+CPU_HOST = resolve_workers(default_cap=12)
 if HAS_MCMC_DEPS:
     numpyro.set_platform("cpu")
     numpyro.set_host_device_count(CPU_HOST)
-    print(f"Platform: CPU ({CPU_HOST} devices)")
+    log.info(f"Platform: CPU ({CPU_HOST} devices)")
 else:
-    print(f"[WARN] change point dependencies unavailable: {MCMC_IMPORT_ERROR}")
+    log.info(f"[WARN] change point dependencies unavailable: {MCMC_IMPORT_ERROR}")
 
 
 def _safe_write_text(path: Path, text: str) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-        print(f"[OK] report: {path}")
-    except Exception as exc:
-        print(f"[WARN] failed to save report: {path} ({exc})")
+        log.info(f"[OK] report: {path}")
+    except Exception as e:
+        log.info(f"[WARN] レポート保存に失敗しました: {path} ({e})")
 
 
 def _safe_write_json(path: Path, payload: dict[str, Any]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(f"[OK] json: {path}")
-    except Exception as exc:
-        print(f"[WARN] failed to save json: {path} ({exc})")
+        log.info(f"[OK] json: {path}")
+    except Exception as e:
+        log.info(f"[WARN] JSON保存に失敗しました: {path} ({e})")
 
 
 def _segment_summary(series: pd.Series) -> dict[str, Any]:
@@ -96,8 +94,8 @@ def _compute_base_drop_reasons(source_path: Path, min_auc: int, min_minutes: int
 
     try:
         raw_df = pd.read_csv(source_path)
-    except Exception as exc:
-        warnings.append(f"source_csv_read_failed: {exc}")
+    except Exception as e:
+        warnings.append(f"source_csv_read_failed: {e}")
         return 0, reasons, warnings
 
     total_rows = int(len(raw_df))
@@ -148,8 +146,8 @@ def _build_report_text(payload: dict[str, Any]) -> str:
         "dropped_reasons:",
     ]
     if payload["dropped_reasons"]:
-        for key, value in payload["dropped_reasons"].items():
-            lines.append(f"- {key}: {value}")
+        for k, v in payload["dropped_reasons"].items():
+            lines.append(f"- {k}: {v}")
     else:
         lines.append("- (none)")
 
@@ -171,34 +169,26 @@ def _build_report_text(payload: dict[str, Any]) -> str:
     lines.append("summary_before_after:")
     summary = payload.get("summary_before_after", {})
     if summary:
-        lines.append(
-            f"- before: n={summary.get('before', {}).get('n')} "
-            f"mean={summary.get('before', {}).get('mean')} "
-            f"median={summary.get('before', {}).get('median')}"
-        )
-        lines.append(
-            f"- after:  n={summary.get('after', {}).get('n')} "
-            f"mean={summary.get('after', {}).get('mean')} "
-            f"median={summary.get('after', {}).get('median')}"
-        )
+        lines.append(f"- before: n={summary.get('before', {}).get('n')} mean={summary.get('before', {}).get('mean')} median={summary.get('before', {}).get('median')}")
+        lines.append(f"- after:  n={summary.get('after', {}).get('n')} mean={summary.get('after', {}).get('mean')} median={summary.get('after', {}).get('median')}")
     else:
         lines.append("- (none)")
 
     lines.append("")
     lines.append("warnings:")
     if payload["warnings"]:
-        for warning in payload["warnings"]:
-            lines.append(f"- {warning}")
+        for w in payload["warnings"]:
+            lines.append(f"- {w}")
     else:
         lines.append("- (none)")
 
     lines.append("")
     lines.append("note:")
-    lines.append("- thresholds are derived from get_quality_thresholds() and therefore settings.toml.")
+    lines.append("- thresholds は get_quality_thresholds() 経由で settings.toml 由来です。")
     return "\n".join(lines) + "\n"
 
 
-def run_discovery_analysis() -> None:
+def run_discovery_analysis():
     out_root = resolve_output_dir()
     out_dir = out_root / "change_point"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -234,7 +224,7 @@ def run_discovery_analysis() -> None:
         payload["warnings"].append("no_data_after_load_summary")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        print("No data. Exiting.")
+        log.info("No data. Exiting.")
         return
 
     before_dropna_rows = int(len(df))
@@ -249,49 +239,40 @@ def run_discovery_analysis() -> None:
         payload["warnings"].append(f"mcmc_dependencies_unavailable: {MCMC_IMPORT_ERROR}")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        print("[WARN] MCMC dependencies unavailable; skipping inference.")
+        log.info("[WARN] MCMC依存パッケージ未導入のため推定をスキップしました。")
         return
 
     if len(df) < 5:
         payload["warnings"].append("usable_rows_lt_5_skip_change_point")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        print("  WARNING: insufficient valid data; skipping change-point detection.")
+        log.info("  警告: 有効データが不足しているため、変化点検出をスキップします。")
         return
 
     y = jnp.array(df["auc_n_used"].values)
     log_traffic = jnp.array(df["log_traffic"].values)
     n_days = len(df)
 
-    def model(y_values, log_traffic_values, n_days_value):
-        tau = numpyro.sample("tau", dist.DiscreteUniform(0, n_days_value - 1))
+    def model(y, log_traffic, n_days):
+        tau = numpyro.sample("tau", dist.DiscreteUniform(0, n_days - 1))
         alpha_before = numpyro.sample("alpha_before", dist.Normal(10.0, 5.0))
         alpha_after = numpyro.sample("alpha_after", dist.Normal(10.0, 5.0))
         beta_traffic = numpyro.sample("beta_traffic", dist.Normal(1.0, 0.5))
         alpha_inv = numpyro.sample("alpha_inv", dist.Exponential(1.0))
 
-        idx = jnp.arange(n_days_value)
+        idx = jnp.arange(n_days)
         intercept = jnp.where(idx < tau, alpha_before, alpha_after)
-        mu = jnp.exp(intercept + beta_traffic * log_traffic_values)
+        mu = jnp.exp(intercept + beta_traffic * log_traffic)
 
-        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, alpha_inv), obs=y_values)
+        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, alpha_inv), obs=y)
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     n_warmup = int(os.environ.get("ADSB_CP_WARMUP", "1000"))
     n_samples = int(os.environ.get("ADSB_CP_SAMPLES", "3000"))
     n_chains = int(os.environ.get("ADSB_CP_CHAINS", str(max(1, min(CPU_HOST, 4)))))
-    mcmc = MCMC(
-        kernel,
-        num_warmup=n_warmup,
-        num_samples=n_samples,
-        num_chains=n_chains,
-        progress_bar=False,
-    )
+    mcmc = MCMC(kernel, num_warmup=n_warmup, num_samples=n_samples, num_chains=n_chains)
 
-    print(
-        "Searching change points on CPU... "
-        f"(chains={n_chains}, devices={CPU_HOST}, warmup={n_warmup}, samples={n_samples})"
-    )
+    log.info(f"Searching change points on CPU... (chains={n_chains}, devices={CPU_HOST}, warmup={n_warmup}, samples={n_samples})")
     mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
 
     samples = mcmc.get_samples()
@@ -319,11 +300,11 @@ def run_discovery_analysis() -> None:
         "after": _segment_summary(after_series),
     }
 
-    print("-" * 30)
-    print(f"[Detected change point]: {detected_date_str}")
-    print(f"  Estimated improvement: {np.mean(improvement):+.2f}%")
-    print(f"  Confidence: {confidence_pct:.1f}%")
-    print("-" * 30)
+    log.info("-" * 30)
+    log.info(f"[Detected change point]: {detected_date_str}")
+    log.info(f"  Estimated improvement: {np.mean(improvement):+.2f}%")
+    log.info(f"  Confidence: {confidence_pct:.1f}%")
+    log.info("-" * 30)
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.hist(
@@ -338,16 +319,17 @@ def run_discovery_analysis() -> None:
     fig.tight_layout()
     try:
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
-        print(f"[OK] plot: {plot_path}")
-    except Exception as exc:
-        payload["warnings"].append(f"plot_save_failed: {exc}")
-        print(f"[WARN] failed to save plot: {plot_path} ({exc})")
-    finally:
-        plt.close(fig)
+        log.info(f"[OK] plot: {plot_path}")
+    except Exception as e:
+        payload["warnings"].append(f"plot_save_failed: {e}")
+        log.info(f"[WARN] プロット保存に失敗しました: {plot_path} ({e})")
 
     _safe_write_text(report_path, _build_report_text(payload))
     _safe_write_json(json_path, payload)
+    plt.show()
 
 
 if __name__ == "__main__":
     run_discovery_analysis()
+
+

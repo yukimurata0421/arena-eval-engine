@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from arena.lib.config import get_quality_thresholds
-from arena.lib.paths import ADSB_DAILY_SUMMARY_V2
+from arena.lib.paths import resolve_output_dir
 from arena.lib.phase_config import get_config
 
 
@@ -15,9 +16,9 @@ def load_summary(
     require_proxy: bool = True,
     post_date: str | pd.Timestamp | None = None,
     default_post_date: str | None = None,
+    analysis_start_date: str | pd.Timestamp | None = None,
+    analysis_end_date: str | pd.Timestamp | None = None,
 ):
-    if default_post_date is None:
-        default_post_date = get_config().intervention_date
     """
     Load adsb_daily_summary_v2.csv and apply common preprocessing:
       - local_traffic_proxy numeric + median imputation
@@ -25,15 +26,34 @@ def load_summary(
       - post flag (from post/is_post_change or by date)
       - auc filter and minutes_covered filter
     """
-    csv_path = Path(path) if path else Path(ADSB_DAILY_SUMMARY_V2)
+    if default_post_date is None:
+        default_post_date = get_config().intervention_date
+    csv_path = Path(path) if path else (resolve_output_dir() / "adsb_daily_summary_v2.csv")
     if not csv_path.exists():
-        print(f"  Error: {csv_path} not found.")
+        print(f"  エラー: {csv_path} が見つかりません。")
         return None
 
     df = pd.read_csv(csv_path)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    if "auc_n_used" in df.columns:
-        df["auc_n_used"] = pd.to_numeric(df["auc_n_used"], errors="coerce")
+
+    if analysis_start_date is None:
+        analysis_start_date = os.getenv("ARENA_ANALYSIS_START_DATE") or os.getenv("ADSB_ANALYSIS_START_DATE") or ""
+    if analysis_end_date is None:
+        analysis_end_date = os.getenv("ARENA_ANALYSIS_END_DATE") or os.getenv("ADSB_ANALYSIS_END_DATE") or ""
+
+    if analysis_start_date:
+        cutoff_start = pd.to_datetime(analysis_start_date, errors="coerce")
+        if pd.notna(cutoff_start):
+            df = df[df["date"] >= cutoff_start].copy()
+        else:
+            print(f"  [WARN] invalid analysis_start_date ignored: {analysis_start_date}")
+
+    if analysis_end_date:
+        cutoff_end = pd.to_datetime(analysis_end_date, errors="coerce")
+        if pd.notna(cutoff_end):
+            df = df[df["date"] <= cutoff_end].copy()
+        else:
+            print(f"  [WARN] invalid analysis_end_date ignored: {analysis_end_date}")
 
     if min_auc is None or min_minutes is None:
         cfg_min_auc, cfg_min_minutes = get_quality_thresholds()
@@ -50,19 +70,23 @@ def load_summary(
 
     # local_traffic_proxy
     if require_proxy and "local_traffic_proxy" not in df.columns:
-        print("  local_traffic_proxy not found. Check adsb_daily_summary_v2.csv.")
+        print("  local_traffic_proxy が見つかりません。adsb_daily_summary_v2.csv を確認してください。")
         return None
     if "local_traffic_proxy" in df.columns:
         df["local_traffic_proxy"] = pd.to_numeric(df["local_traffic_proxy"], errors="coerce")
         med_proxy = df["local_traffic_proxy"].median()
-        fill_val = med_proxy if pd.notna(med_proxy) and med_proxy > 0 else 1.0
+        if not pd.notna(med_proxy):
+            print("  [WARN] local_traffic_proxy が全て NaN です。" " fill_val=1 を使用しますが、GLM結果が縮退する可能性があります。")
+        fill_val = med_proxy if pd.notna(med_proxy) else 1
         df["local_traffic_proxy"] = df["local_traffic_proxy"].fillna(fill_val)
-        df["local_traffic_proxy"] = df["local_traffic_proxy"].where(
-            df["local_traffic_proxy"] > 0, fill_val
-        )
+        df["local_traffic_proxy"] = df["local_traffic_proxy"].replace(0, fill_val)
+        neg_count = (df["local_traffic_proxy"] < 0).sum()
+        if neg_count > 0:
+            print(
+                f"  [WARN] local_traffic_proxy に負値が {neg_count} 件あります。"
+                " np.log() で NaN/-inf が発生します。データを確認してください。"
+            )
         df["log_traffic"] = np.log(df["local_traffic_proxy"])
-        if not np.isfinite(df["log_traffic"]).all():
-            df.loc[~np.isfinite(df["log_traffic"]), "log_traffic"] = np.log(fill_val)
 
     # post flag
     if post_date is not None:
@@ -86,8 +110,8 @@ def check_proxy_endogeneity(df: pd.DataFrame):
     if df is None:
         return None
     if "post" not in df.columns or "local_traffic_proxy" not in df.columns:
-        print("  check_proxy_endogeneity: required columns are missing.")
+        print("  check_proxy_endogeneity: 必要な列がありません。")
         return None
     corr = np.corrcoef(df["post"].astype(float), df["local_traffic_proxy"].astype(float))[0, 1]
-    print(f"  proxy endogeneity (corr post vs local_traffic_proxy): {corr:.4f}")
+    print(f"  プロキシ内生性（post vs local_traffic_proxy 相関）: {corr:.4f}")
     return corr

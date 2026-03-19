@@ -69,4 +69,3 @@ def compute_bundle_sha256(
         "schema": schema_payload,
     }
     return hashlib.sha256(stable_json_dumps(canonical_payload).encode("utf-8")).hexdigest()
-

@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.cpu
     command: ["python", "-m", "pytest", "-q", "-m", "not real_data"]
-  arena-run:
+  arena-validate:
     build:
       context: ..
       dockerfile: docker/Dockerfile.cpu
@@ -13,7 +13,23 @@ services:
       - ..:/workspace
     command:
       [
-        "arena",
+        "python",
+        "-m",
+        "arena.cli",
+        "validate",
+      ]
+  arena-run-stage1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    command:
+      [
+        "python",
+        "-m",
+        "arena.cli",
         "run",
         "--backend",
         "native",
@@ -25,19 +41,71 @@ services:
         "1",
         "--no-gpu",
       ]
-  arena-sample-smoke:
+  arena-real-stage1:
+    profiles: ["real"]
     build:
       context: ..
       dockerfile: docker/Dockerfile.cpu
-    command: ["python", "scripts/dev/run_sample_smoke.py"]
-  arena-real-data-smoke:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.cpu
+    working_dir: /workspace
     environment:
-      ARENA_REAL_DATA_ROOT: /workspace/real-data
-      ARENA_REAL_ARTIFACT_BASE: /workspace/real-output
+      OPENSKY_CREDENTIALS_JSON: /run/secrets/opensky_credentials.json
     volumes:
-      - ${ARENA_DATA_ROOT:?set_ARENA_DATA_ROOT}:/workspace/real-data:ro
-      - ${ARENA_ARTIFACT_BASE:-../output/sample}:/workspace/real-output:ro
-    command: ["python", "scripts/dev/run_real_data_smoke.py"]
+      - ..:/workspace
+      - ${ARENA_REAL_DATA_ROOT:-../data}:/workspace/real-data
+      - ${ARENA_REAL_OUTPUT_ROOT:-../output}:/workspace/real-output
+      - ${ARENA_REAL_SETTINGS_PATH:-../scripts/config/settings.toml}:/workspace/real-settings/settings.toml:ro
+      - ${ARENA_REAL_PHASE_CONFIG_PATH:-../scripts/config/phases.txt}:/workspace/real-settings/phases.txt:ro
+      - ${ARENA_OPENSKY_CREDENTIALS_PATH:-../scripts/secrets/opensky_credentials.json}:/run/secrets/opensky_credentials.json:ro
+    command:
+      [
+        "python",
+        "-m",
+        "arena.cli",
+        "run",
+        "--backend",
+        "native",
+        "--only",
+        "1",
+        "--no-gpu",
+        "--data-dir",
+        "/workspace/real-data",
+        "--output-dir",
+        "/workspace/real-output",
+        "--settings",
+        "/workspace/real-settings/settings.toml",
+        "--phase-config",
+        "/workspace/real-settings/phases.txt",
+      ]
+  arena-real-full:
+    profiles: ["real"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    working_dir: /workspace
+    environment:
+      OPENSKY_CREDENTIALS_JSON: /run/secrets/opensky_credentials.json
+    volumes:
+      - ..:/workspace
+      - ${ARENA_REAL_DATA_ROOT:-../data}:/workspace/real-data
+      - ${ARENA_REAL_OUTPUT_ROOT:-../output}:/workspace/real-output
+      - ${ARENA_REAL_SETTINGS_PATH:-../scripts/config/settings.toml}:/workspace/real-settings/settings.toml:ro
+      - ${ARENA_REAL_PHASE_CONFIG_PATH:-../scripts/config/phases.txt}:/workspace/real-settings/phases.txt:ro
+      - ${ARENA_OPENSKY_CREDENTIALS_PATH:-../scripts/secrets/opensky_credentials.json}:/run/secrets/opensky_credentials.json:ro
+    command:
+      [
+        "python",
+        "-m",
+        "arena.cli",
+        "run",
+        "--backend",
+        "native",
+        "--no-gpu",
+        "--data-dir",
+        "/workspace/real-data",
+        "--output-dir",
+        "/workspace/real-output",
+        "--settings",
+        "/workspace/real-settings/settings.toml",
+        "--phase-config",
+        "/workspace/real-settings/phases.txt",
+      ]

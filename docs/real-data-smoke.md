@@ -1,49 +1,42 @@
-# Real-Data Smoke Validation
+# Real-Data Docker Validation
 
-The public repository keeps real-data validation opt-in.
+This repository keeps real-data execution opt-in.
+Use Docker with local mounts so private data and credentials never need to be copied into this repo.
 
-CI uses only `data/sample/` and `output/sample/`.
-Local validation can point to private datasets without hardcoding host paths.
+## Prerequisites
 
-## Required Environment
+- Docker Desktop (or Docker Engine + Compose v2)
+- Local private data/settings/phase/credentials files prepared outside this repository
+- Writable temporary output path dedicated for this validation run
 
-- `ARENA_REAL_DATA_ROOT`: root directory containing private telemetry such as `pos_*.jsonl` and `dist_1m*.jsonl`
+## Required Local Inputs
 
-Optional:
+- Real telemetry root (example: `<private_data_root>`)
+- Real settings file with your receiver location (example: `<private_settings.toml>`)
+- Phase config file (example: `<private_phases.txt>`)
+- OpenSky credentials JSON (example: `<private_opensky_credentials.json>`)
 
-- `ARENA_REAL_OUTPUT_ROOT`: scratch output directory for dry-run validation
-- `ARENA_REAL_ARTIFACT_BASE`: existing output directory to export/verify instead of `output/sample`
-- `ARENA_REAL_BUNDLE_ROOT`: where the temporary artifact bundle is written
+## Setup
 
-## PowerShell
+1. Copy `docker/.env.example` to `docker/.env`.
+2. Edit `docker/.env` with your local absolute paths.
+
+`docker/.env` is ignored by Git.
+
+## Run Stage 1 Against Real Data
 
 ```powershell
-$env:ARENA_REAL_DATA_ROOT="E:\arena\data"
-$env:ARENA_REAL_ARTIFACT_BASE="E:\arena\output"
-python scripts/dev/run_real_data_smoke.py
+docker compose --env-file docker/.env -f docker/docker-compose.yml --profile real run --rm arena-real-stage1
 ```
 
-or
+## Run Full Stage 1-8 Pipeline Against Real Data
 
 ```powershell
-$env:ARENA_REAL_DATA_ROOT="E:\arena\data"
-scripts/dev/run_real_data_smoke.ps1
+docker compose --env-file docker/.env -f docker/docker-compose.yml --profile real run --rm arena-real-full
 ```
 
-## POSIX Shell
+## Cleanup
 
-```bash
-export ARENA_REAL_DATA_ROOT=/workspace/data
-export ARENA_REAL_ARTIFACT_BASE=/workspace/output
-python scripts/dev/run_real_data_smoke.py
-```
-
-## What It Checks
-
-- path resolution through public CLI and runtime settings
-- required input contract visibility for `pos_*.jsonl` and `dist_1m*.jsonl`
-- minimal pipeline dry-run against the private data root
-- artifact export, verify, and replay flows
-
-If `ARENA_REAL_ARTIFACT_BASE` is not set, artifact verify/replay falls back to `output/sample/`.
-That still exercises the public artifact contract, but it does not validate private output contents.
+- Remove `docker/.env` after validation.
+- Remove temporary output directory you mapped with `ARENA_REAL_OUTPUT_ROOT`.
+- Keep credentials outside this repository.

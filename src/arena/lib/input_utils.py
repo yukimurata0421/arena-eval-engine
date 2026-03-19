@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def parse_date(s: str):
@@ -8,7 +11,7 @@ def parse_date(s: str):
     for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
         try:
             return datetime.strptime(s, fmt).date()
-        except Exception:
+        except ValueError:
             continue
     return None
 
@@ -21,14 +24,14 @@ def prompt_intervention_date(default_date: str):
         d = parse_date(target_date)
         if d:
             return pd.Timestamp(d)
-        print(" Invalid date format.")
+        print(" 日付形式が不正です。")
 
 
 def prompt_phase_dates(default_labels=None):
     if default_labels is None:
         default_labels = {}
 
-    print("\n" + "=" * 50 + "\n Phase setup mode\n" + "=" * 50)
+    print("\n" + "=" * 50 + "\n フェーズ設定モード\n" + "=" * 50)
     phases = []
 
     while True:
@@ -37,15 +40,15 @@ def prompt_phase_dates(default_labels=None):
         if base_dt:
             phases.append({"date": base_dt.strftime("%Y-%m-%d"), "name": "Initial Baseline"})
             break
-        print(" Format error.")
+        print(" 形式エラー。")
 
-    print("\n2. Add intervention dates (e.g., 2026-01-14,airspy_introduce). Type 'done' to finish.")
+    print("\n2. 介入日を追加（例: 2026-01-14,airspy_introduce）。終了は 'done'。")
     while True:
         entry = input("Intervention date and name (YYYY-MM-DD or YYYY/MM/DD,Name): ").strip()
         if entry.lower() == "done":
             if len(phases) > 1:
                 break
-            print(" At least one intervention date is required.")
+            print(" 少なくとも1つの介入日が必要です。")
             continue
         try:
             d_str, n_str = entry.split(",", 1)
@@ -56,7 +59,8 @@ def prompt_phase_dates(default_labels=None):
             if not name:
                 name = default_labels.get(date_val.strftime("%Y-%m-%d"), "unnamed_event")
             phases.append({"date": date_val.strftime("%Y-%m-%d"), "name": name})
-        except Exception:
-            print(" Input format error.")
+        except Exception as exc:
+            logger.debug("prompt_phase_dates: invalid intervention entry=%r (%s)", entry, exc)
+            print(" 入力形式エラー。")
 
     return phases

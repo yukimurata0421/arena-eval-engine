@@ -12,38 +12,51 @@ import matplotlib.dates as mdates
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+# Ensure local src package is preferred when this script is executed directly.
+_ROOT = Path(__file__).resolve().parents[4]
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
 
 from arena.lib.config import get_site_latlon
+from arena.lib.geo import haversine_km
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR as OUT_ROOT
+from arena.lib.platform_setup import resolve_workers
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 INPUT_DIR = str(DATA_DIR / "plao_pos")
 OUTPUT_DIR = str(OUT_ROOT / "coverage")
 TREND_CSV = os.path.join(OUTPUT_DIR, "coverage_trend.csv")
 TREND_IMG = os.path.join(OUTPUT_DIR, "coverage_trend_report.png")
 
 SITE_LAT, SITE_LON = get_site_latlon()
-MAX_WORKERS = min(6, os.cpu_count() or 6)
+
+
+
+MAX_WORKERS = resolve_workers(default_cap=12)
+
+
+def _site_is_valid(lat: float, lon: float) -> bool:
+    return abs(lat) > 0.001 and abs(lon) > 0.001
 
 def calculate_distance_bearing(lat1, lon1, lat2, lon2):
     """
 adsb_polar_coverage_evaluator.py module.
 """
-    R = 6371.0
     lat1_rad, lon1_rad = np.radians(lat1), np.radians(lon1)
     lat2_rad, lon2_rad = np.radians(lat2), np.radians(lon2)
-
-    dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
-
-    a = np.sin(dlat / 2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2)**2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    dist = R * c
-
+    dist = haversine_km(lat1, lon1, lat2, lon2)
+    
     y = np.sin(dlon) * np.cos(lat2_rad)
     x = np.cos(lat1_rad) * np.sin(lat2_rad) - np.sin(lat1_rad) * np.cos(lat2_rad) * np.cos(dlon)
     bearing = np.degrees(np.arctan2(y, x))
     bearing = (bearing + 360) % 360
-
+    
     return dist, bearing
 
 def process_one_file(f_path: str):
@@ -54,7 +67,7 @@ def process_one_file(f_path: str):
     try:
         date_str = base_name.split('_')[1]
         record_date = datetime.strptime(date_str, "%Y%m%d").date()
-    except:
+    except Exception:
         return None
 
     data = []
@@ -67,7 +80,7 @@ def process_one_file(f_path: str):
                     if 20 < lat < 50 and 120 < lon < 150:
                         dist, bearing = calculate_distance_bearing(SITE_LAT, SITE_LON, lat, lon)
                         data.append({'bearing': bearing, 'dist': dist})
-            except:
+            except Exception:
                 continue
 
     sample_count = len(data)
@@ -108,13 +121,17 @@ def process_one_file(f_path: str):
 
 
 def process_polar_coverage():
+    if not _site_is_valid(SITE_LAT, SITE_LON):
+        log.info(" 観測点座標が不正です (lat/lon=0)。settings.toml の [site] を確認してください。")
+        return
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        print(f" File not found: {INPUT_DIR}")
+        log.info(f" ファイルが見つかりません: {INPUT_DIR}")
         return
 
-    print(f">>> {len(files)}  scanning days of data and computing P95 coverage and trend... (workers={MAX_WORKERS})\n")
+    log.info(f">>> {len(files)} 日分のデータを走査し、P95カバレッジとトレンドを算出中... (workers={MAX_WORKERS})\n")
 
     trend_data = []
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
@@ -126,23 +143,23 @@ def process_polar_coverage():
                     trend_data.append(result)
             except Exception:
                 continue
-
+    
     if not trend_data:
-        print("No valid data.")
+        log.info("有効データがありません。")
         return
 
     df_trend = pd.DataFrame(trend_data).sort_values('date').reset_index(drop=True)
-
+    
     if len(df_trend) > 2:
         df_trend = df_trend.iloc[1:-1].copy()
-        print(f"\n Dropped first/last day data. Valid days: {len(df_trend)}")
+        log.info(f"\n 初日/最終日を除外しました。有効日数: {len(df_trend)}")
     else:
-        print("\n Too few days; skipping first/last day trimming.")
+        log.info("\n 日数が少ないため、初日/最終日の除外をスキップします。")
 
     df_trend.to_csv(TREND_CSV, index=False)
 
     fig, ax = plt.subplots(figsize=(10, 5))
-
+    
     x_positions = np.arange(len(df_trend))
     x_labels = df_trend['date'].apply(lambda d: d.strftime('%Y-%m-%d')).tolist()
 
@@ -154,7 +171,7 @@ def process_polar_coverage():
     ax.set_xlabel("Date")
     ax.set_ylabel("Avg P95 Distance (km)")
     ax2.set_ylabel("P95 Area Score")
-
+    
     ax.set_xticks(x_positions)
     ax.set_xticklabels(x_labels, rotation=45, ha='right')
 
@@ -166,8 +183,8 @@ def process_polar_coverage():
     fig.savefig(TREND_IMG, dpi=150)
     plt.close(fig)
 
-    print(f"� Saved trend CSV: {TREND_CSV}")
-    print(f" Saved trend image: {TREND_IMG}")
+    log.info(f" 保存しました: {TREND_CSV}")
+    log.info(f" 保存しました: {TREND_IMG}")
 
 if __name__ == "__main__":
     process_polar_coverage()

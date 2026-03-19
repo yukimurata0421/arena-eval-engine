@@ -10,8 +10,10 @@ os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
 
 import pandas as pd
 import numpy as np
+import jax.numpy as jnp
 from jax import random
 import numpyro
+import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -20,32 +22,53 @@ import matplotlib.dates as mdates
 from arena.lib.paths import OUTPUT_DIR
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
-from arena.lib.nb2_models import clean_nb2_df, prepare_nb2_inputs, make_single_change_point_model
+from arena.lib.platform_setup import resolve_workers
 
-CPU_HOST = min(6, os.cpu_count() or 6)
+from arena.log import get_script_logger
+
+
+
+log = get_script_logger(__name__)
+CPU_HOST = resolve_workers(default_cap=12)
 numpyro.set_platform("cpu")
 numpyro.set_host_device_count(CPU_HOST)
 
 
 def run_cuda_analysis():
-    min_auc, _min_minutes = get_quality_thresholds()
-    df = load_summary(min_auc=min_auc, min_minutes=None, require_proxy=True)
+    min_auc, min_minutes = get_quality_thresholds()
+    df = load_summary(min_auc=min_auc, min_minutes=min_minutes, require_proxy=True)
     if df is None or df.empty:
-        print("  Error: input data is missing.")
+        log.info("  エラー: 入力データがありません。")
         return
     df = df.sort_values("date").reset_index(drop=True)
-    df = clean_nb2_df(df, require_log_traffic=True)
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["auc_n_used", "log_traffic"])
     if len(df) < 5:
-        print("  WARNING: Insufficient valid data. Skipping change-point evaluation.")
+        log.info("  警告: 有効データが不足しているため、変化点評価をスキップします。")
         return
 
     n_days = len(df)
     dates = df["date"].values
 
-    print(f"  Analysis target: {n_days}  days ({df['date'].min().date()} ~ {df['date'].max().date()})")
+    log.info(
+        f"  解析対象: {n_days} 日（{df['date'].min().date()} ~ {df['date'].max().date()}）"
+        f" [min_auc>{min_auc}, minutes>={min_minutes}]"
+    )
 
-    inputs = prepare_nb2_inputs(df)
-    model = make_single_change_point_model(alpha_name="phi")
+    y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
+    log_traffic = jnp.array(df["log_traffic"].values, dtype=jnp.float32)
+
+    def model(y, log_traffic, n_days):
+        tau = numpyro.sample("tau", dist.DiscreteUniform(0, n_days - 1))
+        alpha_before = numpyro.sample("alpha_before", dist.Normal(10.0, 5.0))
+        alpha_after = numpyro.sample("alpha_after", dist.Normal(10.0, 5.0))
+        beta_traffic = numpyro.sample("beta_traffic", dist.Normal(1.0, 0.5))
+        phi = numpyro.sample("phi", dist.Exponential(1.0))
+
+        idx = jnp.arange(n_days)
+        intercept = jnp.where(idx < tau, alpha_before, alpha_after)
+        mu = jnp.exp(intercept + beta_traffic * log_traffic)
+
+        numpyro.sample("y_obs", dist.NegativeBinomial2(mu, phi), obs=y)
 
     kernel = DiscreteHMCGibbs(NUTS(model))
     if os.getenv("MCMC_FULL") == "1":
@@ -53,9 +76,10 @@ def run_cuda_analysis():
     else:
         num_warmup, num_samples = 50, 200
 
-    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=1)
-    print(f"  Starting MCMC (warmup={num_warmup}, samples={num_samples}, CPU)...")
-    mcmc.run(random.PRNGKey(42), inputs.y, inputs.log_traffic, inputs.n_days)
+    n_chains = max(1, min(CPU_HOST, 4))
+    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=n_chains)
+    log.info(f"  MCMC 開始 (warmup={num_warmup}, samples={num_samples}, chains={n_chains}, CPU)...")
+    mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
 
     samples = mcmc.get_samples()
     tau_samples = np.array(samples["tau"])
@@ -70,8 +94,8 @@ def run_cuda_analysis():
     mean_improvement = np.mean(improvement_samples)
     hdi_lo, hdi_hi = np.percentile(improvement_samples, [3, 97])
 
-    print(f"\n  Most likely change point: {detected_date.date()} (index={best_tau_idx})")
-    print(f"  Estimated improvement: {mean_improvement:+.1f}% (94% HDI: [{hdi_lo:+.1f}%, {hdi_hi:+.1f}%])")
+    log.info(f"\n  最も可能性の高い変化点: {detected_date.date()} (index={best_tau_idx})")
+    log.info(f"  推定改善率: {mean_improvement:+.1f}% (94% HDI: [{hdi_lo:+.1f}%, {hdi_hi:+.1f}%])")
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={"height_ratios": [3, 2, 2]})
 
@@ -124,7 +148,7 @@ def run_cuda_analysis():
     os.makedirs(perf_dir, exist_ok=True)
     out_path = os.path.join(perf_dir, "adsb_cuda_evaluator_change_point.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
-    print(f"  Saved: {out_path}")
+    log.info(f"  保存しました: {out_path}")
 
     if os.getenv("SHOW_PLOT") == "1":
         plt.show()

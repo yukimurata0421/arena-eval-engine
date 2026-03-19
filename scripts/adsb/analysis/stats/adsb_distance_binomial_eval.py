@@ -9,11 +9,17 @@ import pandas as pd
 from scipy import stats as sp_stats
 import warnings
 
-warnings.filterwarnings("ignore")
+# FitWarning (statsmodels 収束警告) のみ抑制。他の DeprecationWarning は表示する。
+warnings.filterwarnings("ignore", category=Warning, module="statsmodels")
+warnings.filterwarnings("ignore", message=".*Maximum Likelihood.*", category=Warning)
 
 
 from arena.lib.paths import OUTPUT_DIR as OUT_ROOT
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 OUTPUT_DIR = str(OUT_ROOT / "performance")
 FRINGE_CSV = os.path.join(str(OUT_ROOT / "fringe_decoding"), "fringe_decoding_stats.csv")
 
@@ -51,14 +57,14 @@ def run_distance_binomial_analysis():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if not os.path.exists(FRINGE_CSV):
-        print(f"  File not found: {FRINGE_CSV}")
+        log.info(f"  ファイルが見つかりません: {FRINGE_CSV}")
         return
 
     df = pd.read_csv(FRINGE_CSV)
     df['date'] = pd.to_datetime(df['date'])
 
     if 'phase' not in df.columns:
-        print("  phase column is missing.")
+        log.info("  phase 列がありません。")
         return
 
     df['phase_label'] = df['phase'].map(PHASES).fillna(df['phase'])
@@ -77,26 +83,26 @@ def run_distance_binomial_analysis():
     baseline = phases[0]
     df_base = df[df['phase_label'] == baseline]
 
-    print("=" * 85)
-    print("  Distance-wise Proportion Analysis (Binomial Logic v2)")
-    print(f"  Baseline: {baseline} ({len(df_base)} days, "
+    log.info("=" * 85)
+    log.info("  距離帯比率分析（2項ロジック v2）")
+    log.info(f"  ベースライン: {baseline}（{len(df_base)} 日, "
           f"median total={df_base['total'].median():.0f} packets/day)")
-    print("=" * 85)
+    log.info("=" * 85)
 
     all_results = []
 
     for target in phases[1:]:
         df_tgt = df[df['phase_label'] == target]
 
-        print(f"\n{'='*85}")
-        print(f"  {target} ({len(df_tgt)} days, "
+        log.info(f"\n{'='*85}")
+        log.info(f"  {target}（{len(df_tgt)} 日, "
               f"median total={df_tgt['total'].median():.0f} packets/day)")
-        print(f"{'='*85}")
+        log.info(f"{'='*85}")
 
-        print(f"\n  [A] Daily Rate Comparison (Welch t-test)")
-        print(f"  {'Band':<20} {'Base%':>8} {'Tgt%':>8} {'Diff':>8} "
+        log.info(f"\n  [A] 日次比率比較（Welch t-test）")
+        log.info(f"  {'帯域':<20} {'基準%':>8} {'対象%':>8} {'差分':>8} "
               f"{'t-stat':>8} {'P':>10} {'d':>6} {'Judge':>8}")
-        print("  " + "-" * 80)
+        log.info("  " + "-" * 80)
 
         for label, col in dist_bands.items():
             pct_col = f'pct_{col}'
@@ -115,7 +121,7 @@ def run_distance_binomial_analysis():
                 t_stat, p_val, d = np.nan, np.nan, np.nan
                 sig = "N too small"
 
-            print(f"  {label:<20} {base_mean:>7.2f}% {tgt_mean:>7.2f}% "
+            log.info(f"  {label:<20} {base_mean:>7.2f}% {tgt_mean:>7.2f}% "
                   f"{diff:>+7.2f}% {t_stat:>8.3f} {p_val:>10.4f} {d:>6.2f} {sig:>8}")
 
             all_results.append({
@@ -131,9 +137,9 @@ def run_distance_binomial_analysis():
                 'Significance': sig,
             })
 
-        print(f"\n  [B] Aggregate Proportion z-test (pooled across days)")
-        print(f"  {'Band':<20} {'Base Rate':>10} {'Tgt Rate':>10} {'z':>8} {'P':>12}")
-        print("  " + "-" * 65)
+        log.info(f"\n  [B] 全体比率 z 検定（日単位プール）")
+        log.info(f"  {'帯域':<20} {'基準率':>10} {'対象率':>10} {'z':>8} {'P':>12}")
+        log.info("  " + "-" * 65)
 
         for label, col in dist_bands.items():
             n_base = df_base['total'].sum()
@@ -145,7 +151,7 @@ def run_distance_binomial_analysis():
             rate_tgt  = x_tgt / n_tgt * 100
             z, p_z = two_proportion_z_test(n_base, x_base, n_tgt, x_tgt)
 
-            print(f"  {label:<20} {rate_base:>9.3f}% {rate_tgt:>9.3f}% "
+            log.info(f"  {label:<20} {rate_base:>9.3f}% {rate_tgt:>9.3f}% "
                   f"{z:>8.3f} {p_z:>12.2e}")
 
             all_results.append({
@@ -161,13 +167,13 @@ def run_distance_binomial_analysis():
                 'Significance': "significant*" if p_z < 0.05 else "---",
             })
 
-    print(f"\n  Note: aggregate z-test is easily significant with large N.")
-    print(f"    Daily ratio t-test (Part A) is more conservative and reliable.")
+    log.info(f"\n  注: 集計 z 検定は N が大きいと有意になりやすいです。")
+    log.info(f"    日次比率の t 検定（A）が保守的で信頼できます。")
 
     res_df = pd.DataFrame(all_results)
     save_path = os.path.join(OUTPUT_DIR, "distance_binomial_summary.csv")
     res_df.to_csv(save_path, index=False)
-    print(f"\n  Saved results: {save_path}")
+    log.info(f"\n  結果を保存しました: {save_path}")
 
 
 if __name__ == "__main__":

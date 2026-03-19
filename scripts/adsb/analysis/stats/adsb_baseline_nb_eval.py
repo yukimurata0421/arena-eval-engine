@@ -15,6 +15,10 @@ from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary, check_proxy_endogeneity
 from arena.lib.paths import OUTPUT_DIR as OUT_ROOT
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 OUTPUT_DIR = str(OUT_ROOT / "performance")
 
 
@@ -29,9 +33,9 @@ def run_baseline_analysis():
     check_proxy_endogeneity(df)
 
     n = len(df)
-    print(f"\n  Samples: {n}  days")
-    print(f"  Parameters: Intercept + post + log_traffic")
-    print(f"  Residual DOF: {n - 3}")
+    log.info(f"\n  Samples: {n}  days")
+    log.info(f"  Parameters: Intercept + post + log_traffic")
+    log.info(f"  Residual DOF: {n - 3}")
 
     formula = "auc_n_used ~ post + log_traffic"
 
@@ -42,14 +46,14 @@ def run_baseline_analysis():
             family=sm.families.NegativeBinomial()
         ).fit()
     except Exception as e:
-        print(f"  Model estimation error: {e}")
+        log.info(f"  Model estimation error: {e}")
         return
 
-    print("\n" + "=" * 70)
-    print("      ADS-B Baseline NB Regression Report")
-    print("=" * 70)
-    print(model.summary())
-    print("=" * 70)
+    log.info("\n" + "=" * 70)
+    log.info("      ADS-B ベースライン NB 回帰レポート")
+    log.info("=" * 70)
+    log.info(model.summary())
+    log.info("=" * 70)
 
     results = []
     if 'post' in model.params:
@@ -71,16 +75,16 @@ def run_baseline_analysis():
             'significance': sig
         })
 
-        print(f"\n  post effect:")
-        print(f"    improvement rate: {improvement:+.2f}%  95%CI [{ci_lower:+.2f}%, {ci_upper:+.2f}%]")
-        print(f"    p-value: {p_value:.6f}  → {sig}")
+        log.info(f"\n  post effect:")
+        log.info(f"    improvement rate: {improvement:+.2f}%  95%CI [{ci_lower:+.2f}%, {ci_upper:+.2f}%]")
+        log.info(f"    p-value: {p_value:.6f}  → {sig}")
 
     if 'log_traffic' in model.params:
         elasticity = model.params['log_traffic']
         p_traffic = model.pvalues['log_traffic']
-        print(f"\n  Traffic elasticity: {elasticity:.4f}  (P={p_traffic:.4f})")
+        log.info(f"\n  Traffic elasticity: {elasticity:.4f}  (P={p_traffic:.4f})")
 
-    print("\n" + "=" * 70)
+    log.info("\n" + "=" * 70)
 
     summary_path = os.path.join(OUTPUT_DIR, "baseline_nb_summary.txt")
     with open(summary_path, "w", encoding='utf-8') as f:
@@ -90,7 +94,7 @@ def run_baseline_analysis():
             f.write(f"post: {r['improvement_pct']:+.2f}% "
                     f"[{r['ci_lower']:+.2f}, {r['ci_upper']:+.2f}] "
                     f"P={r['p_value']:.6f}\n")
-    print(f"  Text report: {summary_path}")
+    log.info(f"  Text report: {summary_path}")
 
     json_path = os.path.join(OUTPUT_DIR, "baseline_nb_results.json")
     with open(json_path, "w", encoding='utf-8') as f:
@@ -101,7 +105,7 @@ def run_baseline_analysis():
             'post_effect': results,
             'traffic_elasticity': round(elasticity, 4) if 'log_traffic' in model.params else None,
         }, f, indent=2, ensure_ascii=False)
-    print(f"  JSON result: {json_path}")
+    log.info(f"  JSON result: {json_path}")
 
 
 if __name__ == "__main__":

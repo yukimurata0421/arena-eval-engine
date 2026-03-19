@@ -16,6 +16,10 @@ warnings.filterwarnings("ignore")
 
 from arena.lib.paths import OUTPUT_DIR as OUT_ROOT
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 OUTPUT_DIR  = str(OUT_ROOT / "fringe_decoding")
 FRINGE_CSV  = os.path.join(OUTPUT_DIR, "fringe_decoding_stats.csv")
 REPORT_TXT  = os.path.join(OUTPUT_DIR, "statistical_report.txt")
@@ -33,7 +37,7 @@ def run_fringe_quality_analysis():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if not os.path.exists(FRINGE_CSV):
-        print(f"  File not found: {FRINGE_CSV}")
+        log.info(f"  ファイルが見つかりません: {FRINGE_CSV}")
         return
 
     df = pd.read_csv(FRINGE_CSV)
@@ -41,27 +45,27 @@ def run_fringe_quality_analysis():
     df = df.sort_values('date').reset_index(drop=True)
 
     if 'phase' not in df.columns:
-        print("  phase column is missing.")
+        log.info("  phase 列がありません。")
         return
 
     # fringe_ratio = (dist_200_300 + dist_300_plus) / total * 100
     if 'fringe_ratio' not in df.columns:
         df['fringe_ratio'] = (df['dist_200_300'] + df['dist_300_plus']) / df['total'] * 100
 
-    print(f"  fringe_ratio range: {df['fringe_ratio'].min():.2f}% ~ {df['fringe_ratio'].max():.2f}%")
-    print(f"  ※ Older version displayed 100%, but the above is the correct range.\n")
+    log.info(f"  fringe_ratio range: {df['fringe_ratio'].min():.2f}% ~ {df['fringe_ratio'].max():.2f}%")
+    log.info(f"  ※ Older version displayed 100%, but the above is the correct range.\n")
 
     phases = df['phase'].unique()
     report_lines = []
     report_lines.append("=== ADS-B Fringe Decoding Statistical Report (v2) ===\n")
 
-    print("=" * 70)
-    print("  Fringe Decoding Quality Analysis (200km+ ratio)")
-    print("=" * 70)
+    log.info("=" * 70)
+    log.info("  フリンジデコード品質分析（200km+ 比率）")
+    log.info("=" * 70)
 
     phase_stats = {}
-    print(f"\n  {'Phase':<22} {'N':>4} {'Mean%':>8} {'Std%':>8} {'95%CI':>20}")
-    print("  " + "-" * 65)
+    log.info(f"\n  {'Phase':<22} {'N':>4} {'Mean%':>8} {'Std%':>8} {'95%CI':>20}")
+    log.info("  " + "-" * 65)
     report_lines.append("--- Phase Summary (Fringe Ratio %) ---")
 
     for phase in sorted(phases):
@@ -74,11 +78,11 @@ def run_fringe_quality_analysis():
 
         phase_stats[phase] = {'mean': mean_val, 'std': std_val, 'n': n, 'values': vals}
 
-        print(f"  {phase:<22} {n:>4} {mean_val:>7.2f}% {std_val:>7.2f}% "
+        log.info(f"  {phase:<22} {n:>4} {mean_val:>7.2f}% {std_val:>7.2f}% "
               f"[{ci[0]:.2f}, {ci[1]:.2f}]")
         report_lines.append(f"  {phase}: mean={mean_val:.4f}%, std={std_val:.4f}%, n={n}")
 
-    print(f"\n  --- Pairwise Comparisons ---")
+    log.info(f"\n  --- Pairwise Comparisons ---")
     report_lines.append("\n--- Pairwise Comparisons ---")
 
     sorted_phases = sorted(phases)
@@ -98,18 +102,18 @@ def run_fringe_quality_analysis():
             diff = np.mean(v2) - np.mean(v1)
             rel_change = (diff / np.mean(v1)) * 100
 
-            print(f"\n  {p1} vs {p2}:")
-            print(f"    Δ (absolute): {diff:+.4f} pp")
-            print(f"    Δ (relative): {rel_change:+.2f}%")
-            print(f"    Mann-Whitney P: {p_val:.6f}")
-            print(f"    Verdict: {sig}")
+            log.info(f"\n  {p1} vs {p2}:")
+            log.info(f"    Δ (absolute): {diff:+.4f} pp")
+            log.info(f"    Δ (relative): {rel_change:+.2f}%")
+            log.info(f"    Mann-Whitney P: {p_val:.6f}")
+            log.info(f"    Verdict: {sig}")
 
             report_lines.append(f"\n{p1} vs {p2}:")
             report_lines.append(f"  Delta: {diff:+.4f} pp ({rel_change:+.2f}%)")
             report_lines.append(f"  P-value: {p_val:.6f}")
             report_lines.append(f"  Result: {sig}")
 
-    print(f"\n  --- Aggregate Chi-squared Test ---")
+    log.info(f"\n  --- Aggregate Chi-squared Test ---")
     report_lines.append("\n--- Aggregate Chi-squared Test ---")
 
     if len(sorted_phases) >= 2:
@@ -126,37 +130,39 @@ def run_fringe_quality_analysis():
             [fringe_first, total_first - fringe_first],
             [fringe_last,  total_last  - fringe_last]
         ]
+        chi2 = None
+        p_chi2 = None
         if total_first <= 0 or total_last <= 0:
-            print("  Chi2: skipped (insufficient totals)")
-            report_lines.append("  Chi2: skipped (insufficient totals)")
+            log.info("  警告: 有効データが不足しているため、χ²検定をスキップします。")
+        elif (table[0][0] == 0 and table[1][0] == 0) or (table[0][1] == 0 and table[1][1] == 0):
+            log.info("  警告: 期待度数が 0 になるため、χ²検定をスキップします。")
         else:
-            rate_first = fringe_first / total_first * 100
-            rate_last  = fringe_last  / total_last  * 100
             try:
                 chi2, p_chi2, _, _ = sp_stats.chi2_contingency(table)
-                print(f"  {p_first}: {rate_first:.4f}% (n={total_first:,})")
-                print(f"  {p_last}:  {rate_last:.4f}% (n={total_last:,})")
-                print(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
-                print(f"  ※ Note: with very large N, even small differences become significant.")
+            except ValueError as e:
+                log.info(f"  警告: χ²検定に失敗しました（{e}）。スキップします。")
 
-                report_lines.append(f"  {p_first}: {rate_first:.4f}% (N={total_first})")
-                report_lines.append(f"  {p_last}: {rate_last:.4f}% (N={total_last})")
-                report_lines.append(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
-            except ValueError:
-                # fallback when expected table has zero elements
-                odds, p_fisher = sp_stats.fisher_exact(table, alternative="two-sided")
-                print(f"  {p_first}: {rate_first:.4f}% (n={total_first:,})")
-                print(f"  {p_last}:  {rate_last:.4f}% (n={total_last:,})")
-                print(f"  Fisher exact: OR={odds:.4f}, P={p_fisher:.2e}")
-                report_lines.append(f"  {p_first}: {rate_first:.4f}% (N={total_first})")
-                report_lines.append(f"  {p_last}: {rate_last:.4f}% (N={total_last})")
-                report_lines.append(f"  Fisher exact: OR={odds:.4f}, P={p_fisher:.2e}")
+        rate_first = fringe_first / total_first * 100
+        rate_last  = fringe_last  / total_last  * 100
 
-    print("=" * 70)
+        log.info(f"  {p_first}: {rate_first:.4f}% (n={total_first:,})")
+        log.info(f"  {p_last}:  {rate_last:.4f}% (n={total_last:,})")
+        if chi2 is not None and p_chi2 is not None:
+            log.info(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
+            log.info("  ※ Note: with very large N, even small differences become significant.")
+
+        report_lines.append(f"  {p_first}: {rate_first:.4f}% (N={total_first})")
+        report_lines.append(f"  {p_last}: {rate_last:.4f}% (N={total_last})")
+        if chi2 is not None and p_chi2 is not None:
+            report_lines.append(f"  Chi2={chi2:.4f}, P={p_chi2:.2e}")
+        else:
+            report_lines.append("  Chi2=N/A, P=N/A (skipped)")
+
+    log.info("=" * 70)
 
     with open(REPORT_TXT, 'w', encoding='utf-8') as f:
         f.write('\n'.join(report_lines))
-    print(f"  Text report: {REPORT_TXT}")
+    log.info(f"  Text report: {REPORT_TXT}")
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [2, 3]})
 
@@ -209,7 +215,7 @@ def run_fringe_quality_analysis():
 
     plt.tight_layout()
     plt.savefig(REPORT_IMG, dpi=150, bbox_inches='tight')
-    print(f"  Image report: {REPORT_IMG}")
+    log.info(f"  Image report: {REPORT_IMG}")
 
     if os.getenv("SHOW_PLOT") == "1":
         plt.show()

@@ -5,6 +5,8 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from arena.artifacts.policies import (
+    AI_CHANGE_POINTS_PRIORITY_FILENAMES,
+    AI_CHANGE_POINTS_ROOT_RELATIVE,
     AI_EXPORT_DIR_PREFIX,
     AI_FALLBACK_SOURCE_PATHS,
     AI_FILENAME_GLOB_FALLBACKS,
@@ -56,7 +58,7 @@ def _iter_ai_search_roots(base_dir: Path) -> list[Path]:
     for root in raw_roots:
         try:
             resolved = str(root.resolve())
-        except Exception:
+        except OSError:
             resolved = str(root)
         if resolved in seen:
             continue
@@ -103,11 +105,11 @@ def resolve_ai_source_path(base_dir: Path, relative_path: str) -> tuple[Path | N
             return selected, f"matched_by_glob={rel_selected}; root={selected_root}; candidates={len(ranked_candidates)}"
 
     if "/" not in relative_path and "\\" not in relative_path:
-        candidates: dict[str, tuple[Path, Path]] = {}
+        name_candidates: dict[str, tuple[Path, Path]] = {}
         for search_root in search_roots:
             for path in search_root.rglob(relative_path):
                 if path.is_file():
-                    candidates[str(path.resolve())] = (search_root, path)
+                    name_candidates[str(path.resolve())] = (search_root, path)
 
         def name_sort_key(item: tuple[Path, Path]) -> tuple[int, int, int, float, str]:
             search_root, path = item
@@ -115,7 +117,7 @@ def resolve_ai_source_path(base_dir: Path, relative_path: str) -> tuple[Path | N
             prefixed, depth, neg_mtime, rel = _candidate_key_for_base(search_root, path)
             return (rank, prefixed, depth, neg_mtime, rel)
 
-        ranked_candidates = sorted(candidates.values(), key=name_sort_key)
+        ranked_candidates = sorted(name_candidates.values(), key=name_sort_key)
         if ranked_candidates:
             selected_root, selected = ranked_candidates[0]
             rel_selected = selected.relative_to(selected_root).as_posix()
@@ -133,7 +135,7 @@ def _iter_ai_discovery_roots(base_dir: Path) -> list[Path]:
     for root in raw_roots:
         try:
             resolved = str(root.resolve())
-        except Exception:
+        except OSError:
             resolved = str(root)
         if resolved in seen:
             continue
@@ -146,15 +148,45 @@ def _iter_ai_discovery_roots(base_dir: Path) -> list[Path]:
 def _is_ai_discovery_excluded_path(relative_path: str) -> bool:
     rel = relative_path.replace("\\", "/").lower()
     parts = Path(rel).parts
+    export_prefix = AI_EXPORT_DIR_PREFIX.lower()
     if any(part in ALWAYS_EXCLUDE_DIRS for part in parts):
         return True
     if any(part.startswith(ALWAYS_EXCLUDE_DIR_PREFIXES) for part in parts):
         return True
-    if any(part.startswith(AI_EXPORT_DIR_PREFIX.lower()) for part in parts):
+    if export_prefix and any(part.startswith(export_prefix) for part in parts):
         return True
     if rel in ALWAYS_EXCLUDE_REL_PATHS:
         return True
     return any(fnmatch(rel, pattern) for pattern in AI_PRIORITY_B_DISCOVERY_EXCLUDE_GLOBS)
+
+
+def discover_latest_change_points_targets(base_dir: Path) -> list[str]:
+    discovered: dict[str, str] = {}
+
+    for root in _iter_ai_discovery_roots(base_dir):
+        change_points_root = root / Path(AI_CHANGE_POINTS_ROOT_RELATIVE)
+        if not change_points_root.exists() or not change_points_root.is_dir():
+            continue
+
+        subdirs = [path for path in change_points_root.iterdir() if path.is_dir()]
+        if not subdirs:
+            continue
+        subdirs.sort(key=lambda path: (path.stat().st_mtime, path.name), reverse=True)
+        latest_dir = subdirs[0]
+
+        for filename in AI_CHANGE_POINTS_PRIORITY_FILENAMES:
+            source = latest_dir / filename
+            if not source.exists() or not source.is_file():
+                continue
+            relative_path = source.relative_to(root).as_posix()
+            if _is_ai_discovery_excluded_path(relative_path):
+                continue
+            excluded, _ = check_ai_export_exclusion(relative_path=relative_path, source_path=source)
+            if excluded:
+                continue
+            discovered.setdefault(relative_path, relative_path)
+
+    return sorted(discovered.keys())
 
 
 def discover_priority_b_existing_targets(base_dir: Path) -> list[str]:
@@ -166,7 +198,7 @@ def discover_priority_b_existing_targets(base_dir: Path) -> list[str]:
                     continue
                 try:
                     rel = path.relative_to(root).as_posix()
-                except Exception:
+                except ValueError:
                     continue
                 if _is_ai_discovery_excluded_path(rel):
                     continue
@@ -180,4 +212,3 @@ def discover_priority_b_existing_targets(base_dir: Path) -> list[str]:
                 discovered.setdefault(rel, rel)
 
     return sorted(discovered.keys())
-

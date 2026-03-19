@@ -4,8 +4,8 @@ import csv
 import shutil
 from pathlib import Path
 
-from arena.artifacts.discovery import iso_mtime, resolve_ai_source_path
 from arena.artifacts.hash_utils import sha256_file
+from arena.artifacts.discovery import iso_mtime, resolve_ai_source_path
 from arena.artifacts.models import AICandidateStatus, AIManifestRecord
 from arena.artifacts.policies import AI_FILES_SUBDIR, check_ai_export_exclusion, infer_category
 from arena.artifacts.schema import validate_candidate_status_rows, validate_manifest_record_rows
@@ -17,7 +17,7 @@ def to_flat_export_filename(relative_path: str) -> str:
 
 
 def resolve_flat_destination_path(export_dir: Path, relative_path: str) -> Path:
-    flat_dir = export_dir / AI_FILES_SUBDIR
+    flat_dir = export_dir if not AI_FILES_SUBDIR else export_dir / AI_FILES_SUBDIR
     flat_dir.mkdir(parents=True, exist_ok=True)
 
     filename = to_flat_export_filename(relative_path)
@@ -358,4 +358,3 @@ def write_ai_selected_manifest_extended(
                     row["expected_path"],
                 ]
             )
-

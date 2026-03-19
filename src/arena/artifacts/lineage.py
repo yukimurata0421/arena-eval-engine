@@ -51,7 +51,7 @@ def build_artifact_lineage(records: list[AIManifestRecord], generated_at: str) -
                 }
             )
 
-    payload = {
+    payload: dict[str, object] = {
         "generated_at": generated_at,
         "policy_version": POLICY_VERSION,
         "nodes": sorted(nodes.values(), key=lambda node: node["id"]),
@@ -69,4 +69,3 @@ def write_artifact_lineage(export_dir: Path, records: list[AIManifestRecord], ge
         json.dump(payload, file, ensure_ascii=False, indent=2)
         file.write("\n")
     return destination
-

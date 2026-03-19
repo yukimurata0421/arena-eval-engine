@@ -12,6 +12,9 @@ from arena.artifacts.policies import (
     POLICY_VERSION,
     ROOT,
 )
+from arena.log import get_logger
+
+logger = get_logger(__name__)
 
 
 def resolve_generated_at(deterministic: bool) -> str:
@@ -31,7 +34,8 @@ def resolve_git_commit() -> str:
             text=True,
             check=True,
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to resolve git commit: %s", exc)
         return ""
     return result.stdout.strip()
 
@@ -56,4 +60,3 @@ def write_reproducibility_stamp(
         json.dump(payload, file, ensure_ascii=False, indent=2)
         file.write("\n")
     return stamp_path
-

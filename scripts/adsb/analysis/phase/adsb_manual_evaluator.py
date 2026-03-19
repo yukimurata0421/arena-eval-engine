@@ -29,21 +29,23 @@ def get_user_phases():
 
 def run_manual_eval():
     input_file = str(ADSB_DAILY_SUMMARY)
-    if not os.path.exists(input_file): return
+    if not os.path.exists(input_file):
+        print(f"  [ERROR] 入力ファイルが見つかりません: {input_file}", file=sys.stderr)
+        sys.exit(1)
     df = pd.read_csv(input_file)
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date').reset_index(drop=True)
 
     median_val = df['auc_n_used'].median()
     df.loc[df['auc_n_used'] > 1000000, 'auc_n_used'] = median_val
-
+    
     df = df[df['date'] < df['date'].max()].copy()
 
     phases = get_user_phases()
     df['phase_idx'] = -1
     for i, p in enumerate(phases):
         df.loc[df['date'] >= pd.Timestamp(p['date']), 'phase_idx'] = i
-
+    
     df = df[df['phase_idx'] >= 0].reset_index(drop=True)
     y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
     phase_idx = jnp.array(df['phase_idx'].values)
@@ -57,12 +59,12 @@ def run_manual_eval():
 
     mcmc = MCMC(NUTS(model), num_warmup=1000, num_samples=2000, num_chains=1)
     mcmc.run(random.PRNGKey(42), y, phase_idx, num_phases)
-
+    
     samples = mcmc.get_samples()
     alphas = samples['alphas']
-
+    
     print("\n" + "="*80)
-    print(f"{'Phase':<20} | {'Start date':<12} | {'Avg aircraft/day':<18} | {'Improvement'}")
+    print(f"{'フェーズ':<20} | {'開始日':<12} | {'平均機数/日':<18} | {'改善'}")
     print("-" * 80)
     for i in range(num_phases):
         p_mean = np.mean(np.exp(alphas[:, i]))

@@ -65,4 +65,3 @@ class AICandidateStatus:
     reason: str
     what_it_enables: str
     rationale: str
-

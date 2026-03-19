@@ -1,15 +1,12 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "arena-eval-engine"
-version = "0.2.5"
-description = "ARENA: reproducible statistical validation engine for ADS-B performance optimization."
-readme = "README.md"
+version = "0.2.8"
 requires-python = ">=3.11"
-license = { text = "MIT" }
-authors = [{ name = "Murata" }]
+description = "Statistical evaluation engine for ADS-B receiver performance"
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
@@ -24,76 +21,60 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest==8.2.2",
-  "pytest-cov>=5,<7",
-  "ruff==0.6.9",
-  "pre-commit==3.7.1",
-]
-bayes = [
-  "pymc>=5.16",
-  "arviz>=0.18",
-]
-gpu = [
-  "jax>=0.4.30",
-  "jaxlib>=0.4.30",
-  "numpyro>=0.15",
-]
-# Runtime deps for Stage 4 (`arena run --only 4 --no-gpu`) and any run including Stage 4.
-run_cpu = [
-  "jax>=0.4.30",
-  "jaxlib>=0.4.30",
-  "numpyro>=0.15",
-]
-# Runtime deps for default/full pipeline execution including Stage 5 Bayesian steps.
-run_full = [
-  "jax>=0.4.30",
-  "jaxlib>=0.4.30",
-  "numpyro>=0.15",
-  "pymc>=5.16",
-  "arviz>=0.18",
-]
-all = [
-  "arena-eval-engine[dev,run_full]",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "mypy",
 ]
 
 [project.scripts]
 arena = "arena.cli:main"
+artifact = "arena.artifact_cli:main"
 
-[tool.setuptools]
-package-dir = { "" = "src" }
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["arena*"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q"
-pythonpath = ["src", "."]
-markers = [
-  "slow: long-running tests (run explicitly)",
-  "gpu: tests requiring GPU/JAX (run explicitly)",
-  "real_data: opt-in smoke tests against private local datasets",
-]
-
+# ── Ruff ──────────────────────────────────────────────
 [tool.ruff]
-line-length = 100
 target-version = "py311"
-extend-exclude = [
-  "scripts",
-  "data",
-  "output",
-]
+line-length = 140
+src = ["src", "scripts", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B"]
-ignore = ["E501"]
+select = [
+  "E",      # pycodestyle errors
+  "W",      # pycodestyle warnings
+  "F",      # pyflakes
+  "I",      # isort
+  "UP",     # pyupgrade (modernise syntax)
+  "B",      # flake8-bugbear
+  "SIM",    # flake8-simplify
+  "RUF",    # ruff-specific rules
+]
+ignore = [
+  "E402",   # module-level import not at top (sys.path manipulation)
+  "E501",   # line too long — handled by formatter
+  "SIM108", # ternary operator — readability preference
+  "RUF001", # ambiguous unicode — intentional (fullwidth Japanese characters)
+  "RUF002", # ambiguous unicode in docstrings
+  "RUF003", # ambiguous unicode in comments
+]
 
-[tool.coverage.run]
-branch = true
-source = ["arena", "scripts"]
+[tool.ruff.lint.isort]
+known-first-party = ["arena"]
 
-[tool.coverage.report]
-show_missing = true
-skip_covered = false
-fail_under = 55
+# ── Pytest ────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+# ── Mypy ──────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

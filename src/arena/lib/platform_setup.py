@@ -19,12 +19,27 @@ Usage:
 import os
 import sys
 
+from arena.log import get_logger
+
 # GPU_THRESHOLD: force CPU when data size is below this
 # Heuristic: on GTX 1060, DiscreteHMCGibbs beats CPU around n > 10,000
 GPU_THRESHOLD = 5000
 
-# CPU parallel chains (i7-8700K = 6C/12T → 4-6 is optimal)
-CPU_HOST_DEVICE_COUNT = min(6, os.cpu_count() or 4)
+logger = get_logger(__name__)
+
+
+def resolve_workers(default_cap: int = 12) -> int:
+    raw = os.environ.get("ADSB_MAX_WORKERS") or os.environ.get("ARENA_MAX_WORKERS") or ""
+    cpu = os.cpu_count() or default_cap
+    if raw:
+        try:
+            return max(1, min(int(raw), cpu))
+        except ValueError:
+            pass
+    return max(1, min(default_cap, cpu))
+
+
+CPU_HOST_DEVICE_COUNT = resolve_workers(default_cap=12)
 
 
 def _link_nvidia_dlls():
@@ -68,16 +83,14 @@ def _link_nvidia_dlls():
                         bin_paths.append(nvvm_p)
             if lib_paths:
                 existing = os.environ.get("LD_LIBRARY_PATH", "")
-                os.environ["LD_LIBRARY_PATH"] = ":".join(
-                    lib_paths + ([existing] if existing else [])
-                )
+                os.environ["LD_LIBRARY_PATH"] = ":".join(lib_paths + ([existing] if existing else []))
             if bin_paths:
                 existing = os.environ.get("PATH", "")
                 os.environ["PATH"] = ":".join(bin_paths + ([existing] if existing else []))
             if nvcc_base and os.path.isdir(nvcc_base):
                 os.environ["XLA_FLAGS"] = "--xla_gpu_cuda_data_dir=" + nvcc_base
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to link NVIDIA paths on POSIX; falling back to defaults: %s", exc)
 
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 
@@ -102,7 +115,7 @@ def init_numpyro_platform(n_data: int = 0, force_cpu: bool = False):
         os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
         numpyro.set_platform("cpu")
         numpyro.set_host_device_count(CPU_HOST_DEVICE_COUNT)
-        print(f"  Platform: CPU ({CPU_HOST_DEVICE_COUNT} devices) [{reason}]")
+        print(f"  プラットフォーム: CPU ({CPU_HOST_DEVICE_COUNT} devices) [{reason}]")
         return "cpu"
 
     # Try GPU
@@ -114,10 +127,10 @@ def init_numpyro_platform(n_data: int = 0, force_cpu: bool = False):
         devs = jax.devices("cuda")
         if not devs:
             raise RuntimeError("No CUDA devices")
-        print(f"  Platform: CUDA ({devs})")
+        print(f"  プラットフォーム: CUDA ({devs})")
         return "cuda"
     except Exception as e:
-        print(f"  CUDA unavailable ({e}), falling back to CPU")
+        print(f"  CUDA が利用できません（{e}）。CPU にフォールバックします")
         numpyro.set_platform("cpu")
         numpyro.set_host_device_count(CPU_HOST_DEVICE_COUNT)
         return "cpu"

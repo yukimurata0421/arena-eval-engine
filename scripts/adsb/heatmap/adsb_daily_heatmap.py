@@ -10,11 +10,19 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from arena.lib.config import get_site_latlon
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR as OUT_ROOT
+from arena.lib.platform_setup import resolve_workers
 
+from arena.log import get_script_logger
+
+
+log = get_script_logger(__name__)
 INPUT_DIR = str(DATA_DIR / "plao_pos")
 OUTPUT_DIR = str(OUT_ROOT / "heatmaps")
 SITE_LAT, SITE_LON = get_site_latlon()
-MAX_WORKERS = min(6, os.cpu_count() or 6)
+
+
+
+MAX_WORKERS = resolve_workers(default_cap=12)
 
 def process_one_file(f_path: str):
     filename = os.path.basename(f_path)
@@ -30,11 +38,11 @@ def process_one_file(f_path: str):
                     lat, lon = d['lat'], d['lon']
                     if 20 < lat < 50 and 120 < lon < 150:
                         coords.append([lat, lon])
-            except:
+            except Exception:
                 continue
 
     if not coords:
-        return f"   ⚠️ {filename}: No valid data. Skipping."
+        return f"   ⚠️ {filename}: 有効データなし。スキップします。"
 
     sampled_coords = coords[::50]
 
@@ -54,7 +62,7 @@ def process_one_file(f_path: str):
     ).add_to(m)
 
     m.save(out_path)
-    return f"   ✅ {filename}: Saved {out_path} (raw: {len(coords):,} -> plotted: {len(sampled_coords):,})"
+    return f"   ✅ {filename}: 保存しました {out_path}（raw: {len(coords):,} -> plotted: {len(sampled_coords):,}）"
 
 
 def process_daily_heatmaps():
@@ -62,18 +70,18 @@ def process_daily_heatmaps():
 
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        print(f"❌ File not found: {INPUT_DIR}")
+        log.info(f"❌ ファイルが見つかりません: {INPUT_DIR}")
         return
 
-    print(f">>> {len(files)}  days of data detected. Starting parallel processing... (workers={MAX_WORKERS})\n")
+    log.info(f">>> {len(files)} 日分のデータを検出。並列処理を開始します... (workers={MAX_WORKERS})\n")
 
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = [ex.submit(process_one_file, f_path) for f_path in files]
         for fut in as_completed(futures):
             try:
-                print(fut.result())
+                log.info(fut.result())
             except Exception as e:
-                print(f"   ⚠️ Failed: {e}")
+                log.info(f"   ⚠️ 失敗: {e}")
 
 if __name__ == "__main__":
     process_daily_heatmaps()

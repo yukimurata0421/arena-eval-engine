@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from jsonschema import validate
 
+
 STATE_NAMES = [
     "ok",
     "missing_required",
@@ -288,4 +289,3 @@ def export_schema_catalog() -> dict[str, object]:
         "artifact_lineage": deepcopy(ARTIFACT_LINEAGE_SCHEMA),
         "artifact_index": deepcopy(ARTIFACT_INDEX_SCHEMA),
     }
-

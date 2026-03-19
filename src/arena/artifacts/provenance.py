@@ -24,7 +24,7 @@ def build_artifact_provenance(records: list[AIManifestRecord], generated_at: str
             }
         )
 
-    payload = {
+    payload: dict[str, object] = {
         "generated_at": generated_at,
         "policy_version": POLICY_VERSION,
         "entries": sorted(entries, key=lambda entry: str(entry["artifact_path"])),
@@ -40,4 +40,3 @@ def write_artifact_provenance(export_dir: Path, records: list[AIManifestRecord],
         json.dump(payload, file, ensure_ascii=False, indent=2)
         file.write("\n")
     return destination
-

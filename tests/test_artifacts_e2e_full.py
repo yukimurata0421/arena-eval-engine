@@ -127,15 +127,16 @@ def _patch_artifact_subsystem(monkeypatch, base_dir: Path) -> None:
     monkeypatch.setattr(
         packaging,
         "AI_GEMINI_PACK_KEYS",
-        ["ai_export_summary.txt", "ai_hardware_date_recommendation.md", "primary.csv"],
+        ["primary.csv", "shared_report.txt", "missing_gemini_root.csv"],
     )
     monkeypatch.setattr(packaging, "AI_GEMINI_CORE_LIMIT", 3)
     monkeypatch.setattr(
         packaging,
         "AI_GPT_PACK_KEYS",
-        ["primary.csv", "phase_config_daily_mapping.csv", "analysis_methodology.md", "shared_report.txt"],
+        ["primary.csv", "phase_config_daily_mapping.csv", "missing_gpt_root.csv", "shared_report.txt"],
     )
     monkeypatch.setattr(packaging, "AI_GPT_CORE_LIMIT", 4)
+    monkeypatch.setattr(packaging, "AI_PRIORITY_DETAILS_FILL_KEYS", ["secondary.csv", "missing_details_fill.csv"])
 
     settings_stub = SimpleNamespace(
         path=str(base_dir / "config" / "settings.toml"),
@@ -175,14 +176,15 @@ def test_deterministic_mode_produces_identical_core_outputs(tmp_path: Path, monk
         "ai_export_summary.txt",
         "ai_selected_manifest.csv",
         "ai_selected_manifest_extended.csv",
-        "for_GPT/pack_manifest.txt",
-        "for_gemini/pack_manifest.txt",
-        "for_grok/pack_manifest.txt",
+        "manifests/GPT_pack.txt",
+        "manifests/GPT_selection.csv",
+        "manifests/gemini_pack.txt",
+        "manifests/gemini_selection.csv",
+        "manifests/grok_pack.txt",
+        "manifests/claude_pack.txt",
     ]
     for relative_path in comparable_files:
-        assert (export_dir_a / relative_path).read_text(encoding="utf-8") == (
-            export_dir_b / relative_path
-        ).read_text(encoding="utf-8")
+        assert (export_dir_a / relative_path).read_text(encoding="utf-8") == (export_dir_b / relative_path).read_text(encoding="utf-8")
 
     repro_payload = json.loads((export_dir_a / "reproducibility_stamp.json").read_text(encoding="utf-8"))
     assert repro_payload["timestamp"] == "1970-01-01T00:00:00"
@@ -199,8 +201,8 @@ def test_integrity_detects_hash_mismatch_and_missing_artifact(tmp_path: Path, mo
     _patch_artifact_subsystem(monkeypatch, base_dir)
 
     export_dir, records = app.export_ai_folder(base_dir=base_dir, output_root=output_root, deterministic=True)
-    (export_dir / "files" / "shared_report.txt").write_text("tampered\n", encoding="utf-8", newline="\n")
-    (export_dir / "files" / "primary.csv").unlink()
+    (export_dir / "shared_report.txt").write_text("tampered\n", encoding="utf-8", newline="\n")
+    (export_dir / "primary.csv").unlink()
 
     integrity = run_ai_export_integrity_check(
         records,
