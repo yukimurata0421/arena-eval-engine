@@ -6,7 +6,7 @@ import json
 import shutil
 import sys
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -71,7 +71,7 @@ from scripts.tools.artifacts.packaging import create_ai_review_packs, resolve_ti
 
 def iso_mtime(path: Path) -> str:
     # Use UTC to avoid host-local timezone drift (Windows/JST vs Linux/UTC) in deterministic smoke outputs.
-    return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    return datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def try_read_text(path: Path, max_bytes: int, prefer_tail: bool = False) -> tuple[str | None, str]:
