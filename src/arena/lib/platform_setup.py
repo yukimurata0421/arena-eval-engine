@@ -115,7 +115,7 @@ def init_numpyro_platform(n_data: int = 0, force_cpu: bool = False):
         os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
         numpyro.set_platform("cpu")
         numpyro.set_host_device_count(CPU_HOST_DEVICE_COUNT)
-        print(f"  プラットフォーム: CPU ({CPU_HOST_DEVICE_COUNT} devices) [{reason}]")
+        print(f" Platform: CPU ({CPU_HOST_DEVICE_COUNT} devices) [{reason}]")
         return "cpu"
 
     # Try GPU
@@ -127,10 +127,10 @@ def init_numpyro_platform(n_data: int = 0, force_cpu: bool = False):
         devs = jax.devices("cuda")
         if not devs:
             raise RuntimeError("No CUDA devices")
-        print(f"  プラットフォーム: CUDA ({devs})")
+        print(f" Platform: CUDA ({devs})")
         return "cuda"
     except Exception as e:
-        print(f"  CUDA が利用できません（{e}）。CPU にフォールバックします")
+        print(f" CUDA is unavailable ({e}). Falling back to CPU")
         numpyro.set_platform("cpu")
         numpyro.set_host_device_count(CPU_HOST_DEVICE_COUNT)
         return "cpu"

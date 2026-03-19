@@ -69,7 +69,7 @@ try:
     print(f" GTX 1060 initialized: {gpu_devices}")
     numpyro.set_platform("cuda")
 except Exception as e:
-    print(f" GPU 検出エラー: {e}\nCPU モードで実行します。")
+    print(f" GPU detection error: {e}\nRun in CPU mode.")
     numpyro.set_platform("cpu")
     numpyro.set_host_device_count(min(6, os.cpu_count() or 6))
 

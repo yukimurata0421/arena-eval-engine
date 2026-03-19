@@ -31,7 +31,7 @@ def test_validate_stage1_wave_indices_warns_on_missing_keywords(caplog) -> None:
     with caplog.at_level("WARNING"):
         entrypoint._validate_stage1_wave_indices(steps)
     msgs = "\n".join(r.getMessage() for r in caplog.records)
-    assert "期待キーワード" in msgs
+    assert "expected keyword" in msgs
 
 
 def test_run_stage_group_returns_none_when_only_one_stage_to_run(monkeypatch) -> None:

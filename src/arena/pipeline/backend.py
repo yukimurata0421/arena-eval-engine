@@ -193,7 +193,7 @@ def missing_modules(backend: Backend, modules: Sequence[str], env: dict[str, str
         return [line.strip() for line in out.splitlines() if line.strip()]
     except (OSError, subprocess.TimeoutExpired) as exc:
         logger.warning(
-            "Pythonモジュール確認のサブプロセスが失敗しました: %s: %s" " - モジュール確認をスキップし、全モジュールが不在として扱います",
+            "Python module checking subprocess failed: %s: %s" " - Skip module checking and treat all modules as absent",
             type(exc).__name__,
             exc,
         )
@@ -224,7 +224,7 @@ def detect_gpu_jax(backend: Backend, env: dict[str, str]) -> dict:
             info["device"] = lines[1].strip() if len(lines) > 1 else "GPU"
     except (OSError, subprocess.TimeoutExpired) as exc:
         logger.warning(
-            "GPU (JAX) 検出中に例外が発生しました: %s: %s - CPU モードにフォールバックします",
+            "Exception occurred during GPU (JAX) detection: %s: %s - Falling back to CPU mode",
             type(exc).__name__,
             exc,
         )

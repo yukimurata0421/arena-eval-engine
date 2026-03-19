@@ -86,7 +86,7 @@ def process_one_file(f_path: str):
 def process_fringe_decoding():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     files = sorted(glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*")))
-    log.info(f">>> 距離を再計算し再集計中... (workers={MAX_WORKERS})\n")
+    log.info(f">>> Recalculating and re-aggregating distances... (workers={MAX_WORKERS})\n")
     results = []
 
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
@@ -105,7 +105,7 @@ def process_fringe_decoding():
             "dist_0_100", "dist_100_200", "dist_200_300", "dist_300_plus"
         ])
         df.to_csv(TREND_CSV, index=False)
-        log.info(f"\n ⚠️ 対象データがありません。空CSVを書き出しました: {TREND_CSV}")
+        log.info(f"\n ⚠️ No target data. Exported empty CSV: {TREND_CSV}")
         return
 
     df = pd.DataFrame(results).sort_values('date')
@@ -120,7 +120,7 @@ def process_fringe_decoding():
         "fringe_ratio_pct": df["fringe_ratio"],
     })
     df_legacy.to_csv(TREND_LEGACY_CSV, index=False)
-    log.info(f"\n 距離補正済みCSVを作成しました: {TREND_CSV}")
+    log.info(f"\nCreated distance corrected CSV: {TREND_CSV}")
 
 if __name__ == "__main__":
     process_fringe_decoding()

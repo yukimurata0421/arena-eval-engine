@@ -36,7 +36,7 @@ def run_clean_discovery():
     
     df = df[df['auc_n_used'] > 5000].reset_index(drop=True)
     if len(df) < 10:
-        log.info(" 解析に必要な日数が足りません。")
+        log.info("Not enough days required for analysis.")
         return
 
     y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
@@ -58,7 +58,7 @@ def run_clean_discovery():
     kernel = DiscreteHMCGibbs(NUTS(model))
     mcmc = MCMC(kernel, num_warmup=1500, num_samples=3000, num_chains=1)
     
-    log.info("\n>>> 推論アルゴリズムを実行中...")
+    log.info("\n>>> Running inference algorithm...")
     mcmc.run(random.PRNGKey(42), y, n_days, K)
     
     samples = mcmc.get_samples()

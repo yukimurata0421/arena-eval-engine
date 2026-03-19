@@ -292,11 +292,11 @@ def build_phase_config_daily_mapping(daily_df: pd.DataFrame, timebin_df: pd.Data
 
     mapping = pd.DataFrame(rows)
     watched = ["phase_id", "phase_name", "sdr_type", "gain_profile", "cable_type", "adapter_type", "filter_type", "config_hash"]
-    # ベクトル化: per-cell ループ → shift() による一括比較
+    # Vectorization: per-cell loop → batch comparison using shift()
     _str = mapping[watched].astype(str)
     _prev = _str.shift(1)
     _changed_mask = _str != _prev
-    _changed_mask.iloc[0] = False  # 最初の行は比較対象なし
+    _changed_mask.iloc[0] = False # First row has no comparison
     mapping["changed_from_previous_day"] = _changed_mask.any(axis=1).astype(int)
     mapping["changed_fields"] = _changed_mask.apply(
         lambda row: ",".join(col for col, v in row.items() if v), axis=1
@@ -354,7 +354,7 @@ def build_phase_timebin_summary(timebin_df: pd.DataFrame, mapping_df: pd.DataFra
 
     group_cols = ["phase_id", "phase_name", "phase_label", "time_bin"]
     grp = merged.groupby(group_cols, dropna=False)
-    # lambda を使わず Cython 高速パスを維持するため quantile は別途計算して merge
+    # Calculate quantile separately and merge to maintain Cython fast path without using lambda
     agg = (
         grp.agg(
             n_days=("date", "nunique"),

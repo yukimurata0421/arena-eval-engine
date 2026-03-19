@@ -42,7 +42,7 @@ def process_one_file(f_path: str):
                 continue
 
     if not coords:
-        return f"   ⚠️ {filename}: 有効データなし。スキップします。"
+        return f" ⚠️ {filename}: No valid data. Skipping."
 
     sampled_coords = coords[::50]
 
@@ -62,7 +62,7 @@ def process_one_file(f_path: str):
     ).add_to(m)
 
     m.save(out_path)
-    return f"   ✅ {filename}: 保存しました {out_path}（raw: {len(coords):,} -> plotted: {len(sampled_coords):,}）"
+    return f" ✅ {filename}: Saved {out_path}(raw: {len(coords):,} -> plotted: {len(sampled_coords):,})"
 
 
 def process_daily_heatmaps():
@@ -70,10 +70,10 @@ def process_daily_heatmaps():
 
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        log.info(f"❌ ファイルが見つかりません: {INPUT_DIR}")
+        log.info(f"❌ File not found: {INPUT_DIR}")
         return
 
-    log.info(f">>> {len(files)} 日分のデータを検出。並列処理を開始します... (workers={MAX_WORKERS})\n")
+    log.info(f">>> {len(files)} days of data found. Starting parallel processing... (workers={MAX_WORKERS})\n")
 
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = [ex.submit(process_one_file, f_path) for f_path in files]
@@ -81,7 +81,7 @@ def process_daily_heatmaps():
             try:
                 log.info(fut.result())
             except Exception as e:
-                log.info(f"   ⚠️ 失敗: {e}")
+                log.info(f" ⚠️ Failed: {e}")
 
 if __name__ == "__main__":
     process_daily_heatmaps()

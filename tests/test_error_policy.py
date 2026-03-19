@@ -57,4 +57,4 @@ def test_warn_without_detail_uses_w99_and_generic_action() -> None:
     rec = _rec(status="WARN", stderr_tail="", stdout_tail="", step_code="S1-06")
     assert error_code_for_record(rec) == "S1-06-W99"
     actions = recommended_actions([rec])
-    assert any("OpenSky 取得が警告終了" in a for a in actions)
+    assert any("OpenSky acquisition ended with warning" in a for a in actions)

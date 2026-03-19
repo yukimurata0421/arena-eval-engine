@@ -9,7 +9,7 @@ import pandas as pd
 from scipy import stats as sp_stats
 import warnings
 
-# FitWarning (statsmodels 収束警告) のみ抑制。他の DeprecationWarning は表示する。
+# Suppress only FitWarning (statsmodels convergence warning). Other DeprecationWarnings are displayed.
 warnings.filterwarnings("ignore", category=Warning, module="statsmodels")
 warnings.filterwarnings("ignore", message=".*Maximum Likelihood.*", category=Warning)
 
@@ -32,7 +32,7 @@ PHASES = {
 
 def bootstrap_ci(data, n_boot=10000, ci=0.95, seed=42):
     """Bootstrap confidence interval for the mean.
-    ベクトル化済み: Python ループ 10,000 回 → NumPy 一括サンプリング (約10倍高速)。
+    Vectorized: 10,000 Python loops → NumPy batch sampling (about 10 times faster).
     """
     rng = np.random.default_rng(seed)
     if len(data) == 0:
@@ -47,8 +47,8 @@ def run_distance_analysis():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if not os.path.exists(FRINGE_CSV):
-        log.info(f"  ファイルが見つかりません: {FRINGE_CSV}")
-        log.info("  先に adsb_fringe_decoding_evaluator.py を実行してください。")
+        log.info(f" File not found: {FRINGE_CSV}")
+        log.info("Please run adsb_fringe_decoding_evaluator.py first.")
         return
 
     df = pd.read_csv(FRINGE_CSV)
@@ -57,7 +57,7 @@ def run_distance_analysis():
     if 'phase' in df.columns:
         df['phase_label'] = df['phase'].map(PHASES).fillna(df['phase'])
     else:
-        log.info("  phase 列がありません。fringe_decoding_stats.csv を確認してください。")
+        log.info(" Phase column is missing. Please check fringe_decoding_stats.csv.")
         return
 
     dist_cols = {
@@ -75,16 +75,16 @@ def run_distance_analysis():
     baseline_data = df[df['phase_label'] == baseline_phase]
 
     log.info("=" * 80)
-    log.info("  距離帯別パフォーマンス分析（比率比較）")
-    log.info(f"  ベースライン: {baseline_phase}（{len(baseline_data)} 日）")
+    log.info("Performance analysis by distance range (ratio comparison)")
+    log.info(f" Baseline: {baseline_phase} ({len(baseline_data)} days)")
     log.info("=" * 80)
 
     all_results = []
 
     for target_phase in phases[1:]:
         target_data = df[df['phase_label'] == target_phase]
-        log.info(f"\n--- {target_phase}（{len(target_data)} 日） vs {baseline_phase} ---")
-        log.info(f"{'距離帯':<22} {'基準%':>10} {'対象%':>10} "
+        log.info(f"\n--- {target_phase} ({len(target_data)} days) vs {baseline_phase} ---")
+        log.info(f"{'Distance band':<22} {'Reference%':>10} {'Target%':>10}"
               f"{'Change':>10} {'P-value':>10} {'Significance':>14}")
         log.info("-" * 80)
 
@@ -133,7 +133,7 @@ def run_distance_analysis():
 
     log.info("\n" + "=" * 80)
 
-    log.info("\n--- 長距離比率（200km+）の集計評価 ---")
+    log.info("\n--- Aggregate evaluation of long distance ratio (200km+) ---")
     df['ratio_fringe'] = (df['dist_200_300'] + df['dist_300_plus']) / df['total'] * 100
 
     for target_phase in phases[1:]:
@@ -145,8 +145,8 @@ def run_distance_analysis():
         tgt_fringe = df.loc[tgt_mask, 'ratio_fringe'].values
 
         if len(base_fringe) < 3 or len(tgt_fringe) < 3:
-            log.info(f"  [WARN] フリンジ集計: サンプル数不足 (base={len(base_fringe)}, tgt={len(tgt_fringe)})。"
-                  " Mann-Whitney U をスキップします。")
+            log.info(f" [WARN] Fringe aggregation: Insufficient samples (base={len(base_fringe)}, tgt={len(tgt_fringe)})."
+                  "Skip Mann-Whitney U.")
             continue
         u, p = sp_stats.mannwhitneyu(base_fringe, tgt_fringe, alternative='two-sided')
         base_ci = bootstrap_ci(base_fringe)
@@ -154,12 +154,12 @@ def run_distance_analysis():
 
         log.info(f"  {baseline_phase}: {np.mean(base_fringe):.2f}% (95%CI [{base_ci[0]:.2f}, {base_ci[1]:.2f}])")
         log.info(f"  {target_phase}:  {np.mean(tgt_fringe):.2f}% (95%CI [{tgt_ci[0]:.2f}, {tgt_ci[1]:.2f}])")
-        log.info(f"  Mann-Whitney P = {p:.6f}  → {'有意' if p < 0.05 else '有意ではない'}")
+        log.info(f" Mann-Whitney P = {p:.6f} → {'significant' if p < 0.05 else 'not significant'}")
 
     res_df = pd.DataFrame(all_results)
     save_path = os.path.join(OUTPUT_DIR, "distance_performance_summary.csv")
     res_df.to_csv(save_path, index=False)
-    log.info(f"\n  結果を保存しました: {save_path}")
+    log.info(f"\nResult saved: {save_path}")
 
 
 if __name__ == "__main__":

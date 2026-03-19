@@ -138,13 +138,13 @@ def generate_traffic_proxy():
 
     pos_files = sorted(glob.glob(os.path.join(POS_DIR, "pos_*.jsonl*")))
     if not pos_files:
-        log.info(f"  エラー: pos ファイルが見つかりません: {POS_DIR}")
+        log.info(f" Error: pos file not found: {POS_DIR}")
         return
 
-    log.info(f">>> ローカル交通プロキシを計算中")
-    log.info(f"    対象: {len(pos_files)} ファイル")
-    log.info(f"    半径: {RADII_KM} km")
-    log.info(f"    並列: {MAX_WORKERS} workers")
+    log.info(f">>> Calculating local transportation proxy")
+    log.info(f" Target: {len(pos_files)} files")
+    log.info(f" radius: {RADII_KM} km")
+    log.info(f" Parallel: {MAX_WORKERS} workers")
 
     results = []
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -156,12 +156,12 @@ def generate_traffic_proxy():
                     results.append(result)
             except Exception:
                 continue
-            log.info(f"  [{i + 1}/{len(pos_files)}] 完了")
+            log.info(f" [{i + 1}/{len(pos_files)}] completed")
 
-    log.info(f"\n  有効データ: {len(results)} 日")
+    log.info(f"\nValid data: {len(results)} days")
 
     if not results:
-        log.info("  エラー: 有効データがありません。")
+        log.info("Error: No valid data.")
         return
 
     df_proxy = pd.DataFrame(results).sort_values('date').reset_index(drop=True)
@@ -175,9 +175,9 @@ def generate_traffic_proxy():
     if not os.path.exists(summary_path):
         proxy_csv = str(OUTPUT_DIR / "local_traffic_proxy.csv")
         df_proxy.to_csv(proxy_csv, index=False)
-        log.info(f"  プロキシのみ保存しました: {proxy_csv}")
+        log.info(f" Only proxy saved: {proxy_csv}")
         df_proxy.to_csv(FINAL_OUTPUT, index=False)
-        log.info(f"  v2（プロキシのみ）保存しました: {FINAL_OUTPUT}")
+        log.info(f" v2 (proxy only) saved: {FINAL_OUTPUT}")
         return
 
     df_summary = pd.read_csv(summary_path)
@@ -195,30 +195,30 @@ def generate_traffic_proxy():
 
     n_matched = df_merged['local_traffic_proxy'].notna().sum()
     n_missing = df_merged['local_traffic_proxy'].isna().sum()
-    log.info(f"\n  結合結果: 一致 {n_matched} 日、欠損 {n_missing} 日")
+    log.info(f"\nJoin result: matching {n_matched} days, missing {n_missing} days")
 
     if n_missing > 0:
         missing_dates = df_merged.loc[
             df_merged['local_traffic_proxy'].isna(), 'date'
         ].tolist()
-        log.info(f"  欠損日: {missing_dates[:10]}{'...' if len(missing_dates) > 10 else ''}")
+        log.info(f" Missing dates: {missing_dates[:10]}{'...' if len(missing_dates) > 10 else ''}")
 
     df_merged.to_csv(FINAL_OUTPUT, index=False)
-    log.info(f"\n  保存しました: {FINAL_OUTPUT}")
+    log.info(f"\nSaved: {FINAL_OUTPUT}")
 
     endo = run_endogeneity_check(df_merged)
-    log.info(f"\n  --- 内生性チェック ---")
+    log.info(f"\n --- Endogeneity check ---")
     if 'error' in endo:
-        log.info(f"  スキップ: {endo['error']}")
+        log.info(f" Skip: {endo['error']}")
     else:
-        log.info(f"  事前 平均: {endo['pre_mean']}")
-        log.info(f"  事後 平均: {endo['post_mean']}")
-        log.info(f"  変化: {endo['change_pct']:+.1f}%  (P = {endo['p_value']:.6f})")
+        log.info(f" pre mean: {endo['pre_mean']}")
+        log.info(f" Post Mean: {endo['post_mean']}")
+        log.info(f" Change: {endo['change_pct']:+.1f}% (P = {endo['p_value']:.6f})")
         if endo['is_endogenous']:
-            log.info(f"  ⚠ 有意差あり: 50km以内のユニーク機数がハード変更後に増加。")
-            log.info(f"    代替として 25km 値の利用を検討してください。")
+            log.info(f" ⚠ Significant difference: The number of unique aircraft within 50km increased after the hardware change.")
+            log.info(f" Please consider using the 25km value as an alternative.")
         else:
-            log.info(f"  ✓ 外生性確認: プロキシは交絡制御に使用可能です。")
+            log.info(f" ✓ Exogeneity confirmed: Proxy can be used to control confounding.")
 
 
 if __name__ == "__main__":

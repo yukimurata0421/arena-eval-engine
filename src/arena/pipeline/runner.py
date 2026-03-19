@@ -178,21 +178,21 @@ class PipelineRunner:
 
         if self._should_skip_existing(step):
             rec = self._make_record(step, script_rel, backend_desc, status="SKIP(existing)")
-            self._record_and_log(step, rec, f"    [SKIP] 出力既存 - {step.label}")
+            self._record_and_log(step, rec, f" [SKIP] Output existing - {step.label}")
             return True
 
         cmd, cwd = self.backend.build_script_cmd(script_rel, step.extra_args or None)
 
         if self.dry_run:
             rec = self._make_record(step, script_rel, backend_desc, status="DRY", cmd=cmd)
-            est_str = f" (予測 約{step.est_s}s)" if step.est_s else ""
+            est_str = f" (prediction about {step.est_s}s)" if step.est_s else ""
             self._record_and_log(step, rec, f"    [DRY] {step.label}{est_str}: {script_rel}")
             return True
 
         skip_no_inputs, _input_dir = self._should_skip_no_inputs(step)
         if skip_no_inputs:
             rec = self._make_record(step, script_rel, backend_desc, status="SKIP(no input)")
-            self._record_and_log(step, rec, f"    [SKIP] 入力なし - {step.label}")
+            self._record_and_log(step, rec, f" [SKIP] No input - {step.label}")
             return True
 
         if self.backend.kind == "native":
@@ -222,7 +222,7 @@ class PipelineRunner:
     ) -> bool:
         t0 = time.time()
         ts0 = now_iso()
-        est_str = f" (予測 約{step.est_s}s)" if step.est_s else ""
+        est_str = f" (prediction about {step.est_s}s)" if step.est_s else ""
         with self._print_lock:
             logger.info("    > %s%s ...", step.label, est_str)
 
@@ -303,17 +303,17 @@ class PipelineRunner:
     ) -> bool:
         if status == "OK":
             with self._print_lock:
-                logger.info("    [OK] 実績 %.1fs - %s", elapsed, step.label)
+                logger.info(" [OK] Actual %.1fs - %s", elapsed, step.label)
             return True
         if status == "WARN":
             with self._print_lock:
-                logger.warning("    [WARN] 実績 %.1fs - %s", elapsed, step.label)
+                logger.warning(" [WARN] Actual %.1fs - %s", elapsed, step.label)
             return True
 
         with self._print_lock:
-            logger.error("    [NG] 実績 %.1fs - %s", elapsed, step.label)
+            logger.error(" [NG] Actual %.1fs - %s", elapsed, step.label)
             if status == "FAIL_OUTPUT" and missing:
-                logger.error("      [出力検証に失敗]")
+                logger.error(" [Output validation failed]")
                 for m in missing[:3]:
                     logger.error("      - %s", m)
                 if len(missing) > 3:
@@ -352,9 +352,9 @@ class PipelineRunner:
         self._append_jsonl(rec)
         with self._print_lock:
             if status == "WARN":
-                logger.warning("    [WARN] 実績 %ss (timeout) - %s", step.timeout_s, step.label)
+                logger.warning(" [WARN] Actual %ss (timeout) - %s", step.timeout_s, step.label)
                 return True
-            logger.error("    [NG] 実績 %ss (timeout) - %s", step.timeout_s, step.label)
+            logger.error(" [NG] Actual %ss (timeout) - %s", step.timeout_s, step.label)
         return (not step.critical) and (not self.fail_fast)
 
     def _handle_exception(
@@ -390,7 +390,7 @@ class PipelineRunner:
             if status == "WARN":
                 logger.warning("    [WARN] %s - %s", exc, step.label)
                 return True
-            logger.error("    [NG] エラー %s - %s", exc, step.label)
+            logger.error(" [NG] Error %s - %s", exc, step.label)
         return (not step.critical) and (not self.fail_fast)
 
     # ------------------------------------------------------------------
@@ -398,7 +398,7 @@ class PipelineRunner:
     # ------------------------------------------------------------------
     def print_summary(self) -> None:
         logger.info("\n" + "=" * 78)
-        logger.info("パイプライン集計")
+        logger.info("pipeline aggregation")
         logger.info("=" * 78)
 
         total = sum(r.elapsed_s for r in self.records)
@@ -429,7 +429,7 @@ class PipelineRunner:
         issues = [r for r in self.records if r.status.split("(")[0] in ("WARN", "FAIL", "FAIL_OUTPUT", "TIMEOUT", "ERROR", "NOT_FOUND")]
         if issues:
             logger.info("-" * 78)
-            logger.info("  エラーコード詳細")
+            logger.info("Error code details")
             for r in issues:
                 stage_name = STAGE_NAMES.get(r.stage, f"Stage {r.stage}")
                 reason = self._summarize_warn_reason(r)
@@ -439,7 +439,7 @@ class PipelineRunner:
             actions = self._recommended_actions(issues)
             if actions:
                 logger.info("-" * 78)
-                logger.info("  推奨アクション")
+                logger.info(" Recommended action")
                 for a in actions:
                     logger.info("  - %s", a)
 
@@ -449,7 +449,7 @@ class PipelineRunner:
             ("OK", "OK"),
             ("WARN", "WARN"),
             ("FAIL", "NG"),
-            ("FAIL_OUTPUT", "NG(出力)"),
+            ("FAIL_OUTPUT", "NG(output)"),
             ("TIMEOUT", "NG(TO)"),
             ("ERROR", "NG(Err)"),
             ("NOT_FOUND", "NG(NF)"),
@@ -458,9 +458,9 @@ class PipelineRunner:
         ]:
             if counts.get(key):
                 parts.append(f"{counts[key]} {label}")
-        logger.info("  結果: %s", " / ".join(parts))
-        logger.info("  合計時間: %.0fs (%.1f min)", total, total / 60)
-        logger.info("  ログ: %s", self.jsonl_log_path)
+        logger.info(" Result: %s", " / ".join(parts))
+        logger.info("Total time: %.0fs (%.1f min)", total, total / 60)
+        logger.info("log: %s", self.jsonl_log_path)
         logger.info("=" * 78)
 
     def write_error_code_report(self) -> Path:

@@ -1,0 +1,45 @@
+[run]
+source =
+    src/arena
+    scripts
+relative_files = True
+omit =
+    */__pycache__/*
+    tests/*
+    scripts/tools/debug/*
+    scripts/structure
+    scripts/secrets/*
+    # Pure re-export compatibility wrappers (no independent runtime logic).
+    scripts/tools/artifacts/discovery.py
+    scripts/tools/artifacts/hash_utils.py
+    scripts/tools/artifacts/integrity.py
+    scripts/tools/artifacts/lineage.py
+    scripts/tools/artifacts/manifest.py
+    scripts/tools/artifacts/models.py
+    scripts/tools/artifacts/policies.py
+    scripts/tools/artifacts/provenance.py
+    scripts/tools/artifacts/replay.py
+    scripts/tools/artifacts/repro_stamp.py
+    scripts/tools/artifacts/run_metadata.py
+    scripts/tools/artifacts/schema.py
+    scripts/tools/artifacts/selection.py
+
+[report]
+show_missing = True
+skip_empty = True
+omit =
+    tests/*
+    */__pycache__/*
+    scripts/tools/artifacts/discovery.py
+    scripts/tools/artifacts/hash_utils.py
+    scripts/tools/artifacts/integrity.py
+    scripts/tools/artifacts/lineage.py
+    scripts/tools/artifacts/manifest.py
+    scripts/tools/artifacts/models.py
+    scripts/tools/artifacts/policies.py
+    scripts/tools/artifacts/provenance.py
+    scripts/tools/artifacts/replay.py
+    scripts/tools/artifacts/repro_stamp.py
+    scripts/tools/artifacts/run_metadata.py
+    scripts/tools/artifacts/schema.py
+    scripts/tools/artifacts/selection.py

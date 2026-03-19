@@ -28,7 +28,7 @@ def latest_dependency_mtime(output_root_native: Path, dependencies: Sequence[str
                 mtimes.append(fp.stat().st_mtime)
         except OSError as e:
             logger.warning(
-                "依存ファイルの mtime 取得に失敗 (%s): %s: %s" " - スキップ判定に依存関係を使用しません",
+                "Failed to obtain mtime of dependent file (%s): %s: %s" " - Do not use dependencies for skip judgment",
                 fp,
                 type(e).__name__,
                 e,
@@ -110,7 +110,7 @@ def should_skip_no_inputs(step: Step, data_root_native: Path) -> tuple[bool, Pat
         has_inputs = any(input_dir.glob(pattern))
     except OSError as e:
         logger.warning(
-            "input_pattern の glob に失敗 (%s / '%s'): %s: %s" " - 入力なしとしてステップをスキップします",
+            "Failed to glob input_pattern (%s / '%s'): %s: %s" " - Skip step as no input",
             input_dir,
             pattern,
             type(e).__name__,

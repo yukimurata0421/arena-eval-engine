@@ -147,7 +147,7 @@ def test_cmd_validate_fails_when_settings_missing_required_keys(monkeypatch, cli
     with caplog.at_level("INFO"):
         rc = arena_cli.cmd_validate(args)
     assert rc == 1
-    assert any("settings.toml に必須キーがありません" in rec.getMessage() for rec in caplog.records)
+    assert any("settings.toml is missing a required key" in rec.getMessage() for rec in caplog.records)
 
 
 def test_cmd_validate_warns_when_lat_lon_are_zero(monkeypatch, cli_env, caplog) -> None:
@@ -191,7 +191,7 @@ def test_cmd_validate_warns_when_lat_lon_are_zero(monkeypatch, cli_env, caplog) 
     with caplog.at_level("WARNING"):
         rc = arena_cli.cmd_validate(args)
     assert rc == 0
-    assert any("site.lat/lon が 0.0 です" in rec.getMessage() for rec in caplog.records)
+    assert any("site.lat/lon is 0.0" in rec.getMessage() for rec in caplog.records)
 
 
 def test_cmd_validate_creates_data_and_output_dirs(monkeypatch, cli_env) -> None:
@@ -631,4 +631,3 @@ def test_cmd_sync_rpi_logs_builds_expected_cli_args(monkeypatch, tmp_path: Path)
         "--skip-plao-sync",
     ]:
         assert expected in cmd
-

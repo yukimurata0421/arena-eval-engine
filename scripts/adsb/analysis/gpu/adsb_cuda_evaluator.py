@@ -38,19 +38,19 @@ def run_cuda_analysis():
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes, require_proxy=True)
     if df is None or df.empty:
-        log.info("  エラー: 入力データがありません。")
+        log.info("Error: No input data.")
         return
     df = df.sort_values("date").reset_index(drop=True)
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["auc_n_used", "log_traffic"])
     if len(df) < 5:
-        log.info("  警告: 有効データが不足しているため、変化点評価をスキップします。")
+        log.info("Warning: Skipping change point evaluation due to lack of valid data.")
         return
 
     n_days = len(df)
     dates = df["date"].values
 
     log.info(
-        f"  解析対象: {n_days} 日（{df['date'].min().date()} ~ {df['date'].max().date()}）"
+        f" Parse target: {n_days} days ({df['date'].min().date()} ~ {df['date'].max().date()})"
         f" [min_auc>{min_auc}, minutes>={min_minutes}]"
     )
 
@@ -78,7 +78,7 @@ def run_cuda_analysis():
 
     n_chains = max(1, min(CPU_HOST, 4))
     mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=n_chains)
-    log.info(f"  MCMC 開始 (warmup={num_warmup}, samples={num_samples}, chains={n_chains}, CPU)...")
+    log.info(f" MCMC started (warmup={num_warmup}, samples={num_samples}, chains={n_chains}, CPU)...")
     mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
 
     samples = mcmc.get_samples()
@@ -94,8 +94,8 @@ def run_cuda_analysis():
     mean_improvement = np.mean(improvement_samples)
     hdi_lo, hdi_hi = np.percentile(improvement_samples, [3, 97])
 
-    log.info(f"\n  最も可能性の高い変化点: {detected_date.date()} (index={best_tau_idx})")
-    log.info(f"  推定改善率: {mean_improvement:+.1f}% (94% HDI: [{hdi_lo:+.1f}%, {hdi_hi:+.1f}%])")
+    log.info(f"\nMost likely change point: {detected_date.date()} (index={best_tau_idx})")
+    log.info(f" Estimated improvement rate: {mean_improvement:+.1f}% (94% HDI: [{hdi_lo:+.1f}%, {hdi_hi:+.1f}%])")
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={"height_ratios": [3, 2, 2]})
 
@@ -148,7 +148,7 @@ def run_cuda_analysis():
     os.makedirs(perf_dir, exist_ok=True)
     out_path = os.path.join(perf_dir, "adsb_cuda_evaluator_change_point.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
-    log.info(f"  保存しました: {out_path}")
+    log.info(f" saved: {out_path}")
 
     if os.getenv("SHOW_PLOT") == "1":
         plt.show()

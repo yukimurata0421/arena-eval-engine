@@ -41,8 +41,8 @@ def open_file(path):
 
 
 def _process_pos_file(pf):
-    """1つの pos ファイルを処理して [{date, time_bin, traffic_proxy}] を返す。
-    ProcessPoolExecutor で pickle できるようモジュールレベルに定義。
+    """Process one pos file and return [{date, time_bin, traffic_proxy}].
+    Defined at module level so that it can be pickled by ProcessPoolExecutor.
     """
     base = os.path.basename(pf)
     date_str = "".join(filter(str.isdigit, base))[:8]
@@ -62,7 +62,7 @@ def _process_pos_file(pf):
                 except Exception:
                     continue
     except Exception as e:
-        log.info(f"\n⚠️ エラー ({base}): {e}")
+        log.info(f"\n⚠️ Error ({base}): {e}")
         return []
     return [{'date': target_date, 'time_bin': t_bin, 'traffic_proxy': len(hs)}
             for t_bin, hs in hourly_hex.items()]
@@ -71,11 +71,11 @@ def _process_pos_file(pf):
 def process_aggregator():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-    log.info(f">>> AUC データ集計中...")
+    log.info(f">>> AUC data aggregation...")
     dist_rows = []
     for fp in DIST_FILES:
         if not os.path.exists(fp): continue
-        log.info(f"  読み込み: {os.path.basename(fp)}")
+        log.info(f" read: {os.path.basename(fp)}")
         total_lines = skip_lines = 0
         with open_file(fp) as f:
             for line in f:
@@ -95,14 +95,14 @@ def process_aggregator():
                     skip_lines += 1
                     continue
         if total_lines > 0 and skip_lines / total_lines > 0.05:
-            log.info(f"  [WARN] {os.path.basename(fp)}: {skip_lines}/{total_lines} 行をスキップしました"
-                  f" ({skip_lines/total_lines*100:.1f}%)。データ形式を確認してください。")
+            log.info(f" [WARN] {os.path.basename(fp)}: {skip_lines}/{total_lines} lines skipped"
+                  f" ({skip_lines/total_lines*100:.1f}%). Please check the data format.")
     
     if not dist_rows:
         output_path = os.path.join(OUTPUT_DIR, "adsb_timebin_summary.csv")
         pd.DataFrame(columns=["date", "time_bin", "auc_sum", "total_packets", "minutes",
                               "traffic_proxy", "post"]).to_csv(output_path, index=False)
-        log.info(f"⚠️ AUC データが空です。空CSVを書き出しました: {output_path}")
+        log.info(f"⚠️ AUC data is empty. Exported empty CSV: {output_path}")
         return
 
     df_dist = pd.DataFrame(dist_rows)
@@ -112,25 +112,25 @@ def process_aggregator():
         minutes=('auc_n_used', 'count')
     ).reset_index()
 
-    log.info(f">>> 航空機密度を計算中（対象: {len(POS_FILES)} ファイル）...")
+    log.info(f">>> Calculating aircraft density (target: {len(POS_FILES)} file)...")
     traffic_rows = []
 
     max_workers = int(os.environ.get("ARENA_MAX_WORKERS", os.cpu_count() or 4))
     sorted_files = sorted(POS_FILES)
     if max_workers > 1 and len(sorted_files) > 4:
-        # ProcessPoolExecutor で並列処理 (既に opensky 評価が同様のパターンを使用)
+        # Parallel processing with ProcessPoolExecutor (opensky evaluation already uses a similar pattern)
         with ProcessPoolExecutor(max_workers=min(max_workers, len(sorted_files))) as ex:
             futures = {ex.submit(_process_pos_file, pf): pf for pf in sorted_files}
             done = 0
             for future in as_completed(futures):
                 done += 1
-                log.info(f"  [{done}/{len(sorted_files)}] 完了")
+                log.info(f" [{done}/{len(sorted_files)}] done")
                 traffic_rows.extend(future.result())
     else:
         for i, pf in enumerate(sorted_files):
-            log.info(f"  [{i+1}/{len(sorted_files)}] 処理中: {os.path.basename(pf)} ...")
+            log.info(f" [{i+1}/{len(sorted_files)}] Processing: {os.path.basename(pf)} ...")
             traffic_rows.extend(_process_pos_file(pf))
-    log.info("\n>>> 航空機密度計算が完了しました。")
+    log.info("\n>>> Aircraft density calculation completed.")
 
     if traffic_rows:
         df_traffic = pd.DataFrame(traffic_rows)
@@ -140,8 +140,8 @@ def process_aggregator():
     final_df = pd.merge(df_auc, df_traffic, on=['date', 'time_bin'], how='left')
     _med_traffic = final_df['traffic_proxy'].median()
     if not pd.notna(_med_traffic):
-        log.info("  [WARN] traffic_proxy が全て NaN です。fill_val=1.0 を使用します。"
-              " pos_*.jsonl ファイルが存在するか確認してください。")
+        log.info(" [WARN] traffic_proxy is all NaN. Use fill_val=1.0."
+              "Please check if the pos_*.jsonl files exist.")
     _fill_traffic = _med_traffic if pd.notna(_med_traffic) else 1.0
     final_df['traffic_proxy'] = final_df['traffic_proxy'].fillna(_fill_traffic)
     final_df['post'] = (pd.to_datetime(final_df['date']) >= pd.Timestamp(INTERVENTION_DATE)).astype(int)
@@ -151,7 +151,7 @@ def process_aggregator():
     
     output_path = os.path.join(OUTPUT_DIR, "adsb_timebin_summary.csv")
     final_df.to_csv(output_path, index=False)
-    log.info(f"集計完了: {output_path}（{len(final_df)} サンプル）")
+    log.info(f"Aggregation completed: {output_path} ({len(final_df)} samples)")
 
 if __name__ == "__main__":
     process_aggregator()

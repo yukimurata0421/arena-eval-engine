@@ -15,7 +15,7 @@ from arena.log import get_script_logger
 log = get_script_logger(__name__)
 
 def run_analysis():
-    log.info(" ADS-B 動的評価エンジン")
+    log.info("ADS-B Dynamic Evaluation Engine")
     
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes)
@@ -40,19 +40,19 @@ def run_analysis():
             family=sm.families.NegativeBinomial()
         ).fit()
     except Exception as e:
-        log.info(f" 解析エラー: {e}")
+        log.info(f" parsing error: {e}")
         return
 
     if 'post' not in model.params:
-        log.info("  [WARN] モデルパラメータに 'post' が存在しません。"
-              " データに pre/post の変動がない可能性があります。解析を中止します。")
+        log.info(" [WARN] 'post' does not exist in model parameter."
+              "There may be no pre/post fluctuations in the data. Analysis will be stopped.")
         return
     gamma = model.params['post']
     p_value = model.pvalues['post']
     improvement_rate = (np.exp(gamma) - 1) * 100
 
     log.info("\n" + "="*50)
-    log.info(f" 解析対象: {cutoff.date()}")
+    log.info(f" Parse target: {cutoff.date()}")
     log.info(f"Estimated pure improvement rate: {improvement_rate:+.2f} %")
     log.info(f"Statistical confidence (p-value)   : {p_value:.4f}")
     log.info("="*50)

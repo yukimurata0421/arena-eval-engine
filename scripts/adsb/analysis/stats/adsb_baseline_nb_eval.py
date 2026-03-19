@@ -50,7 +50,7 @@ def run_baseline_analysis():
         return
 
     log.info("\n" + "=" * 70)
-    log.info("      ADS-B ベースライン NB 回帰レポート")
+    log.info(" ADS-B Baseline NB Regression Report")
     log.info("=" * 70)
     log.info(model.summary())
     log.info("=" * 70)

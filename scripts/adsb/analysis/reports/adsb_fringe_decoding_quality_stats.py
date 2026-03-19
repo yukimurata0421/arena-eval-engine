@@ -37,7 +37,7 @@ def run_fringe_quality_analysis():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if not os.path.exists(FRINGE_CSV):
-        log.info(f"  ファイルが見つかりません: {FRINGE_CSV}")
+        log.info(f" File not found: {FRINGE_CSV}")
         return
 
     df = pd.read_csv(FRINGE_CSV)
@@ -45,7 +45,7 @@ def run_fringe_quality_analysis():
     df = df.sort_values('date').reset_index(drop=True)
 
     if 'phase' not in df.columns:
-        log.info("  phase 列がありません。")
+        log.info(" phase column is missing.")
         return
 
     # fringe_ratio = (dist_200_300 + dist_300_plus) / total * 100
@@ -60,7 +60,7 @@ def run_fringe_quality_analysis():
     report_lines.append("=== ADS-B Fringe Decoding Statistical Report (v2) ===\n")
 
     log.info("=" * 70)
-    log.info("  フリンジデコード品質分析（200km+ 比率）")
+    log.info("Fringe decoding quality analysis (200km+ ratio)")
     log.info("=" * 70)
 
     phase_stats = {}
@@ -133,14 +133,14 @@ def run_fringe_quality_analysis():
         chi2 = None
         p_chi2 = None
         if total_first <= 0 or total_last <= 0:
-            log.info("  警告: 有効データが不足しているため、χ²検定をスキップします。")
+            log.info("Warning: Skipping χ² test due to lack of valid data.")
         elif (table[0][0] == 0 and table[1][0] == 0) or (table[0][1] == 0 and table[1][1] == 0):
-            log.info("  警告: 期待度数が 0 になるため、χ²検定をスキップします。")
+            log.info("Warning: Skipping χ² test because expected frequency is 0.")
         else:
             try:
                 chi2, p_chi2, _, _ = sp_stats.chi2_contingency(table)
             except ValueError as e:
-                log.info(f"  警告: χ²検定に失敗しました（{e}）。スキップします。")
+                log.info(f" Warning: χ² test failed ({e}). Skipping.")
 
         rate_first = fringe_first / total_first * 100
         rate_last  = fringe_last  / total_last  * 100

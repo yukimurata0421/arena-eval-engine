@@ -24,14 +24,14 @@ def prompt_intervention_date(default_date: str):
         d = parse_date(target_date)
         if d:
             return pd.Timestamp(d)
-        print(" 日付形式が不正です。")
+        print("Date format is invalid.")
 
 
 def prompt_phase_dates(default_labels=None):
     if default_labels is None:
         default_labels = {}
 
-    print("\n" + "=" * 50 + "\n フェーズ設定モード\n" + "=" * 50)
+    print("\n" + "=" * 50 + "\n Phase setting mode\n" + "=" * 50)
     phases = []
 
     while True:
@@ -40,15 +40,15 @@ def prompt_phase_dates(default_labels=None):
         if base_dt:
             phases.append({"date": base_dt.strftime("%Y-%m-%d"), "name": "Initial Baseline"})
             break
-        print(" 形式エラー。")
+        print("Format error.")
 
-    print("\n2. 介入日を追加（例: 2026-01-14,airspy_introduce）。終了は 'done'。")
+    print("\n2. Add intervention date (e.g. 2026-01-14,airspy_introduce). End 'done'.")
     while True:
         entry = input("Intervention date and name (YYYY-MM-DD or YYYY/MM/DD,Name): ").strip()
         if entry.lower() == "done":
             if len(phases) > 1:
                 break
-            print(" 少なくとも1つの介入日が必要です。")
+            print("At least one intervention date is required.")
             continue
         try:
             d_str, n_str = entry.split(",", 1)
@@ -61,6 +61,6 @@ def prompt_phase_dates(default_labels=None):
             phases.append({"date": date_val.strftime("%Y-%m-%d"), "name": name})
         except Exception as exc:
             logger.debug("prompt_phase_dates: invalid intervention entry=%r (%s)", entry, exc)
-            print(" 入力形式エラー。")
+            print("Input format error.")
 
     return phases

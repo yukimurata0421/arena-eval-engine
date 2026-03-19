@@ -442,9 +442,9 @@ def main():
 
     site_latlon = (float(args.site_lat), float(args.site_lon))
 
-    log.info(f"[INFO] 入力ファイル数: {len(paths)}  dir={args.input_dir} pattern={args.pattern}")
-    log.info(f"[INFO] サイト(lat,lon)=({site_latlon[0]:.8f},{site_latlon[1]:.8f})")
-    log.info(f"[INFO] JAX バックエンド検出: {jax_backend}")
+    log.info(f"[INFO] Number of input files: {len(paths)} dir={args.input_dir} pattern={args.pattern}")
+    log.info(f"[INFO] Site(lat,lon)=({site_latlon[0]:.8f},{site_latlon[1]:.8f})")
+    log.info(f"[INFO] JAX backend detection: {jax_backend}")
     log.info(f"[INFO] bin_edges={bin_edges}")
 
     # ----------------------------
@@ -622,9 +622,9 @@ def main():
             plot_calendar_bins(df, bin_labels, os.path.join(out_dir, "plao_auc_norm_bins_trend_calendar.png"))
 
     log.info("")
-    log.info(f"[OK] 出力: {daily_csv}")
-    log.info(f"[OK] 出力: {report_txt}")
-    log.info(f"[OK] 出力: {os.path.join(out_dir, 'plao_skipped_days.csv')}")
+    log.info(f"[OK] Output: {daily_csv}")
+    log.info(f"[OK] Output: {report_txt}")
+    log.info(f"[OK] Output: {os.path.join(out_dir, 'plao_skipped_days.csv')}")
     log.info(f"[OK] out_dir: {out_dir}")
     log.info(f"[INFO] use_for_stats_days={int(df['use_for_stats'].sum())}/{len(df)}")
     log.info(f"[INFO] quality_threshold(auc_norm_total)={thr:.3f} (ratio={args.skip_threshold_ratio})")

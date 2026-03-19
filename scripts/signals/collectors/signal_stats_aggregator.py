@@ -187,7 +187,7 @@ def aggregate_signal_ranges() -> None:
     files = list(set(files))
 
     if not files:
-        log.info(">>> 0 files: 信号強度データが見つかりません。")
+        log.info(">>> 0 files: No signal strength data found.")
         df = pd.DataFrame(columns=ALL_COLS)
         os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
         df.to_csv(OUTPUT_FILE, index=False)

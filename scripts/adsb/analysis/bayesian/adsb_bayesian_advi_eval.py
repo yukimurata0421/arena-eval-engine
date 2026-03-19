@@ -31,7 +31,7 @@ def run_bayesian_advi():
     df['auc_n_used'] = df['auc_n_used'].fillna(0).clip(lower=0)
     df = df.dropna(subset=['auc_n_used', 'local_traffic_proxy', 'post', 'log_traffic'])
     if len(df) < 5:
-        log.info("  警告: 有効データが不足しているため、ベイズ解析をスキップします。")
+        log.info("Warning: Skipping Bayesian analysis due to insufficient valid data.")
         return
     
     y = df['auc_n_used'].values.astype(float)
@@ -60,7 +60,7 @@ def run_bayesian_advi():
     hdi_94 = az.hdi(improvement_samples, hdi_prob=0.94)
 
     log.info("\n" + "="*50)
-    log.info(f" ベイズ解析レポート（ADVI）: {cutoff.date()}")
+    log.info(f" Bayesian analysis report (ADVI): {cutoff.date()}")
     log.info(f"Estimated improvement (mean): {mean_improvement:+.2f} %")
     log.info(f"94% credible interval (HDI): [{hdi_94[0]:.1f}%, {hdi_94[1]:.1f}%]")
     log.info(f"� [Probability the change was effective]: {prob_improved:.1f} %")

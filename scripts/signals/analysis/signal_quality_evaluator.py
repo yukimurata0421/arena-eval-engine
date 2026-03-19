@@ -16,7 +16,7 @@ log = get_script_logger(__name__)
 def run_signal_analysis():
     input_file = str(ADSB_SIGNAL_DAILY_SUMMARY)
     if not os.path.exists(input_file):
-        log.info("CSV が見つかりません。先にアグリゲータを実行してください。")
+        log.info("CSV not found. Please run the aggregator first.")
         return
 
     df = pd.read_csv(input_file)

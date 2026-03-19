@@ -41,7 +41,7 @@ def load_settings_data(path: Path) -> dict[str, Any]:
         text = path.read_text(encoding="utf-8")
     except Exception as e:
         print(
-            f"[WARN] settings.toml の読み込みに失敗しました ({path}): " f"{type(e).__name__}: {e} - デフォルト設定を使用します",
+            f"[WARN] Failed to load settings.toml ({path}): " f"{type(e).__name__}: {e} - Using default settings",
             file=sys.stderr,
         )
         return {}
@@ -52,7 +52,7 @@ def load_settings_data(path: Path) -> dict[str, Any]:
             return data if isinstance(data, dict) else {}
         except Exception as e:
             print(
-                f"[WARN] settings.toml のパースに失敗しました ({path}): " f"{type(e).__name__}: {e} - デフォルト設定を使用します",
+                f"[WARN] Failed to parse settings.toml ({path}): " f"{type(e).__name__}: {e} - Using default settings",
                 file=sys.stderr,
             )
             return {}
@@ -67,13 +67,13 @@ def load_settings_data(path: Path) -> dict[str, Any]:
             if isinstance(fallback_data, dict) and fallback_data:
                 fallback_data["parse_warning"] = f"failed_to_parse_toml: {exc}"
                 print(
-                    f"[WARN] settings.toml のTOMLパースに失敗、フォールバックパーサを使用: {exc}",
+                    f"[WARN] TOML parsing of settings.toml failed, using fallback parser: {exc}",
                     file=sys.stderr,
                 )
                 return fallback_data
         except Exception as e2:
             print(
-                f"[WARN] settings.toml のパースが完全に失敗しました ({path}): {exc}; fallback: {e2}" " - デフォルト設定を使用します",
+                f"[WARN] Parsing settings.toml completely failed ({path}): {exc}; fallback: {e2}" " - using default settings",
                 file=sys.stderr,
             )
         return {"error": f"failed_to_parse: {exc}"}

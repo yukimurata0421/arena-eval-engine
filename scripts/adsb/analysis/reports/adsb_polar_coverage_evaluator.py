@@ -122,16 +122,16 @@ def process_one_file(f_path: str):
 
 def process_polar_coverage():
     if not _site_is_valid(SITE_LAT, SITE_LON):
-        log.info(" 観測点座標が不正です (lat/lon=0)。settings.toml の [site] を確認してください。")
+        log.info("The observation point coordinates are invalid (lat/lon=0). Please check [site] in settings.toml.")
         return
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        log.info(f" ファイルが見つかりません: {INPUT_DIR}")
+        log.info(f" File not found: {INPUT_DIR}")
         return
 
-    log.info(f">>> {len(files)} 日分のデータを走査し、P95カバレッジとトレンドを算出中... (workers={MAX_WORKERS})\n")
+    log.info(f">>> Scanning {len(files)} days of data and calculating P95 coverage and trends... (workers={MAX_WORKERS})\n")
 
     trend_data = []
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
@@ -145,16 +145,16 @@ def process_polar_coverage():
                 continue
     
     if not trend_data:
-        log.info("有効データがありません。")
+        log.info("No valid data.")
         return
 
     df_trend = pd.DataFrame(trend_data).sort_values('date').reset_index(drop=True)
     
     if len(df_trend) > 2:
         df_trend = df_trend.iloc[1:-1].copy()
-        log.info(f"\n 初日/最終日を除外しました。有効日数: {len(df_trend)}")
+        log.info(f"\n Excludes first/last day. Valid days: {len(df_trend)}")
     else:
-        log.info("\n 日数が少ないため、初日/最終日の除外をスキップします。")
+        log.info("\n Skip first/last day exclusion due to fewer days.")
 
     df_trend.to_csv(TREND_CSV, index=False)
 
@@ -183,8 +183,8 @@ def process_polar_coverage():
     fig.savefig(TREND_IMG, dpi=150)
     plt.close(fig)
 
-    log.info(f" 保存しました: {TREND_CSV}")
-    log.info(f" 保存しました: {TREND_IMG}")
+    log.info(f" Saved: {TREND_CSV}")
+    log.info(f" Saved: {TREND_IMG}")
 
 if __name__ == "__main__":
     process_polar_coverage()

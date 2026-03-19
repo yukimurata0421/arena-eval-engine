@@ -27,7 +27,7 @@ REPORT_IMG = str(Path(OUTPUT_DIR) / "tsuchiura_master_log_report.png")
 
 def generate_report():
     if not os.path.exists(AUC_CSV) or not os.path.exists(SIG_CSV):
-        log.info(" CSV が見つかりません。")
+        log.info("CSV not found.")
         return
 
     cfg = get_config()
@@ -39,7 +39,7 @@ def generate_report():
     
     df = pd.merge(df_auc, df_sig, on='date', how='inner').sort_values('date')
     if df.empty:
-        log.info("  結合データが空のため、レポートをスキップします。")
+        log.info("Skipping report because join data is empty.")
         return
     
     df = df[df['date'] >= pd.Timestamp(cfg.report_start_date)].copy()
@@ -52,18 +52,18 @@ def generate_report():
         retained_lowq = lowq[lowq['date'].isin(phase_dates)].copy()
         lowq_plot_mask = (df_plot['minutes_covered'] < min_minutes) | (df_plot['auc_n_used'] < min_auc)
         if not lowq.empty:
-            log.info(f"  低品質日を除外: {len(lowq)} 日 (minutes<{min_minutes} or auc_n_used<{min_auc})")
+            log.info(f" Exclude low quality days: {len(lowq)} days (minutes<{min_minutes} or auc_n_used<{min_auc})")
             for _, r in lowq.tail(5).iterrows():
                 log.info(f"    - {r['date'].date()} (minutes={int(r['minutes_covered'])}, auc_n_used={int(r['auc_n_used'])})")
         if not retained_lowq.empty:
-            log.info(f"  フェーズ境界日のため保持: {len(retained_lowq)} 日")
+            log.info(f" Retained for phase boundary date: {len(retained_lowq)} days")
             for _, r in retained_lowq.iterrows():
                 log.info(f"    + {r['date'].date()} (minutes={int(r['minutes_covered'])}, auc_n_used={int(r['auc_n_used'])})")
         quality_ok = (df['minutes_covered'] >= min_minutes) & (df['auc_n_used'] >= min_auc)
         keep_phase_boundary = df['date'].isin(phase_dates)
         df = df[quality_ok | keep_phase_boundary].copy()
         if df.empty:
-            log.info("  品質閾値適用後に描画対象日がありません。")
+            log.info("There are no dates to draw after applying the quality threshold.")
             return
 
     phases = cfg.master_log_phases
@@ -120,10 +120,10 @@ def generate_report():
     plt.suptitle("Tsuchiura ADS-B Station Master Log Analysis", fontsize=18, fontweight='bold')
     
     plt.savefig(REPORT_IMG, bbox_inches='tight', dpi=150)
-    log.info(f" レポート画像を保存しました: {REPORT_IMG}")
+    log.info(f" Report image saved: {REPORT_IMG}")
 
     log.info("\n" + "="*85)
-    log.info(f"{'フェーズ構成':<25} | {'日数':<5} | {'平均パケット/日':<12} | {'信号(dBFS)'}")
+    log.info(f"{'Phase configuration':<25} | {'Number of days':<5} | {'Average packets/day':<12} | {'Signal (dBFS)'}")
     log.info("-" * 85)
 
     for i, p in enumerate(phases):

@@ -199,11 +199,11 @@ def build_daily_quantile_signature(
 
     if method_counts.get("interpolated_from_p95_max", 0) > 0:
         assumptions.append(
-            "q99 は dist_1m に p99 が存在しないため、p95 と max の線形補間で近似した。"
+            "Since p99 does not exist in dist_1m, q99 was approximated by linear interpolation of p95 and max."
         )
     if method_counts.get("fallback_max", 0) > 0:
         assumptions.append(
-            "一部レコードで q99 を max にフォールバックした。"
+            "Q99 fell back to max for some records."
         )
 
     stats = {
@@ -315,7 +315,7 @@ def build_daily_coverage_signature(
         out = out.sort_values("date").reset_index(drop=True)
 
     assumptions.append(
-        "coverage は dist_signal_stats の距離バケットを日次合算し、閾値がバケット内部に入る場合は一様分布を仮定して線形補間した。"
+        "Coverage sums up the distance buckets of dist_signal_stats on a daily basis, and if the threshold falls within the bucket, linear interpolation is performed assuming uniform distribution."
     )
     stats = {"records_total": records_total, "records_used": records_used, "days": int(len(out))}
     return SeriesBuildResult(frame=out, warnings=warnings, assumptions=assumptions, stats=stats)

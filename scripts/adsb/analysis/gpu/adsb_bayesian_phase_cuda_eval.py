@@ -21,10 +21,10 @@ OUTPUT_FILE = os.path.join(OUTPUT_DIR, "bayesian_phase_results_cuda.csv")
 
 
 def _hdi_bounds(samples, hdi_prob: float = 0.94):
-    """arviz hdi() の戻り値型を吸収するヘルパー。
+    """Helper that absorbs the return type of arviz hdi().
     arviz < 0.14: ndarray([lo, hi])
     arviz >= 0.14: Dataset / dict {'x': array([lo, hi])}
-    常に (lo, hi) のタプルを返す。
+    Always returns a tuple of (lo, hi).
     """
     import arviz as az
     import numpy as np
@@ -53,14 +53,14 @@ def run_bayesian_phase_cuda_analysis():
         import pymc as pm
         import arviz as az
     except ImportError as e:
-        log.info(f"  必要なライブラリが不足しています: {e}")
+        log.info(f" A required library is missing: {e}")
         return
 
     # ============================================================
     # ============================================================
     n_cores = min(os.cpu_count() or 4, CHAINS)
 
-    log.info(f" ADS-B ベイズ評価（CPU 並列 {n_cores} cores / NumPyro バックエンド）")
+    log.info(f" ADS-B Bayesian evaluation (CPU parallel {n_cores} cores / NumPyro backend)")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -89,16 +89,16 @@ def run_bayesian_phase_cuda_analysis():
     is_weekend = df["is_weekend"].values.astype(float)
     num_phases = len(df["phase_idx"].unique())
     if len(df) < 5 or num_phases < 2:
-        log.info("  警告: 有効データが不足しているため、ベイズ解析をスキップします。")
+        log.info("Warning: Skipping Bayesian analysis due to insufficient valid data.")
         return
 
-    log.info(f"  データ: {len(df)} 日, フェーズ数: {num_phases}")
+    log.info(f" data: {len(df)} days, number of phases: {num_phases}")
     for i in range(num_phases):
         n = (phase_idx == i).sum()
         name = PHASE_NAMES.get(i, f"Phase{i}")
-        log.info(f"    {name}: {n} 日")
+        log.info(f" {name}: {n} days")
 
-    log.info(f"\n  PyMC モデル構築中（NumPyro/CPU {n_cores} cores 並列）...")
+    log.info(f"\n Building PyMC model (NumPyro/CPU {n_cores} cores parallel)...")
     with pm.Model() as model:
         alphas = pm.Normal("alphas", mu=10.0, sigma=3.0, shape=num_phases)
         beta_traffic = pm.Normal("beta_traffic", mu=0.5, sigma=0.5)
@@ -110,7 +110,7 @@ def run_bayesian_phase_cuda_analysis():
         )
         pm.NegativeBinomial("y_obs", mu=mu, alpha=phi, observed=y)
 
-        log.info(f"  MCMC 実行中 (chains={CHAINS}, draws={DRAWS}, tune={TUNE})...")
+        log.info(f" MCMC running (chains={CHAINS}, draws={DRAWS}, tune={TUNE})...")
         trace = pm.sample(
             draws=DRAWS,
             tune=TUNE,
@@ -123,18 +123,18 @@ def run_bayesian_phase_cuda_analysis():
         )
 
     log.info("\n" + "=" * 70)
-    log.info("  ADS-B ベイズレポート（CPU 並列 / PyMC+NumPyro）")
+    log.info("ADS-B Bayesian report (CPU parallel / PyMC+NumPyro)")
     log.info("=" * 70)
 
     summary = az.summary(trace, var_names=["alphas", "beta_traffic", "beta_weekend", "phi"])
-    log.info("\n--- パラメータ要約 ---")
+    log.info("\n--- Parameter summary ---")
     log.info(summary)
 
     alphas_samples = trace.posterior["alphas"].values
     alphas_flat = alphas_samples.reshape(-1, num_phases)
 
-    log.info("\n--- フェーズ間の改善 ---")
-    log.info(f"{'比較':<35} {'平均':>8} {'HDI 94%':>20} {'P(>0)':>8}")
+    log.info("\n--- Improvements between phases ---")
+    log.info(f"{'Comparison':<35} {'Average':>8} {'HDI 94%':>20} {'P(>0)':>8}")
     log.info("-" * 75)
 
     results = []
@@ -184,7 +184,7 @@ def run_bayesian_phase_cuda_analysis():
     beta_traffic_samples = trace.posterior["beta_traffic"].values.flatten()
     beta_weekend_samples = trace.posterior["beta_weekend"].values.flatten()
 
-    log.info(f"\n--- 共変量効果 ---")
+    log.info(f"\n--- covariate effects ---")
     log.info(
         f"  Traffic elasticity: {np.mean(beta_traffic_samples):.4f} "
         f"(94% HDI: {az.hdi(beta_traffic_samples, hdi_prob=0.94)})"
@@ -198,7 +198,7 @@ def run_bayesian_phase_cuda_analysis():
 
     res_df = pd.DataFrame(results)
     res_df.to_csv(OUTPUT_FILE, index=False)
-    log.info(f"\n  結果を保存しました: {OUTPUT_FILE}")
+    log.info(f"\nResult saved: {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

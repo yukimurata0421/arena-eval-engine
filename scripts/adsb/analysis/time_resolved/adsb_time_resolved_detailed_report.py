@@ -19,7 +19,7 @@ OUTPUT_DIR = str(Path(OUTPUT_DIR) / "performance")
 
 def generate_detailed_report():
     if not os.path.exists(CSV_PATH):
-        log.info("❌ データが見つかりません。")
+        log.info("❌ No data found.")
         return
 
     df = pd.read_csv(CSV_PATH)
@@ -28,7 +28,7 @@ def generate_detailed_report():
     report_data = []
     bins = sorted(df['time_bin'].unique())
     
-    log.info(f"{'時間帯':<10} | {'旧平均':>10} | {'新平均':>10} | {'変化率%':>10} | {'P値'}")
+    log.info(f"{'Time period':<10} | {'Old average':>10} | {'New average':>10} | {'Change%':>10} | {'P value'}")
     log.info("-" * 65)
 
     for b in bins:
@@ -37,13 +37,13 @@ def generate_detailed_report():
         
         m1, m2 = group1.mean(), group2.mean()
         if m1 == 0 or len(group1) == 0:
-            log.info(f"  [WARN] 時間帯 {b}: pre-intervention データが空またはゼロです。変化率を計算できません。")
+            log.info(f" [WARN] Time period {b}: pre-intervention data is empty or zero. Unable to calculate rate of change.")
             change = float('nan')
         else:
             change = ((m2 / m1) - 1) * 100
 
         if len(group1) < 2 or len(group2) < 2:
-            log.info(f"  [WARN] 時間帯 {b}: サンプル数が不足しています (pre={len(group1)}, post={len(group2)})。")
+            log.info(f" [WARN] Time period {b}: Insufficient number of samples (pre={len(group1)}, post={len(group2)}).")
             p_val = float('nan')
             t_stat = float('nan')
         else:
@@ -91,7 +91,7 @@ def generate_detailed_report():
     plt.tight_layout()
     img_path = os.path.join(OUTPUT_DIR, "time_resolved_detailed_plot.png")
     plt.savefig(img_path)
-    log.info(f"\n✅ 詳細レポート図を保存しました: {img_path}")
+    log.info(f"\n✅ Detailed report diagram saved: {img_path}")
 
 if __name__ == "__main__":
     generate_detailed_report()

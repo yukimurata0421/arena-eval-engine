@@ -19,14 +19,14 @@
 - error_policy: error classification and recommended actions
 
 ## <JP>
-- entrypoint: 実行開始点。設定を集めて runner に渡す
-- stages: 実行対象 Step の定義
-- runner: Step を順番に制御して実行する司令塔
-- decision: skip / stale / soft-fail の判定ロジック
-- backend: native / WSL など実行環境差分の吸収
-- record_io: 実行記録の保存
-- error_policy: エラーコード化と推奨アクション生成
+- entrypoint: execution starting point. Collect settings and pass to runner
+- stages: Definition of Step to be executed
+- runner: Control tower that controls and executes steps in order.
+- decision: skip / stale / soft-fail judgment logic
+- Backend: Absorption of execution environment differences such as native / WSL
+- record_io: Save execution record
+- error_policy: Error encoding and recommended action generation
 
 ### Standard Artifact Note
-- Change-point 解析は標準パイプライン Stage 5 に含まれます。
-- 必須成果物: `output/change_point/change_point_report.txt`, `output/change_point/multi_change_points_report.txt`
+- Change-point analysis is included in standard pipeline Stage 5.
+- Required artifacts: `output/change_point/change_point_report.txt`, `output/change_point/multi_change_points_report.txt`

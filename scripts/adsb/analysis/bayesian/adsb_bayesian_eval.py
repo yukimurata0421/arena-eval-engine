@@ -16,17 +16,17 @@ OUTPUT_DIR = str(OUT_ROOT / "performance")
 
 
 def _hdi_bounds(samples, hdi_prob: float = 0.94):
-    """arviz hdi() の戻り値型を吸収するヘルパー。
+    """Helper that absorbs the return type of arviz hdi().
     arviz < 0.14: ndarray([lo, hi])
     arviz >= 0.14: Dataset / dict {'x': array([lo, hi])}
-    常に (lo, hi) のタプルを返す。
+    Always returns a tuple of (lo, hi).
     """
     import arviz as az
     import numpy as np
     result = az.hdi(samples, hdi_prob=hdi_prob)
     if isinstance(result, np.ndarray):
         return float(result[0]), float(result[1])
-    # xarray.Dataset または dict 系
+    # xarray.Dataset or dict type
     arr = result[list(result.keys())[0]] if hasattr(result, 'keys') else list(result.data_vars.values())[0]
     arr = np.asarray(arr).flatten()
     return float(arr[0]), float(arr[1])
@@ -43,7 +43,7 @@ def run_bayesian_analysis():
         import pymc as pm
         import arviz as az
     except ImportError:
-        print("  PyMC がインストールされていません。")
+        print("PyMC is not installed.")
         print("  pip install pymc arviz")
         return
 
@@ -73,13 +73,13 @@ def run_bayesian_analysis():
     is_weekend = df['is_weekend'].values.astype(float)
     num_phases = len(df['phase_idx'].unique())
 
-    print(f"  データ: {len(df)} 日, フェーズ数: {num_phases}")
+    print(f" data: {len(df)} days, number of phases: {num_phases}")
     for i in range(num_phases):
         n = (phase_idx == i).sum()
         name = PHASE_NAMES.get(i, f"Phase{i}")
-        print(f"    {name}: {n} 日")
+        print(f" {name}: {n} days")
 
-    print("\n  PyMC モデルを構築中...")
+    print("\n Building PyMC model...")
 
     n_cores = min(os.cpu_count() or 4, 4)
 
@@ -100,7 +100,7 @@ def run_bayesian_analysis():
 
         y_obs = pm.NegativeBinomial('y_obs', mu=mu, alpha=phi, observed=y)
 
-        print(f"  MCMC 実行中 (chains={n_cores}, cores={n_cores})...")
+        print(f" MCMC running (chains={n_cores}, cores={n_cores})...")
         trace = pm.sample(
             draws=2000,
             tune=1000,
@@ -112,19 +112,19 @@ def run_bayesian_analysis():
         )
 
     print("\n" + "=" * 70)
-    print("  ADS-B ベイズレポート（PyMC NegativeBinomial）")
+    print(" ADS-B Bayesian Report (PyMC NegativeBinomial)")
     print("=" * 70)
 
     summary = az.summary(trace, var_names=['alphas', 'beta_traffic', 'beta_weekend', 'phi'])
-    print("\n--- パラメータ要約 ---")
+    print("\n--- Parameter summary ---")
     print(summary)
 
     alphas_samples = trace.posterior['alphas'].values
     # shape: (chains, draws, num_phases)
     alphas_flat = alphas_samples.reshape(-1, num_phases)
 
-    print("\n--- フェーズ間の改善 ---")
-    print(f"{'比較':<35} {'平均':>8} {'HDI 94%':>20} {'P(>0)':>8}")
+    print("\n--- Improvements between phases ---")
+    print(f"{'Comparison':<35} {'Average':>8} {'HDI 94%':>20} {'P(>0)':>8}")
     print("-" * 75)
 
     results = []
@@ -174,7 +174,7 @@ def run_bayesian_analysis():
     beta_traffic_samples = trace.posterior['beta_traffic'].values.flatten()
     beta_weekend_samples = trace.posterior['beta_weekend'].values.flatten()
 
-    print(f"\n--- 共変量効果 ---")
+    print(f"\n--- covariate effect ---")
     print(f"  Traffic elasticity: {np.mean(beta_traffic_samples):.4f} "
           f"(94% HDI: {az.hdi(beta_traffic_samples, hdi_prob=0.94)})")
     weekend_pct = (np.exp(beta_weekend_samples) - 1) * 100
@@ -186,7 +186,7 @@ def run_bayesian_analysis():
     res_df = pd.DataFrame(results)
     save_path = os.path.join(OUTPUT_DIR, "bayesian_phase_results.csv")
     res_df.to_csv(save_path, index=False)
-    print(f"\n  結果を保存しました: {save_path}")
+    print(f"\nResult saved: {save_path}")
 
 
 if __name__ == "__main__":

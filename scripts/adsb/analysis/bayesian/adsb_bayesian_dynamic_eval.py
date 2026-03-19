@@ -41,7 +41,7 @@ def run_bayesian_analysis():
     df['auc_n_used'] = df['auc_n_used'].fillna(0).clip(lower=0)
     df = df.dropna(subset=['auc_n_used', 'local_traffic_proxy', 'post', 'log_traffic'])
     if len(df) < 5:
-        log.info("  警告: 有効データが不足しているため、ベイズ解析をスキップします。")
+        log.info("Warning: Skipping Bayesian analysis due to insufficient valid data.")
         return
     
     y = df['auc_n_used'].values.astype(float)
@@ -53,7 +53,7 @@ def run_bayesian_analysis():
         pre_vals = y[post_flag == 0]
         post_vals = y[post_flag == 1]
         if len(pre_vals) == 0 or len(post_vals) == 0:
-            log.info("  警告: 事前/事後データの片方が不足しているため、近似評価をスキップします。")
+            log.info("Warning: Approximate evaluation will be skipped because one of the pre/post data is missing.")
             return
         pre_mean = float(np.mean(pre_vals))
         post_mean = float(np.mean(post_vals))
@@ -62,7 +62,7 @@ def run_bayesian_analysis():
         prob_improved = 100.0 if mean_improvement > 0 else 0.0
 
         log.info("\n" + "="*50)
-        log.info(f" ベイズ解析レポート(FAST): {cutoff.date()}")
+        log.info(f" Bayesian analysis report (FAST): {cutoff.date()}")
         log.info(f"Estimated improvement (mean): {mean_improvement:+.2f} %")
         log.info(f"94% credible interval (HDI): [{mean_improvement:.1f}%, {mean_improvement:.1f}%]")
         log.info(f" [Probability the change was effective]: {prob_improved:.1f} %")
@@ -108,7 +108,7 @@ def run_bayesian_analysis():
     hdi_94 = az.hdi(improvement_samples, hdi_prob=0.94)
 
     log.info("\n" + "="*50)
-    log.info(f" ベイズ解析レポート: {cutoff.date()}")
+    log.info(f" Bayesian analysis report: {cutoff.date()}")
     log.info(f"Estimated improvement (mean): {mean_improvement:+.2f} %")
     log.info(f"94% credible interval (HDI): [{hdi_94[0]:.1f}%, {hdi_94[1]:.1f}%]")
     log.info(f"� [Probability the change was effective]: {prob_improved:.1f} %")

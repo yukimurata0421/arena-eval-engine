@@ -15,14 +15,14 @@ from arena.log import get_script_logger
 
 log = get_script_logger(__name__)
 def run_analysis():
-    log.info(" ADS-B 統計評価エンジン開始 (statsmodels 64-bit)")
+    log.info(" ADS-B statistics evaluation engine started (statsmodels 64-bit)")
     
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes)
     if df is None:
         return
     
-    log.info("Step: 負の二項回帰を実行中...")
+    log.info("Step: Running negative binomial regression...")
     
     formula = "auc_n_used ~ post + np.log(local_traffic_proxy)"
     
@@ -33,7 +33,7 @@ def run_analysis():
             family=sm.families.NegativeBinomial()
         ).fit()
     except Exception as e:
-        log.info(f" 解析エラー: {e}")
+        log.info(f" parsing error: {e}")
         log.info("Hint: too few days or is_post_change lacks both 0 and 1.")
         return
 
@@ -43,8 +43,8 @@ def run_analysis():
     log.info(model.summary())
 
     if 'post' not in model.params:
-        log.info("  [WARN] モデルパラメータに 'post' が存在しません。"
-              " データに pre/post の変動がない可能性があります。解析を中止します。")
+        log.info(" [WARN] 'post' does not exist in model parameter."
+              "There may be no pre/post fluctuations in the data. Analysis will be stopped.")
         return
     gamma = model.params['post']
     p_value = model.pvalues['post']

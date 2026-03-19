@@ -63,7 +63,7 @@ def _safe_write_text(path: Path, text: str) -> None:
         path.write_text(text, encoding="utf-8")
         log.info(f"[OK] report: {path}")
     except Exception as e:
-        log.info(f"[WARN] レポート保存に失敗しました: {path} ({e})")
+        log.info(f"[WARN] Failed to save report: {path} ({e})")
 
 
 def _safe_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -72,7 +72,7 @@ def _safe_write_json(path: Path, payload: dict[str, Any]) -> None:
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         log.info(f"[OK] json: {path}")
     except Exception as e:
-        log.info(f"[WARN] JSON保存に失敗しました: {path} ({e})")
+        log.info(f"[WARN] Failed to save JSON: {path} ({e})")
 
 
 def _segment_summary(series: pd.Series) -> dict[str, Any]:
@@ -184,7 +184,7 @@ def _build_report_text(payload: dict[str, Any]) -> str:
 
     lines.append("")
     lines.append("note:")
-    lines.append("- thresholds は get_quality_thresholds() 経由で settings.toml 由来です。")
+    lines.append("- thresholds comes from settings.toml via get_quality_thresholds().")
     return "\n".join(lines) + "\n"
 
 
@@ -239,14 +239,14 @@ def run_discovery_analysis():
         payload["warnings"].append(f"mcmc_dependencies_unavailable: {MCMC_IMPORT_ERROR}")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        log.info("[WARN] MCMC依存パッケージ未導入のため推定をスキップしました。")
+        log.info("[WARN] Estimation skipped because MCMC dependent package is not installed.")
         return
 
     if len(df) < 5:
         payload["warnings"].append("usable_rows_lt_5_skip_change_point")
         _safe_write_text(report_path, _build_report_text(payload))
         _safe_write_json(json_path, payload)
-        log.info("  警告: 有効データが不足しているため、変化点検出をスキップします。")
+        log.info("Warning: Skipping change point detection due to lack of valid data.")
         return
 
     y = jnp.array(df["auc_n_used"].values)
@@ -322,7 +322,7 @@ def run_discovery_analysis():
         log.info(f"[OK] plot: {plot_path}")
     except Exception as e:
         payload["warnings"].append(f"plot_save_failed: {e}")
-        log.info(f"[WARN] プロット保存に失敗しました: {plot_path} ({e})")
+        log.info(f"[WARN] Failed to save plot: {plot_path} ({e})")
 
     _safe_write_text(report_path, _build_report_text(payload))
     _safe_write_json(json_path, payload)

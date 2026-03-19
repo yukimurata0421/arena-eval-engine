@@ -21,11 +21,11 @@ OUTPUT_HTML = str(OUT_ROOT / "adsb_coverage_heatmap.html")
 SITE_LAT, SITE_LON = get_site_latlon()
 
 def generate_heatmap():
-    log.info(">>> データ読み込み中...")
+    log.info(">>> Loading data...")
     coordinates = []
     
     if not os.path.exists(INPUT_JSONL):
-        log.info(f"❌ ファイルが見つかりません: {INPUT_JSONL}")
+        log.info(f"❌ File not found: {INPUT_JSONL}")
         return
 
     with open(INPUT_JSONL, 'r', encoding='utf-8') as f:
@@ -38,7 +38,7 @@ def generate_heatmap():
                 continue
 
     if not coordinates:
-        log.info("❌ 有効な位置データが見つかりません。")
+        log.info("❌ No valid location data found.")
         return
 
     log.info(f">>> Mapping {len(coordinates):,} points to the map...")

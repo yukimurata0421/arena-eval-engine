@@ -120,8 +120,8 @@ def discover_daily_signature_sources(
         quantile_files.extend(sorted(archive_root.glob("*dist*.jsonl.till-*")))
 
     quantile_reason = (
-        "dist_1m current + raw/past_log/*dist*.jsonl.till-* を対象。"
-        "レコード内 src=dist_1m のみ採用して日次 quantile を構築。"
+        "dist_1m current + raw/past_log/*dist*.jsonl.till-*."
+        "Construct daily quantile by adopting only src=dist_1m in record."
     )
     if not quantile_files:
         warnings.append("quantile_raw_distance_files_not_found")
@@ -133,8 +133,8 @@ def discover_daily_signature_sources(
     if archive_root.exists():
         coverage_files.extend(sorted(archive_root.glob("dist_signal_stats_1m*.jsonl.till-*")))
     coverage_reason = (
-        "dist_signal_stats_1m current + archive を対象。"
-        "distance bucket n_samples から coverage grid を日次集計。"
+        "dist_signal_stats_1m target current + archive."
+        "Daily aggregation of coverage grid from distance bucket n_samples."
     )
     if not coverage_files:
         warnings.append("coverage_raw_distance_files_not_found")

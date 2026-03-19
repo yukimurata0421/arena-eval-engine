@@ -241,7 +241,7 @@ def load_phase_config(path: str | None = None) -> PhaseConfig:
     cfg = PhaseConfig(config_path=str(config_path))
 
     if not config_path.exists():
-        print(f"  [phase_config] 警告: {config_path} が見つからないため既定値を使用します")
+        print(f" [phase_config] Warning: {config_path} not found, using default value")
         return cfg
 
     cp = ConfigParser()

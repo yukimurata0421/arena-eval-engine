@@ -70,7 +70,7 @@ known-first-party = ["arena"]
 # ── Pytest ────────────────────────────────────────────
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --tb=short"
+addopts = "-q --tb=short --cov=src/arena --cov=scripts --cov-config=.coveragerc --cov-report=term"
 
 # ── Mypy ──────────────────────────────────────────────
 [tool.mypy]

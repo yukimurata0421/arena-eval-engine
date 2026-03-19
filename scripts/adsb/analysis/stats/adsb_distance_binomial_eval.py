@@ -9,7 +9,7 @@ import pandas as pd
 from scipy import stats as sp_stats
 import warnings
 
-# FitWarning (statsmodels 収束警告) のみ抑制。他の DeprecationWarning は表示する。
+# Suppress only FitWarning (statsmodels convergence warning). Other DeprecationWarnings are displayed.
 warnings.filterwarnings("ignore", category=Warning, module="statsmodels")
 warnings.filterwarnings("ignore", message=".*Maximum Likelihood.*", category=Warning)
 
@@ -57,14 +57,14 @@ def run_distance_binomial_analysis():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     if not os.path.exists(FRINGE_CSV):
-        log.info(f"  ファイルが見つかりません: {FRINGE_CSV}")
+        log.info(f" File not found: {FRINGE_CSV}")
         return
 
     df = pd.read_csv(FRINGE_CSV)
     df['date'] = pd.to_datetime(df['date'])
 
     if 'phase' not in df.columns:
-        log.info("  phase 列がありません。")
+        log.info(" phase column is missing.")
         return
 
     df['phase_label'] = df['phase'].map(PHASES).fillna(df['phase'])
@@ -84,8 +84,8 @@ def run_distance_binomial_analysis():
     df_base = df[df['phase_label'] == baseline]
 
     log.info("=" * 85)
-    log.info("  距離帯比率分析（2項ロジック v2）")
-    log.info(f"  ベースライン: {baseline}（{len(df_base)} 日, "
+    log.info("Distance band ratio analysis (binary logic v2)")
+    log.info(f" Baseline: {baseline}({len(df_base)} days, "
           f"median total={df_base['total'].median():.0f} packets/day)")
     log.info("=" * 85)
 
@@ -95,12 +95,12 @@ def run_distance_binomial_analysis():
         df_tgt = df[df['phase_label'] == target]
 
         log.info(f"\n{'='*85}")
-        log.info(f"  {target}（{len(df_tgt)} 日, "
+        log.info(f" {target}({len(df_tgt)} days, "
               f"median total={df_tgt['total'].median():.0f} packets/day)")
         log.info(f"{'='*85}")
 
-        log.info(f"\n  [A] 日次比率比較（Welch t-test）")
-        log.info(f"  {'帯域':<20} {'基準%':>8} {'対象%':>8} {'差分':>8} "
+        log.info(f"\n [A] Daily ratio comparison (Welch t-test)")
+        log.info(f" {'Band':<20} {'Reference%':>8} {'Target%':>8} {'Difference':>8} "
               f"{'t-stat':>8} {'P':>10} {'d':>6} {'Judge':>8}")
         log.info("  " + "-" * 80)
 
@@ -137,8 +137,8 @@ def run_distance_binomial_analysis():
                 'Significance': sig,
             })
 
-        log.info(f"\n  [B] 全体比率 z 検定（日単位プール）")
-        log.info(f"  {'帯域':<20} {'基準率':>10} {'対象率':>10} {'z':>8} {'P':>12}")
+        log.info(f"\n [B] Overall proportion z test (daily pool)")
+        log.info(f" {'band':<20} {'base rate':>10} {'target rate':>10} {'z':>8} {'P':>12}")
         log.info("  " + "-" * 65)
 
         for label, col in dist_bands.items():
@@ -167,13 +167,13 @@ def run_distance_binomial_analysis():
                 'Significance': "significant*" if p_z < 0.05 else "---",
             })
 
-    log.info(f"\n  注: 集計 z 検定は N が大きいと有意になりやすいです。")
-    log.info(f"    日次比率の t 検定（A）が保守的で信頼できます。")
+    log.info(f"\nNote: Aggregate z-tests tend to be significant when N is large.")
+    log.info(f" The t-test (A) for daily proportions is conservative and reliable.")
 
     res_df = pd.DataFrame(all_results)
     save_path = os.path.join(OUTPUT_DIR, "distance_binomial_summary.csv")
     res_df.to_csv(save_path, index=False)
-    log.info(f"\n  結果を保存しました: {save_path}")
+    log.info(f"\nResult saved: {save_path}")
 
 
 if __name__ == "__main__":

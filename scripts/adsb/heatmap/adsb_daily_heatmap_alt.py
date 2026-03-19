@@ -81,7 +81,7 @@ def process_one_file(f_path: str):
     folium.LayerControl(collapsed=False).add_to(m)
 
     m.save(out_path)
-    return f"   ✅ {filename}: 保存しました {out_path}（Low: {len(coords_low):,}, Mid: {len(coords_mid):,}, High: {len(coords_high):,}）"
+    return f" ✅ {filename}: Saved {out_path}(Low: {len(coords_low):,}, Mid: {len(coords_mid):,}, High: {len(coords_high):,})"
 
 
 def process_daily_heatmaps_by_alt():
@@ -89,10 +89,10 @@ def process_daily_heatmaps_by_alt():
 
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        log.info(f"❌ ファイルが見つかりません: {INPUT_DIR}")
+        log.info(f"❌ File not found: {INPUT_DIR}")
         return
 
-    log.info(f">>> {len(files)} 日分のデータを検出。高度帯の並列処理を開始します... (workers={MAX_WORKERS})\n")
+    log.info(f">>> Detected {len(files)} days worth of data. Starting parallel processing of altitude zone... (workers={MAX_WORKERS})\n")
 
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = [ex.submit(process_one_file, f_path) for f_path in files]
@@ -100,7 +100,7 @@ def process_daily_heatmaps_by_alt():
             try:
                 log.info(fut.result())
             except Exception as e:
-                log.info(f"   ⚠️ 失敗: {e}")
+                log.info(f" ⚠️ Failed: {e}")
 
 if __name__ == "__main__":
     process_daily_heatmaps_by_alt()

@@ -1,0 +1,46 @@
+{
+  "sample_name": "arena_public_smoke",
+  "sample_type": "smoke",
+  "source_type": "synthetic",
+  "generation_timestamp": "2026-01-01T00:00:00Z",
+  "random_seed": 20260320,
+  "files_written": [
+    "input/README.txt",
+    "input/daily_metrics.csv",
+    "input/signal_events.jsonl"
+  ],
+  "row_counts": {
+    "input/daily_metrics.csv": 18,
+    "input/signal_events.jsonl": 24,
+    "input/README.txt": 2
+  },
+  "intended_usage": [
+    "Release-layer reproducibility for command execution and artifact generation.",
+    "Deterministic smoke checks for freeze/verify workflow in public repositories."
+  ],
+  "compatibility_notes": [
+    "This dataset is synthetic and intentionally lightweight.",
+    "This dataset is not intended for scientific ADS-B performance conclusions.",
+    "Mode extension placeholder: from-real cutout can be added later without changing CLI contract."
+  ],
+  "mode": "synthetic",
+  "expected_outputs_written": [
+    "manifest.normalized.csv",
+    "merged_for_ai.normalized.md",
+    "merged_for_ai.zip.normalized.json"
+  ],
+  "freeze_command_used": [
+    "<PYTHON_EXE>",
+    "-m",
+    "arena.artifact_cli",
+    "run",
+    "--base",
+    "<SAMPLE_INPUT>",
+    "--out",
+    "<FREEZE_WORKDIR>",
+    "--legacy",
+    "--deterministic",
+    "--no-ai-export"
+  ],
+  "freeze_timestamp": "2026-03-19T21:14:40+00:00"
+}

@@ -9,7 +9,7 @@ def test_load_phase_config_uses_defaults_when_file_missing(tmp_path: Path, capsy
     missing = tmp_path / "phases.txt"
     cfg = pc.load_phase_config(str(missing))
     out = capsys.readouterr().out
-    assert "既定値を使用" in out
+    assert "using default value" in out
     assert cfg.intervention_date
 
 
@@ -80,4 +80,3 @@ def test_hardware_views_and_phase_names(tmp_path: Path) -> None:
     assert cfg.hardware_at("2026-02-15") == "airspy_mini"
     assert cfg.hardware_transitions == [("2026-02-01", "airspy_mini")]
     assert cfg.phase_names[cfg.hardware_map["rtl-sdr"]] == "RTL-SDR"
-

@@ -1,7 +1,7 @@
 # ARENA Public Release
 
-ARENA is a reproducible ADS-B evaluation toolkit.
-This repository contains the public execution layer for pipeline orchestration, CLI operation, and evaluation scripts.
+ARENA is a reproducible evaluation and artifact pipeline for ADS-B research workflows, with deterministic public smoke verification for the release layer.
+This repository intentionally separates research/statistical evaluation concerns from public release-layer reproducibility concerns.
 
 ## Highlights
 - 8-stage pipeline (`arena.pipeline`) for aggregation, evaluation, reporting, and comparisons.
@@ -22,6 +22,36 @@ source .venv/bin/activate  # PowerShell: .\.venv\Scripts\Activate.ps1
 pip install -U pip
 pip install -e .[dev]
 ```
+
+## Public Smoke Reproducibility (Release Layer)
+This repository includes a **public smoke sample** for **release-layer reproducibility**.
+
+Use this when you need deterministic checks of:
+- command execution
+- release-layer flow
+- artifact generation
+- output verification
+
+First command (build sample fixture):
+```bash
+python scripts/tools/sample_data/build_public_sample.py --force
+```
+Expected output includes:
+- `[OK] sample_root: ...\sample_data\smoke`
+- `[OK] manifest: ...\sample_data\smoke\manifest.json`
+
+Then freeze and verify:
+```bash
+python scripts/tools/sample_data/freeze_expected_outputs.py --force
+python scripts/tools/sample_data/verify_sample_outputs.py
+```
+Expected verify result:
+- `[SUMMARY] matched=... missing=0 unexpected=0 different=0`
+
+Scope note:
+- This smoke sample is for artifact/release-layer reproducibility.
+- This is **not** research/statistical reproducibility of real ADS-B findings.
+- For details, see `docs/reproducibility.md`.
 
 ## Environment Setup
 Use one of the following setup levels:
@@ -99,7 +129,22 @@ python -m arena.cli run --only 1 --no-gpu \
 ## Testing
 ```bash
 pytest
+coverage erase
+coverage run --rcfile=.coveragerc -m pytest -q
+coverage report --rcfile=.coveragerc -m
 ```
+`pytest` already includes coverage options from `pyproject.toml` (`--cov-config=.coveragerc --cov=src/arena --cov=scripts`).
+`pytest` is configured through `pytest.ini` to run with fixed coverage boundaries (`--cov=src/arena --cov=scripts --cov-config=.coveragerc`).
+
+Import boundary check (optional, useful when multiple local clones exist):
+```bash
+python - <<'PY'
+import arena, arena.artifacts
+print("arena.__file__ =", arena.__file__)
+print("arena.artifacts.__file__ =", arena.artifacts.__file__)
+PY
+```
+Both paths should resolve under this repository tree when running tests for this release layer.
 
 ## Docker
 ```bash

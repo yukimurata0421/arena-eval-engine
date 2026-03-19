@@ -76,7 +76,7 @@ def _collect_futures(
             if not ok:
                 ok_all = False
                 if fail_fast or step.critical:
-                    logger.error("\n[停止] 重大失敗または --fail-fast により停止しました。")
+                    logger.error("\n[Stopped] Stopped due to critical failure or --fail-fast.")
                     runner.print_summary()
                     return False
         except Exception as exc:
@@ -118,7 +118,7 @@ def _run_steps_sequential(
         if not ok:
             ok_all = False
             if fail_fast or step.critical:
-                logger.error("\n[停止] 重大失敗または --fail-fast により停止しました。")
+                logger.error("\n[Stopped] Stopped due to critical failure or --fail-fast.")
                 runner.print_summary()
                 return False, True
     return ok_all, False
@@ -141,7 +141,7 @@ def run(cfg: RunConfig) -> int:
     )
     config_errors = validate_resolved_config_paths(config_meta)
     if config_errors:
-        logger.error("[エラー] config 解決に失敗しました:")
+        logger.error("[Error] config resolution failed:")
         for err in config_errors:
             logger.error("  - %s", err)
         return 1
@@ -157,7 +157,7 @@ def run(cfg: RunConfig) -> int:
         except (OSError, ValueError, KeyError) as exc:
             dynamic_date = DEFAULT_INTERVENTION_DATE_FOR_DEV
             logger.warning(
-                "[WARN] phases.txt の読み込みに失敗しました (%s): %s: %s" " - フォールバック date=%s を使用します",
+                "[WARN] Failed to load phases.txt (%s): %s: %s" " - using fallback date=%s",
                 phase_config_path,
                 type(exc).__name__,
                 exc,
@@ -206,14 +206,14 @@ def run(cfg: RunConfig) -> int:
             req += STAGE5_PYMC
     miss = missing_modules(backend, req, env=env)
     if miss:
-        logger.error("\n[エラー] 実行環境に不足している Python モジュール:")
+        logger.error("\n[ERROR] Missing Python module in execution environment:")
         for m in miss:
             logger.error("  - %s", m)
-        logger.error("\n対処:")
+        logger.error("\nAction:")
         if backend.kind == "native":
-            logger.error('  pip install -e ".[dev]"  （または上記モジュールを個別にインストール）')
+            logger.error(' pip install -e ".[dev]" (or install the above modules individually)')
         else:
-            logger.error('  WSL 内で: pip3 install -e ".[dev]"  （または上記モジュールを個別にインストール）')
+            logger.error(' Within WSL: pip3 install -e ".[dev]" (or install the above modules separately)')
         return 1
 
     jax_platforms = _detect_gpu(cfg, backend, env)
@@ -274,9 +274,9 @@ def run(cfg: RunConfig) -> int:
 
     runner.print_summary()
     err_report = runner.write_error_code_report()
-    logger.info("エラーコードレポート: %s", err_report)
+    logger.info("Error code report: %s", err_report)
     elapsed = time.time() - start
-    logger.info("\n総経過時間: %.0fs (%.1f min)", elapsed, elapsed / 60)
+    logger.info("\nTotal elapsed time: %.0fs (%.1f min)", elapsed, elapsed / 60)
 
     if 5 in planned_stages and not _check_change_point_contract(output_root_native, data_root_native):
         return 1
@@ -286,7 +286,7 @@ def run(cfg: RunConfig) -> int:
 
     ng = [r for r in runner.records if r.status in ("FAIL", "FAIL_OUTPUT", "TIMEOUT", "ERROR", "NOT_FOUND")]
     if ng:
-        logger.warning("\n警告: %d 件の失敗があります。ログ: %s", len(ng), log_jsonl)
+        logger.warning("\nWarning: %d failures. Log: %s", len(ng), log_jsonl)
         return 1
 
     return 0
@@ -351,18 +351,18 @@ def _print_header(
 ) -> None:
     resolved_workers = cfg.workers if cfg.workers > 0 else resolve_default_workers()
     logger.info("=" * 78)
-    logger.info("ADS-B 評価フレームワーク - パイプライン")
-    logger.info("時刻:    %s", now_iso())
-    logger.info("バックエンド: %s", backend.describe())
-    logger.info("ネイティブ scripts: %s", backend.scripts_root_native)
-    logger.info("ネイティブ output:  %s", backend.output_root_native)
-    logger.info("ネイティブ data:    %s", backend.data_root_native)
+    logger.info("ADS-B Evaluation Framework - Pipeline")
+    logger.info("Time: %s", now_iso())
+    logger.info("Backend: %s", backend.describe())
+    logger.info("Native scripts: %s", backend.scripts_root_native)
+    logger.info("Native output: %s", backend.output_root_native)
+    logger.info("Native data: %s", backend.data_root_native)
     logger.info("settings:      %s", settings_path)
     if backend.kind == "wsl":
         logger.info("WSL scripts:    %s", backend.scripts_root_exec)
         logger.info("WSL output:     %s", backend.output_root_exec)
         logger.info("WSL data:       %s", backend.data_root_exec)
-    logger.info("フェーズ設定:   %s", phase_config_path)
+    logger.info("Phase configuration: %s", phase_config_path)
     logger.info(
         "config default: settings=%d phase=%d experimental=%d",
         int(bool(config_meta["used_default_settings"])),
@@ -373,25 +373,25 @@ def _print_header(
         logger.info("analysis_start_date: %s", config_meta.get("analysis_start_date"))
     if str(config_meta.get("analysis_end_date", "")):
         logger.info("analysis_end_date: %s", config_meta.get("analysis_end_date"))
-    logger.info("動的日付:       %s", dynamic_date)
-    logger.info("PLAO スキップ:  %s", cfg.skip_plao)
-    logger.info("並列ワーカー:  %s", resolved_workers)
+    logger.info("Dynamic date: %s", dynamic_date)
+    logger.info("PLAO Skip: %s", cfg.skip_plao)
+    logger.info("Parallel workers: %s", resolved_workers)
     logger.info("=" * 78)
 
 
 def _detect_gpu(cfg: RunConfig, backend: Backend, env: dict[str, str]) -> str:
     if cfg.no_gpu:
-        logger.info("\nGPU: 無効化 (--no-gpu)")
+        logger.info("\nGPU: Disable (--no-gpu)")
         return "cpu"
     if cfg.dry_run:
-        logger.info("\nGPU: （dry-run）検出をスキップ")
+        logger.info("\nGPU: Skip (dry-run) detection")
         return "cuda,cpu"
-    logger.info("\nGPU: 検出中 ...")
+    logger.info("\nGPU: Detecting...")
     gpu_info = detect_gpu_jax(backend, env=env)
     if gpu_info["available"]:
         logger.info("GPU: OK (%s)", gpu_info["device"])
         return "cuda,cpu"
-    logger.info("GPU: 未検出 -> CPU")
+    logger.info("GPU: Not detected -> CPU")
     return "cpu"
 
 
@@ -400,14 +400,14 @@ def _run_validate_only(
     output_root_native: Path,
     data_root_native: Path,
 ) -> int:
-    logger.info("\n[validate-only] パイプライン定義の期待成果物を確認中 ...")
+    logger.info("\n[validate-only] Checking expected artifacts of pipeline definition...")
     all_ok = True
     for st in sorted(set(s.stage for s in steps)):
         stage_name = STAGE_NAMES.get(st, f"Stage {st}")
         logger.info("\n  Stage %d (%s)", st, stage_name)
         for step in [x for x in steps if x.stage == st]:
             if not step.expected_outputs:
-                logger.info("    - %s: （期待出力なし）", step.label)
+                logger.info(" - %s: (no expected output)", step.label)
                 continue
             ok, missing = validate_outputs(
                 output_root_native,
@@ -512,7 +512,7 @@ def _run_stage_group(
     logger.info("\n" + "-" * 78)
     logger.info("Stage %s: %s", ", ".join(str(s) for s in group_stages if s not in exclude), names)
     logger.info("-" * 78)
-    logger.info("  (予測 約%.0f分 | 並列 %d ステップ, workers=%d)", group_est_min, len(group_steps), max_workers)
+    logger.info(" (estimated approximately %.0f minutes | parallel %d steps, workers=%d)", group_est_min, len(group_steps), max_workers)
 
     ok, should_abort = _run_steps_parallel(runner, group_steps, max_workers, fail_fast)
     if should_abort:
@@ -545,13 +545,13 @@ def _run_single_stage(
 
     if use_parallel:
         max_workers = min(resolved_workers, len(stage_steps))
-        logger.info("  (予測 約%.0f分 | 並列 %d ステップ, workers=%d)", stage_est_min, len(stage_steps), max_workers)
+        logger.info(" (estimated approximately %.0f minutes | parallel %d steps, workers=%d)", stage_est_min, len(stage_steps), max_workers)
         ok, should_abort = _run_steps_parallel(runner, stage_steps, max_workers, fail_fast)
         if should_abort:
             return False
         return ok
     else:
-        logger.info("  (予測 約%.0f分 | 順次 %d ステップ)", stage_est_min, len(stage_steps))
+        logger.info(" (estimated approximately %.0f minutes | sequential %d steps)", stage_est_min, len(stage_steps))
         ok, should_abort = _run_steps_sequential(runner, stage_steps, fail_fast)
         if should_abort:
             return False
@@ -570,11 +570,11 @@ def _validate_stage1_wave_indices(stage_steps: list[Step]) -> None:
         for kw, w in expected.items():
             hit = next((s for s in stage_steps if kw in s.script_rel), None)
             if hit is None:
-                logger.warning("Stage 1 wave: 期待キーワード '%s' のステップが見つかりません。", kw)
+                logger.warning("Stage 1 wave: Step not found for expected keyword '%s'.", kw)
                 continue
             if (hit.wave or 0) != w:
                 logger.warning(
-                    "Stage 1 wave: '%s' が wave=%d ではありません (実際 wave=%s, script=%s)。",
+                    "Stage 1 wave: '%s' is not wave=%d (actually wave=%s, script=%s).",
                     kw,
                     w,
                     hit.wave,
@@ -586,8 +586,8 @@ def _validate_stage1_wave_indices(stage_steps: list[Step]) -> None:
     for wi, kw in wave_expected.items():
         if wi < len(stage_steps) and kw not in stage_steps[wi].script_rel:
             logger.warning(
-                "STAGE1_WAVES インデックス %d が期待キーワード '%s' と一致しません"
-                " (実際: %s)。build_pipeline() の順序変更を STAGE1_WAVES に反映してください。",
+                "STAGE1_WAVES index %d does not match expected keyword '%s'"
+                " (Actual: %s). Please reflect the reordering of build_pipeline() in STAGE1_WAVES.",
                 wi,
                 kw,
                 stage_steps[wi].script_rel,
@@ -616,7 +616,7 @@ def _launch_early_stages(
     for st in sorted(launched):
         n = sum(1 for s in early_steps if s.stage == st)
         logger.info(
-            "\n(事前並列起動) Stage %d: %s (%d ステップ — Stage 1 と同時実行)",
+            "\n(Pre-parallel startup) Stage %d: %s (%d step — concurrent execution with Stage 1)",
             st,
             STAGE_NAMES.get(st, f"Stage {st}"),
             n,
@@ -646,7 +646,7 @@ def _run_stage1_waves(
     fail_fast: bool,
 ) -> bool:
     stage_est_min = sum(s.est_s for s in stage_steps) / 60.0
-    logger.info("  (予測 約%.0f分 | ウェーブ並列)", stage_est_min)
+    logger.info(" (estimated approximately %.0f minutes | wave parallel)", stage_est_min)
     ok_all = True
 
     # Prefer stable "wave" metadata if available, otherwise fall back to STAGE1_WAVES indices.
@@ -661,7 +661,7 @@ def _run_stage1_waves(
             continue
         wave_est = sum(s.est_s for s in wave_steps)
         if len(wave_steps) > 1:
-            logger.info("  --- Wave %d: %d ステップ並列 (予測 約%ds) ---", wave_idx, len(wave_steps), wave_est)
+            logger.info(" --- Wave %d: %d step parallel (estimated approximately %ds) ---", wave_idx, len(wave_steps), wave_est)
             ok, should_abort = _run_steps_parallel(
                 runner,
                 wave_steps,
@@ -673,7 +673,7 @@ def _run_stage1_waves(
             if not ok:
                 ok_all = False
         else:
-            logger.info("  --- Wave %d: 1 ステップ (予測 約%ds) ---", wave_idx, wave_est)
+            logger.info(" --- Wave %d: 1 step (prediction approx. %ds) ---", wave_idx, wave_est)
             ok, should_abort = _run_steps_sequential(runner, wave_steps, fail_fast)
             if should_abort:
                 return False
@@ -704,9 +704,9 @@ def _check_change_point_contract(output_root_native: Path, data_root_native: Pat
         cp_lines.append("- (none)")
     cp_contract_path.parent.mkdir(parents=True, exist_ok=True)
     cp_contract_path.write_text("\n".join(cp_lines) + "\n", encoding="utf-8")
-    logger.info("change-point成果物契約チェック: %s", cp_contract_path)
+    logger.info("change-point deliverable contract check: %s", cp_contract_path)
     if not cp_ok:
-        logger.error("[ERROR] change-point 必須成果物が不足しています。")
+        logger.error("[ERROR] change-point required artifact is missing.")
         for m in cp_missing:
             logger.error("  - %s", m)
         return False

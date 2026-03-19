@@ -50,27 +50,27 @@ def load_opensky_credentials(cred_path: Path):
     if env_client_id and env_client_secret:
         return env_client_id, env_client_secret
     if env_client_id or env_client_secret:
-        log.info("  エラー: OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET は両方設定してください。")
+        log.info("Error: Please set both OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET.")
         return "", ""
 
     if not cred_path.exists():
-        log.info("  エラー: OpenSky 認証情報が見つかりません。")
-        log.info("  対処:")
-        log.info("   - OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET を設定")
-        log.info(f"   - もしくは OPENSKY_CREDENTIALS_JSON を設定 (現在: {cred_path})")
+        log.info("Error: OpenSky credentials not found.")
+        log.info(" Action:")
+        log.info(" - set OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET")
+        log.info(f" - or set OPENSKY_CREDENTIALS_JSON (currently: {cred_path})")
         return "", ""
 
     try:
         obj = json.loads(cred_path.read_text(encoding="utf-8"))
     except Exception as e:
-        log.info(f"  エラー: credentials.json の読み込みに失敗: {cred_path} ({e})")
+        log.info(f" Error: Failed to load credentials.json: {cred_path} ({e})")
         return "", ""
 
     client_id = (obj.get("clientId") or obj.get("client_id") or "").strip()
     client_secret = (obj.get("clientSecret") or obj.get("client_secret") or "").strip()
 
     if not client_id or not client_secret:
-        log.info(f"  エラー: credentials.json に clientId/clientSecret がありません: {cred_path}")
+        log.info(f" Error: clientId/clientSecret missing in credentials.json: {cred_path}")
         return "", ""
 
     return client_id, client_secret
@@ -141,8 +141,8 @@ def sleep_with_budget(seconds, deadline_monotonic):
 def get_access_token():
     """Get OAuth2 token."""
     if not CLIENT_ID or not CLIENT_SECRET:
-        log.info("  エラー: OpenSky 認証情報が設定されていません。")
-        log.info(f"  期待パス: {CRED_PATH}")
+        log.info("Error: OpenSky credentials not configured.")
+        log.info(f" Expected path: {CRED_PATH}")
         return None
 
     payload = {
@@ -156,15 +156,15 @@ def get_access_token():
         res.raise_for_status()
         token = res.json().get("access_token")
         if token:
-            log.info("  認証成功")
+            log.info("Authentication successful")
         return token
 
     except requests.exceptions.HTTPError as e:
         status = getattr(e.response, "status_code", "unknown")
-        log.info(f"  認証エラー (HTTP {status}): {e}")
+        log.info(f" Authentication error (HTTP {status}): {e}")
         return None
     except Exception as e:
-        log.info(f"  認証エラー: {e}")
+        log.info(f" Authentication error: {e}")
         return None
 
 
@@ -318,7 +318,7 @@ def fetch_day_counts(
                 return None, token, "LIMIT_REACHED"
 
             elif recs == "AUTH_EXPIRED":
-                log.info("\n  トークン期限切れ。更新中...")
+                log.info("\nToken expired. Refreshing...")
                 token = get_access_token()
                 if not token:
                     return None, token, "AUTH_EXPIRED"
@@ -430,7 +430,7 @@ def parse_force_dates():
         try:
             parsed.add(datetime.strptime(date_str, "%Y-%m-%d").date())
         except ValueError:
-            log.info(f"  警告: OPENSKY_FORCE_DATES の日付形式が不正: {date_str}")
+            log.info(f" Warning: Invalid date format for OPENSKY_FORCE_DATES: {date_str}")
     return parsed
 
 
@@ -502,11 +502,11 @@ def main():
         if os.path.exists(OUTPUT_FILE):
             try:
                 os.utime(OUTPUT_FILE, None)
-                log.info("  認証情報なしのため既存CSVのmtimeを更新しました。")
+                log.info(" mtime of existing CSV has been updated because there is no authentication information.")
                 return
             except Exception:
                 pass
-        log.info("  エラー: OpenSky 認証情報が設定されていません。")
+        log.info("Error: OpenSky credentials not configured.")
         sys.exit(1)
 
     token = get_access_token()
@@ -515,7 +515,7 @@ def main():
 
     df_existing, existing_dates = load_existing_data()
     if existing_dates:
-        log.info(f"  既存データ: {len(existing_dates)} 日分")
+        log.info(f" Existing data: {len(existing_dates)} days")
 
     try:
         refresh_days = int(os.environ.get("OPENSKY_REFRESH_DAYS", str(DEFAULT_REFRESH_DAYS)))
@@ -601,7 +601,7 @@ def main():
 
     for current_date in all_dates:
         if budget_exceeded(deadline_monotonic):
-            log.info("\n  実行時間予算に到達したため、残り日付は次回に繰り越します。")
+            log.info("\nThe execution time budget has been reached and the remaining dates will be carried over to the next time.")
             break
 
         date_str = current_date.strftime("%Y-%m-%d")
@@ -625,10 +625,10 @@ def main():
         )
 
         if err == "TIME_BUDGET_EXCEEDED":
-            log.info("\n  実行時間予算に到達したため、残り日付は次回に繰り越します。")
+            log.info("\nThe execution time budget has been reached and the remaining dates will be carried over to the next time.")
             break
         if err == "LIMIT_REACHED":
-            log.info("\n  レート制限に到達。中断します。")
+            log.info("\nRate limit reached. Interrupting.")
             sys.exit(2)
         if err == "AUTH_EXPIRED":
             sys.exit(3)
@@ -637,12 +637,12 @@ def main():
             if day_differs(df_existing, day_results):
                 df_existing = upsert_day(df_existing, day_results)
                 updated_days += 1
-                log.info(f"{day_results['hnd_nrt_movements']} 便 (更新)")
+                log.info(f"{day_results['hnd_nrt_movements']} flights (updated)")
             else:
-                log.info(f"{day_results['hnd_nrt_movements']} 便 (変更なし)")
+                log.info(f"{day_results['hnd_nrt_movements']} flights (no changes)")
         else:
             new_records.append(day_results)
-            log.info(f"{day_results['hnd_nrt_movements']} 便 (追加)")
+            log.info(f"{day_results['hnd_nrt_movements']} flights (added)")
 
     if new_records:
         df_new = pd.DataFrame(new_records)
@@ -656,13 +656,13 @@ def main():
     if not df_all.empty:
         df_all.to_csv(OUTPUT_FILE, index=False)
         added_days = len(new_records)
-        log.info(f"\n  保存しました: {OUTPUT_FILE}（追加 {added_days} 日、更新 {updated_days} 日、合計 {len(df_all)} 日）")
+        log.info(f"\nSaved: {OUTPUT_FILE}(added {added_days} days, updated {updated_days} days, total {len(df_all)} days)")
     else:
-        log.info("\n  新規データなし。")
+        log.info("\nNo new data.")
         if os.path.exists(OUTPUT_FILE):
             try:
                 os.utime(OUTPUT_FILE, None)
-                log.info("  既存CSVのmtimeを更新しました。")
+                log.info(" mtime of existing CSV has been updated.")
             except Exception:
                 pass
 

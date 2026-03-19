@@ -276,19 +276,19 @@ def merge_traffic(summary: pd.DataFrame) -> pd.DataFrame:
 
 
 def main():
-    log.info("ADS-B Eval PK アグリゲータ（dist_1m から頑健AUC）: 開始")
+    log.info("ADS-B Eval PK Aggregator (Robust AUC from dist_1m): Started")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Step 1: Build daily AUC from dist_1m
-    log.info("Step 1: dist_1m から日次AUCを作成（n_used の合計）...")
+    log.info("Step 1: Create daily AUC from dist_1m (sum of n_used)...")
     summary = get_daily_auc_from_dist()
     if summary.empty:
-        log.info("ERROR: dist_1m ソースが見つからない/空です。サマリを作成できません。")
-        log.info(f"   期待パス: {DIST_CURRENT} / {DIST_ARCHIVE_GLOB}")
+        log.info("ERROR: dist_1m source not found/empty. Unable to create summary.")
+        log.info(f" Expected path: {DIST_CURRENT} / {DIST_ARCHIVE_GLOB}")
         return
 
     # Step 2: Merge optional pos-derived proxies
-    log.info("Step 2: pos_* プロキシ（route_proxy_lat, est_overflights）を結合 ...")
+    log.info("Step 2: Combine pos_* proxies (route_proxy_lat, est_overflights) ...")
     pos_stats = get_daily_pos_stats()
     if not pos_stats.empty:
         summary = pd.merge(summary, pos_stats, on="date", how="left")
@@ -297,7 +297,7 @@ def main():
         summary["est_overflights"] = np.nan
 
     # Step 3: Merge traffic (movements)
-    log.info("Step 3: 交通量を結合（OpenSky/FR24 があれば使用）...")
+    log.info("Step 3: Combine traffic (use OpenSky/FR24 if available)...")
     summary = merge_traffic(summary)
 
     # Step 4: Derive convenience columns
@@ -316,12 +316,12 @@ def main():
 
     # Save
     summary.to_csv(OUTPUT_FILE, index=False)
-    log.info(f"出力しました: {OUTPUT_FILE}  rows={len(summary)}")
+    log.info(f"Output: {OUTPUT_FILE} rows={len(summary)}")
     log.info("Columns:", ", ".join(summary.columns))
 
-    log.info("\n次のステップ（解析ヒント）:")
-    log.info("  - minutes_covered で不完全な日を除外（例: minutes_covered >= 1380）")
-    log.info("  - 交通データの外れ/欠損対策: traffic_missing==0 かつ hnd_nrt_movements>=threshold")
+    log.info("\nNext step (analysis hint):")
+    log.info(" - Exclude incomplete days with minutes_covered (e.g. minutes_covered >= 1380)")
+    log.info(" - Countermeasures for missing/missing traffic data: traffic_missing==0 and hnd_nrt_movements>=threshold")
 
 
 if __name__ == "__main__":

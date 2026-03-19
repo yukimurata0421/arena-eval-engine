@@ -30,7 +30,7 @@ def get_user_phases():
 def run_manual_eval():
     input_file = str(ADSB_DAILY_SUMMARY)
     if not os.path.exists(input_file):
-        print(f"  [ERROR] 入力ファイルが見つかりません: {input_file}", file=sys.stderr)
+        print(f" [ERROR] Input file not found: {input_file}", file=sys.stderr)
         sys.exit(1)
     df = pd.read_csv(input_file)
     df['date'] = pd.to_datetime(df['date'])
@@ -64,7 +64,7 @@ def run_manual_eval():
     alphas = samples['alphas']
     
     print("\n" + "="*80)
-    print(f"{'フェーズ':<20} | {'開始日':<12} | {'平均機数/日':<18} | {'改善'}")
+    print(f"{'Phase':<20} | {'Start date':<12} | {'Average number of aircraft/day':<18} | {'Improvement'}")
     print("-" * 80)
     for i in range(num_phases):
         p_mean = np.mean(np.exp(alphas[:, i]))

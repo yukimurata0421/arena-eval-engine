@@ -60,7 +60,7 @@ def _repair_traffic_values(df: pd.DataFrame, policy: str) -> tuple[int, int]:
 
 def patch_adsb_data(csv_path):
     if not os.path.exists(csv_path):
-        log.info(f"エラー: {csv_path} が見つかりません。")
+        log.info(f"Error: {csv_path} not found.")
         return
 
     cfg = get_config()

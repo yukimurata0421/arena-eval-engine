@@ -20,7 +20,7 @@ def error_code_for_record(rec: RunRecord) -> str:
     if status == "WARN":
         if "log_rotation_activity" in text:
             return f"{base}-W01"
-        if "rate limit" in text or "レート制限" in text:
+        if "rate limit" in text or "rate limit" in text:
             return f"{base}-W02"
         if "stale:" in text:
             return f"{base}-W03"
@@ -42,7 +42,7 @@ def error_code_for_record(rec: RunRecord) -> str:
     if status == "FAIL":
         if "unicodeencodeerror" in text:
             return f"{base}-E11"
-        if "rate limit" in text or "レート制限" in text:
+        if "rate limit" in text or "rate limit" in text:
             return f"{base}-E12"
         return f"{base}-E10"
     return f"{base}-E99"
@@ -58,7 +58,7 @@ def summarize_issue_reason(rec: RunRecord) -> str:
         # Prefer lines that already explain operational degradation.
         for ln in reversed(lines):
             low = ln.lower()
-            if any(k in low for k in ["fail", "warning", "warn", "timeout", "rate", "limit", "中断", "到達"]):
+            if any(k in low for k in ["fail", "warning", "warn", "timeout", "rate", "limit", "interrupt", "reached"]):
                 return ln[:160]
         return lines[-1][:160]
     if rec.missing_outputs:
@@ -72,13 +72,13 @@ def recommended_actions(issues: Sequence[RunRecord]) -> list[str]:
 
     # OpenSky rate-limit recovery guide.
     if "S1-06-W02" in codes or "S1-06-E12" in codes:
-        actions.append("OpenSky API のレート制限に到達。10〜15分待ってから OpenSky 取得のみ再実行:")
+        actions.append("OpenSky API rate limit reached. Wait 10-15 minutes and rerun OpenSky fetch only:")
         actions.append(
             "PowerShell: $env:OPENSKY_REFRESH_DAYS='1'; $env:OPENSKY_INCLUDE_TODAY='0'; $env:OPENSKY_MIN_DAILY_MOVEMENTS='0'; arena fetch-opensky"
         )
-        actions.append("取得完了後、比較を更新するなら: arena run --only 8")
+        actions.append("If you want to update the comparison after the acquisition is complete: arena run --only 8")
 
     if "S1-06-W99" in codes:
-        actions.append("OpenSky 取得が警告終了（詳細は pipeline_runs.jsonl の S1-06 を確認）。必要なら arena fetch-opensky を単体実行。")
+        actions.append("OpenSky acquisition ended with warning (for details, check S1-06 of pipeline_runs.jsonl). If necessary, run arena fetch-opensky alone.")
 
     return actions

@@ -37,7 +37,7 @@ FORCE_INTERACTIVE = os.environ.get("ADSB_PHASE_INTERACTIVE") == "1"
 
 
 def _boxplot_compat(ax_or_figure, data, labels, **kwargs):
-    """matplotlib < 3.9 は tick_labels= を知らないため labels= にフォールバックする互換ラッパー。"""
+    """Compatibility wrapper that falls back to labels= since matplotlib < 3.9 doesn't know about tick_labels=."""
     try:
         return ax_or_figure.boxplot(data, tick_labels=labels, **kwargs)
     except TypeError:
@@ -75,7 +75,7 @@ def run_phase_analysis():
 
     data_path = str(ADSB_DAILY_SUMMARY)
     if not os.path.exists(data_path):
-        print(f"  エラー: {data_path} が見つかりません。")
+        print(f" Error: {data_path} not found.")
         return
 
     df = pd.read_csv(data_path)
@@ -85,7 +85,7 @@ def run_phase_analysis():
 
     phases = get_phases()
     if len(phases) < 2:
-        print("  フェーズが2未満のため比較できません。")
+        print("Cannot compare because phase is less than 2.")
         return
 
     df['phase_idx'] = -1
@@ -94,7 +94,7 @@ def run_phase_analysis():
     df = df[df['phase_idx'] >= 0].reset_index(drop=True)
 
     if len(df) < 5:
-        print("  有効日数が5未満です。")
+        print("Validity days are less than 5.")
         return
 
     init_numpyro_platform(n_data=len(df))
@@ -106,10 +106,10 @@ def run_phase_analysis():
     phase_idx = jnp.array(df['phase_idx'].values)
     num_phases = len(phases)
 
-    print(f"  データ: {len(df)} 日, フェーズ数: {num_phases}")
+    print(f" data: {len(df)} days, number of phases: {num_phases}")
     for i, p in enumerate(phases):
         n = int((df['phase_idx'] == i).sum())
-        print(f"    {p['name']}: {n} 日")
+        print(f" {p['name']}: {n} days")
 
     def model(y, log_traffic, phase_idx, num_phases):
         beta_traffic = numpyro.sample('beta_traffic', dist.Normal(1., 0.5))
@@ -131,7 +131,7 @@ def run_phase_analysis():
         n_chains = 4
 
     mcmc = MCMC(NUTS(model), num_warmup=n_warmup, num_samples=n_samples, num_chains=n_chains)
-    print(f"\n  MCMC 実行中 (warmup={n_warmup}, samples={n_samples}, chains={n_chains})...")
+    print(f"\n MCMC running (warmup={n_warmup}, samples={n_samples}, chains={n_chains})...")
     mcmc.run(random.PRNGKey(42), y, log_traffic, phase_idx, num_phases)
 
     samples = mcmc.get_samples()
@@ -209,8 +209,8 @@ def run_phase_analysis():
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
-    print(f"\n  結果を保存しました: {csv_path}")
-    print(f"  レポート:   {txt_path}")
+    print(f"\nResult saved: {csv_path}")
+    print(f" report: {txt_path}")
 
     if not IS_BATCH:
         import matplotlib.pyplot as plt
@@ -232,7 +232,7 @@ def run_phase_analysis():
         png_path = os.path.join(OUTPUT_DIR, "phase_evaluator_boxplot.png")
         fig.savefig(png_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
-        print(f"  プロット:   {png_path}")
+        print(f" plot: {png_path}")
 
 
 if __name__ == "__main__":

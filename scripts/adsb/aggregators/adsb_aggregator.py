@@ -39,7 +39,7 @@ def aggregate_data_v3():
     files.extend(glob.glob(os.path.join(raw_dir, "*dist*.jsonl.till-*")))
     
     if not files:
-        log.info(f"[ERROR] ファイルが見つかりません: {raw_dir}")
+        log.info(f"[ERROR] File not found: {raw_dir}")
         return
 
     log.info(f">>> Scanning {len(files)} files... (parallel)")
@@ -92,7 +92,7 @@ def aggregate_data_v3():
                 continue
 
     if not global_sum:
-        log.info("[WARN] 有効な AUC データがありません。空CSVを書き出します。")
+        log.info("[WARN] No valid AUC data. Export empty CSV.")
         df_daily = pd.DataFrame(
             columns=["date", "auc_n_used", "hnd_nrt_movements", "day_of_week"]
         )

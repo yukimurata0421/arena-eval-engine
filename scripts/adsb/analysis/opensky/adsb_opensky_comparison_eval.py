@@ -248,59 +248,59 @@ def main():
     cfg = get_config(args.phase_config)
 
     log.info("=" * 70)
-    log.info("OpenSky vs ローカル ADS-B 比較評価 v2")
+    log.info("OpenSky vs local ADS-B comparison evaluation v2")
     log.info("=" * 70)
-    log.info(f"  OpenSky ディレクトリ: {args.opensky_dir}")
-    log.info(f"  ローカル dir:          {args.local_dir}")
-    log.info(f"  出力:                  {out_dir}")
-    log.info(f"  サイト:                ({args.site_lat:.6f}, {args.site_lon:.6f})")
-    log.info(f"  距離帯:                {DISTANCE_BIN_LABELS}")
-    log.info(f"  フェーズ設定:          {cfg.config_path}")
-    log.info(f"  品質フィルタ: os_min_n_used={args.os_min_n_used}  os_max_km_max={args.os_max_km_max}")
+    log.info(f" OpenSky directory: {args.opensky_dir}")
+    log.info(f" local dir: {args.local_dir}")
+    log.info(f" output: {out_dir}")
+    log.info(f" Site: ({args.site_lat:.6f}, {args.site_lon:.6f})")
+    log.info(f" distance bands: {DISTANCE_BIN_LABELS}")
+    log.info(f" Phase configuration: {cfg.config_path}")
+    log.info(f" Quality filter: os_min_n_used={args.os_min_n_used} os_max_km_max={args.os_max_km_max}")
     log.info(f"    os_min_minutes/day={args.os_min_minutes}  local_min_minutes={args.local_min_minutes}")
     log.info(f"    date_utc_offset_h={args.date_utc_offset_hours}  cr_cap={args.cr_cap}")
     log.info("")
 
-    log.info("[1/6] OpenSky データ読み込み（品質フィルタ適用）...")
+    log.info("[1/6] Loading OpenSky data (applying quality filter)...")
     opensky_data, os_quality = load_opensky_data(
         args.opensky_dir, args.opensky_pattern,
         min_n_used=args.os_min_n_used, max_km_max=args.os_max_km_max,
         date_utc_offset_hours=args.date_utc_offset_hours,
     )
     if not opensky_data:
-        log.info("  エラー: OpenSky データが見つかりません！")
+        log.info("Error: OpenSky data not found!")
         sys.exit(1)
-    log.info(f"  生レコード数: {os_quality['raw_records']}  受理: {os_quality['accepted']}")
-    log.info(f"  除外 (低n): {os_quality['rejected_low_n_used']}  除外 (高km): {os_quality['rejected_high_km_max']}")
+    log.info(f" Number of raw records: {os_quality['raw_records']} Accepted: {os_quality['accepted']}")
+    log.info(f" Exclude (low n): {os_quality['rejected_low_n_used']} Exclude (high km): {os_quality['rejected_high_km_max']}")
     os_dates = set(osm.date_str for osm in opensky_data)
-    log.info(f"  日付数: {len(os_dates)} 日 ({min(os_dates)} ~ {max(os_dates)})")
+    log.info(f" Number of dates: {len(os_dates)} days ({min(os_dates)} ~ {max(os_dates)})")
 
-    log.info("\n[2/6] ローカル pos ファイルを走査中 ...")
+    log.info("\n[2/6] Scanning local pos file...")
     local_dates_exist = get_existing_local_dates(args.local_dir, args.local_pattern)
     overlap = os_dates & local_dates_exist
-    log.info(f"  ローカル pos ファイル数: {len(local_dates_exist)}  重複日数: {len(overlap)}")
+    log.info(f" Number of local pos files: {len(local_dates_exist)} Number of overlapping days: {len(overlap)}")
     if not overlap:
-        log.info("  警告: 重複日がありません。統計から全日除外されます。")
+        log.info("Warning: No duplicate days. All days will be excluded from statistics.")
 
-    log.info("\n[3/6] ローカル ADS-B データ読み込み ...")
+    log.info("\n[3/6] Loading local ADS-B data...")
     local_data = load_local_data(
         args.local_dir, args.local_pattern,
         target_dates=overlap, site_latlon=(args.site_lat, args.site_lon),
     )
-    log.info(f"  分単位サマリ読み込み: {len(local_data)} 件")
+    log.info(f" Minute summary read: {len(local_data)} items")
 
-    log.info("\n[4/6] OpenSky + ローカルを結合中 ...")
+    log.info("\n[4/6] Joining OpenSky + local...")
     merged = merge_data(opensky_data, local_data, cfg, cr_cap=args.cr_cap)
     df = merged_to_dataframe(merged)
-    log.info(f"  結合レコード数: {len(df)}  フェーズ: {sorted(df['phase'].unique())}")
+    log.info(f" Number of combined records: {len(df)} Phase: {sorted(df['phase'].unique())}")
     matched = df["local_n_unique"] > 0
-    log.info(f"  ローカルデータあり: {matched.sum()} / {len(df)} ({matched.mean()*100:.1f}%)")
+    log.info(f" With local data: {matched.sum()} / {len(df)} ({matched.mean()*100:.1f}%)")
 
     minutely_csv = os.path.join(out_dir, "opensky_local_minutely_merged.csv")
     df.to_csv(minutely_csv, index=False, encoding="utf-8-sig")
-    log.info(f"  出力: {minutely_csv}")
+    log.info(f" output: {minutely_csv}")
 
-    log.info("\n[5/6] 日次サマリ作成（品質フラグ付）...")
+    log.info("\n[5/6] Daily summary creation (with quality flag)...")
     daily = make_daily_summary(
         df, local_dates_exist,
         os_min_minutes=args.os_min_minutes, local_min_minutes=args.local_min_minutes,
@@ -309,14 +309,14 @@ def main():
     daily.to_csv(daily_csv, index=False, encoding="utf-8-sig")
     n_used = int(daily["use_for_stats"].sum())
     n_skip = int((~daily["use_for_stats"]).sum())
-    log.info(f"  出力: {daily_csv}  総日数: {len(daily)} | 使用: {n_used} | スキップ: {n_skip}")
+    log.info(f" Output: {daily_csv} Total days: {len(daily)} | Used: {n_used} | Skip: {n_skip}")
 
     df_skip = daily[~daily["use_for_stats"]].copy()
     if len(df_skip) > 0:
         skip_csv = os.path.join(out_dir, "opensky_skipped_days.csv")
         df_skip.to_csv(skip_csv, index=False, encoding="utf-8-sig")
 
-    log.info("\n[6/6] 統計解析を実行中 ...")
+    log.info("\n[6/6] Performing statistical analysis...")
     report_lines = [
         "OpenSky vs Local ADS-B Comparison Report v2",
         f"Generated: {datetime.now().isoformat(timespec='seconds')}",
@@ -346,7 +346,7 @@ def main():
     report_path = os.path.join(out_dir, "opensky_comparison_stats_report.txt")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("\n".join(report_lines))
-    log.info(f"  出力: {report_path}")
+    log.info(f" output: {report_path}")
 
     if args.plots:
         daily_used = daily[daily["use_for_stats"]].copy()
@@ -354,7 +354,7 @@ def main():
         df_for_plot = df[df["date"].isin(used_dates_set)].copy()
         daily_plot = daily[daily["pos_file_exists"]].copy()
 
-        log.info("\n  プロット生成中...")
+        log.info("\nGenerating plot...")
         if len(df_for_plot) > 0:
             plot_capture_ratio_by_phase(df_for_plot, os.path.join(out_dir, "capture_ratio_by_phase.png"))
             plot_capture_by_distance_bin(df_for_plot, os.path.join(out_dir, "capture_by_distance_bin.png"))
@@ -362,7 +362,7 @@ def main():
         if len(daily_plot) >= 2:
             plot_daily_trend_compact(daily_plot, os.path.join(out_dir, "daily_capture_trend.png"))
             plot_daily_bin_trend_compact(daily_plot, os.path.join(out_dir, "daily_bin_capture_trend.png"))
-        log.info("  完了。")
+        log.info("Complete.")
 
     log.info("\n" + "=" * 70)
     log.info("DONE")

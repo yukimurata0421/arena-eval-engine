@@ -29,267 +29,267 @@ scripts/
 
 ### Root / entry
 - `scripts/master.py`
-  Purpose: ADS-B評価パイプライン実行の互換エントリ（実体は `arena` CLI）
-  Output: `output/performance/pipeline_runs.jsonl`, `output/performance/pipeline_error_codes_latest.txt` ほか
+  Purpose: Compatible entry for ADS-B evaluation pipeline execution (actually `arena` CLI)
+  Output: `output/performance/pipeline_runs.jsonl`, `output/performance/pipeline_error_codes_latest.txt`, etc.
 
 - `scripts/phase_config.py`
-  Purpose: `arena.lib.phase_config` への互換シム
-  Output: なし（import互換用）
+  Purpose: Compatible shim to `arena.lib.phase_config`
+  Output: None (for import compatibility)
 
 - `scripts/__init__.py`
-  Purpose: scriptsパッケージ初期化
-  Output: なし
+  Purpose: scripts package initialization
+  Output: None
 
 - `scripts/collectors/`
-  Purpose: 収集系スクリプト用の予約ディレクトリ（現状は空）
-  Output: なし
+  Purpose: Reserved directory for collection scripts (currently empty)
+  Output: None
 
 - `scripts/structure`
-  Purpose: scripts配下の構成と用途の最新メモ
-  Output: なし（ドキュメント）
+  Purpose: Latest memo on configuration and usage under scripts
+  Output: None (documentation)
 
 ---
 
 ### ADS-B aggregation
 - `scripts/adsb/aggregators/adsb_aggregator.py`
-  Purpose: past_log JSONL から日次AUC集計（1日最大値）
+  Purpose: Daily AUC aggregation from past_log JSONL (maximum value per day)
   Output: `output/adsb_daily_summary_raw.csv`
 
 - `scripts/adsb/aggregators/adsb_eval_pk_aggregator.py`
-  Purpose: dist_1m + pos + traffic を結合した日次サマリ生成
+  Purpose: Generate daily summary combining dist_1m + pos + traffic
   Output: `output/adsb_daily_summary.csv`
 
 - `scripts/adsb/aggregators/adsb_csv_patcher.py`
-  Purpose: `adsb_daily_summary.csv` の列補正・拡張
-  Output: 入力CSVを更新
+  Purpose: Column correction/expansion of `adsb_daily_summary.csv`
+  Output: Update input CSV
 
 - `scripts/adsb/aggregators/adsb_local_traffic_proxy_gen.py`
-  Purpose: local_traffic_proxy生成と日次サマリ統合
+  Purpose: local_traffic_proxy generation and daily summary integration
   Output: `output/adsb_daily_summary_v2.csv`
 
 ---
 
 ### ADS-B statistical evaluation (statsmodels)
 - `scripts/adsb/analysis/stats/adsb_stats_eval.py`
-  Purpose: local_traffic_proxy を用いた効果評価
+  Purpose: Effectiveness evaluation using local_traffic_proxy
   Output: console
 
 - `scripts/adsb/analysis/stats/adsb_dynamic_eval.py`
-  Purpose: 任意介入日での効果推定
+  Purpose: Estimating effects on optional intervention days
   Output: console
 
 - `scripts/adsb/analysis/stats/adsb_baseline_nb_eval.py`
-  Purpose: ベースライン負の二項モデル評価
+  Purpose: Baseline negative binomial model evaluation
   Output: `output/performance/baseline_nb_summary.txt`, `output/performance/baseline_nb_results.json`
 
 - `scripts/adsb/analysis/stats/adsb_distance_nb_eval.py`
-  Purpose: 距離帯別比較（MWU + bootstrap）
+  Purpose: Comparison by distance range (MWU + bootstrap)
   Output: `output/performance/distance_performance_summary.csv`
 
 - `scripts/adsb/analysis/stats/adsb_distance_binomial_eval.py`
-  Purpose: 距離帯別二項モデル評価
+  Purpose: Binomial model evaluation by distance range
   Output: `output/performance/distance_binomial_summary.csv`
 
 ---
 
 ### ADS-B Bayesian evaluation (PyMC / NumPyro)
 - `scripts/adsb/analysis/bayesian/adsb_bayesian_eval.py`
-  Purpose: ベイズ位相評価
+  Purpose: Bayesian phase evaluation
   Output: `output/performance/bayesian_phase_results.csv`
 
 - `scripts/adsb/analysis/bayesian/adsb_bayesian_dynamic_eval.py`
-  Purpose: 任意介入日のベイズ推定
+  Purpose: Bayesian estimation of optional intervention days
   Output: console
 
 - `scripts/adsb/analysis/bayesian/adsb_bayesian_advi_eval.py`
-  Purpose: ADVIベイズ推定
+  Purpose: ADVI Bayesian estimation
   Output: console
 
 - `scripts/adsb/analysis/bayesian/adsb_bayesian_cuda_eval.py`
-  Purpose: 位相比較用CUDAラッパー
+  Purpose: CUDA wrapper for phase comparison
   Output: `output/performance/bayesian_phase_results_cuda.csv`
 
 ---
 
 ### ADS-B change point detection (NumPyro / JAX)
 - `scripts/adsb/analysis/change_points/adsb_detect_change_point.py`
-  Purpose: 単一変化点推定
+  Purpose: Single change point estimation
   Output: console / plots
 
 - `scripts/adsb/analysis/change_points/adsb_detect_discovery_gpu.py`
-  Purpose: GPU/CPU切替付き変化点検出
+  Purpose: Change point detection with GPU/CPU switching
   Output: console / plots
 
 - `scripts/adsb/analysis/change_points/adsb_detect_multi_change_points.py`
-  Purpose: 複数変化点推定（K=3）
+  Purpose: Multiple change point estimation (K=3)
   Output: console / plots
 
 - `scripts/adsb/analysis/change_points/adsb_multi_discovery.py`
-  Purpose: CPU中心の複数変化点推定
+  Purpose: CPU-centric multiple change point estimation
   Output: console / plots
 
 - `scripts/adsb/analysis/change_points/adsb_performance_discovery.py`
-  Purpose: GPU/WSL向け複数変化点推定
+  Purpose: Multiple change point estimation for GPU/WSL
   Output: console / plots
 
 ---
 
 ### ADS-B GPU evaluation (NumPyro / JAX)
 - `scripts/adsb/analysis/gpu/adsb_bayesian_phase_cuda_eval.py`
-  Purpose: GPUベイズ位相推定
+  Purpose: GPU Bayesian phase estimation
   Output: `output/performance/bayesian_phase_results_cuda.csv`
 
 - `scripts/adsb/analysis/gpu/adsb_cuda_evaluator.py`
-  Purpose: GPU変化点評価可視化
+  Purpose: GPU change point evaluation visualization
   Output: `output/performance/adsb_cuda_evaluator_change_point.png`
 
 - `scripts/adsb/analysis/gpu/adsb_cuda_processor.py`
-  Purpose: GPU変化点推定可視化（別実装）
+  Purpose: GPU change point estimation visualization (separate implementation)
   Output: `output/performance/adsb_cuda_processor_change_point.png`
 
 ---
 
 ### ADS-B phase evaluation
 - `scripts/adsb/analysis/phase/adsb_phase_evaluator.py`
-  Purpose: 位相別改善評価（旧実装 / 互換）
+  Purpose: Phase-based improvement evaluation (old implementation/compatible)
   Output: `output/performance/phase_evaluator_results.csv`, `output/performance/phase_evaluator_report.txt`, `output/performance/phase_evaluator_boxplot.png`
 
 - `scripts/adsb/analysis/phase/adsb_phase_evaluator_v3.py`
-  Purpose: Dual-baseline位相評価（現行）
+  Purpose: Dual-baseline phase evaluation (current)
   Output: `output/performance/phase_evaluator_results.csv`, `output/performance/phase_evaluator_report.txt`, `output/performance/phase_evaluator_boxplot.png`
 
 - `scripts/adsb/analysis/phase/adsb_manual_evaluator.py`
-  Purpose: 手動位相評価
+  Purpose: Manual phase evaluation
   Output: console / plots
 
 - `scripts/adsb/analysis/phase/adsb_phase_timebin_export.py`
-  Purpose: 位相設定の日次マッピング生成と phase × time_bin 集計のエクスポート
+  Purpose: Generation of daily mapping of phase settings and export of phase × time_bin aggregation
   Output: `output/performance/phase_config_daily_mapping.csv`, `output/performance/phase_config_daily_mapping.json`, `output/performance/phase_timebin_summary.csv`, `output/performance/phase_timebin_summary.json`, `output/performance/phase_timebin_export_report.txt`
 
 ---
 
 ### ADS-B OpenSky comparison
 - `scripts/adsb/analysis/opensky/__init__.py`
-  Purpose: OpenSky比較モジュール初期化
-  Output: なし
+  Purpose: OpenSky comparison module initialization
+  Output: None
 
 - `scripts/adsb/analysis/opensky/adsb_opensky_comparison_eval.py`
-  Purpose: OpenSkyとローカル受信の比較評価
+  Purpose: Comparative evaluation of OpenSky and local reception
   Output: `output/opensky_comparison/*`
 
 ---
 
 ### ADS-B report / coverage
 - `scripts/adsb/analysis/reports/adsb_total_performance_reporter.py`
-  Purpose: AUC/信号の総合レポート
+  Purpose: Comprehensive AUC/signal report
   Output: `output/tsuchiura_master_log_report.png`
 
 - `scripts/adsb/analysis/reports/adsb_polar_coverage_evaluator.py`
-  Purpose: 方位別P95距離トレンド評価
+  Purpose: P95 distance trend evaluation by direction
   Output: `output/coverage/coverage_trend.csv`, `output/coverage/coverage_trend_report.png`, `output/coverage/*_polar_p95.png`
 
 - `scripts/adsb/analysis/reports/adsb_vertical_profile_evaluator.py`
-  Purpose: LOS効率トレンド評価
+  Purpose: LOS efficiency trend evaluation
   Output: `output/vertical_profile/los_efficiency_trend.csv`, `output/vertical_profile/los_efficiency_trend_report.png`
 
 - `scripts/adsb/analysis/reports/adsb_fringe_decoding_evaluator.py`
-  Purpose: 遠距離デコード率評価
+  Purpose: Long-distance decoding rate evaluation
   Output: `output/fringe_decoding/fringe_decoding_stats.csv`
 
 - `scripts/adsb/analysis/reports/adsb_fringe_decoding_quality_stats.py`
-  Purpose: 遠距離デコード品質統計
+  Purpose: Long range decoding quality statistics
   Output: console
 
 ---
 
 ### ADS-B time-resolved
 - `scripts/adsb/analysis/time_resolved/adsb_time_resolved_aggregator.py`
-  Purpose: 時間帯別AUC/traffic集計
+  Purpose: AUC/traffic aggregation by time of day
   Output: `output/time_resolved/adsb_timebin_summary.csv`
 
 - `scripts/adsb/analysis/time_resolved/adsb_time_resolved_mixed_eval.py`
-  Purpose: 時間帯別混合モデル評価
+  Purpose: Mixed model evaluation by time of day
   Output: `output/performance/time_resolved_performance.png`
 
 - `scripts/adsb/analysis/time_resolved/adsb_time_resolved_detailed_report.py`
-  Purpose: 時間帯別詳細レポート
+  Purpose: Detailed report by time zone
   Output: `output/performance/time_bin_detailed_stats.csv`, `output/performance/time_resolved_detailed_plot.png`
 
 ---
 
 ### ADS-B data fetch / heatmaps / ops
 - `scripts/adsb/data_fetch/get_opensky_traffic.py`
-  Purpose: OpenSky trafficデータ取得
+  Purpose: OpenSky traffic data acquisition
   Output: `data/flight_data/airport_movements.csv`
 
 - `scripts/adsb/heatmap/adsb_heatmap_generator.py`
-  Purpose: 単日ヒートマップ生成
+  Purpose: Single-day heatmap generation
   Output: `output/adsb_coverage_heatmap.html`
 
 - `scripts/adsb/heatmap/adsb_daily_heatmap.py`
-  Purpose: 日次ヒートマップ一括生成
+  Purpose: Batch generation of daily heatmaps
   Output: `output/heatmaps/*_heatmap.html`
 
 - `scripts/adsb/heatmap/adsb_daily_heatmap_alt.py`
-  Purpose: 高度帯別ヒートマップ生成
+  Purpose: Heat map generation by altitude band
   Output: `output/heatmaps/*_alt_heatmap.html`
 
 - `scripts/adsb/ops/rpi_log_sync.py`
-  Purpose: Raspberry Pi ログ同期（運用）
-  Output: `data/` 配下ログ更新、JSONレポート
+  Purpose: Raspberry Pi log synchronization (operation)
+  Output: `data/` subordinate log update, JSON report
 
 - `scripts/adsb/ops/dist_1m_health_check.py`
-  Purpose: dist_1m データ健全性チェック（運用）
+  Purpose: dist_1m Data health check (operation)
   Output: `output/performance/dist_1m_health_daily.csv`, `output/performance/dist_1m_health_latest.json`
 
 ---
 
 ### Signals
 - `scripts/signals/collectors/signal_stats_aggregator.py`
-  Purpose: 信号強度集計
+  Purpose: Signal strength aggregation
   Output: `output/adsb_signal_range_summary.csv`
 
 - `scripts/signals/analysis/signal_range_evaluator.py`
-  Purpose: 距離帯別信号強度評価
+  Purpose: Signal strength evaluation by distance range
   Output: console
 
 - `scripts/signals/analysis/signal_quality_evaluator.py`
-  Purpose: 信号品質評価
+  Purpose: Signal quality evaluation
   Output: console
 
 ---
 
 ### PLAO
 - `scripts/plao/analysis/plao_distance_auc_eval.py`
-  Purpose: PLAO pos の距離帯AUC集計/統計/可視化
+  Purpose: PLAO pos distance zone AUC aggregation/statistics/visualization
   Output: `output/plao/distance_auc/*`
 
 ---
 
 ### Tools
 - `scripts/tools/merge_output_for_ai/merge_output_for_ai.py`
-  Purpose: `output/` 配下テキスト成果物を1つのMarkdownへ統合
+  Purpose: Integrate text artifacts under `output/` into one Markdown
   Output: `<out_dir>/manifest.csv`, `<out_dir>/merged_for_ai.md`, `<out_dir>/merged_for_ai.zip`
 
 - `scripts/tools/debug/tmp_check_signal.py`
-  Purpose: 信号データ確認用の一時デバッグスクリプト
+  Purpose: Temporary debug script for checking signal data
   Output: console
 
 - `scripts/tools/debug/tmp_check_signal_pandas.py`
-  Purpose: pandasベースの信号データ確認用デバッグスクリプト
+  Purpose: Debug script for checking signal data based on pandas
   Output: console
 
 - `scripts/tools/install_arena_rpi_sync_task.ps1`
-  Purpose: RPi同期タスクのWindowsタスク登録
-  Output: タスクスケジューラ設定
+  Purpose: Windows task registration for RPi synchronization task
+  Output: Task scheduler settings
 
 - `scripts/tools/run_rpi_sync_and_health.ps1`
-  Purpose: 同期 + 健全性チェックの運用実行
+  Purpose: Synchronization + health check operation execution
   Output: `logs/tasks/*`
 
 - `scripts/tools/run_rpi_sync_and_health_hidden.vbs`
-  Purpose: PowerShell運用スクリプトの非表示起動
-  Output: なし（実行ラッパー）
+  Purpose: Invisible startup of PowerShell operation scripts
+  Output: None (execution wrapper)
 
 ---
 
@@ -297,14 +297,14 @@ scripts/
 - `scripts/config/phases.txt`
 - `scripts/config/phases_v3_airspy_baseline.txt`
 - `scripts/config/settings.toml`
-- `scripts/secrets/opensky_credentials.json`（機密、公開不可）
-- `scripts/ARENA-run.txt`（運用メモ）
-- `scripts/master_log.txt`（運用ログ）
+- `scripts/secrets/opensky_credentials.json` (confidential, cannot be published)
+- `scripts/ARENA-run.txt` (operation memo)
+- `scripts/master_log.txt` (operation log)
 
 ---
 
 ## Notes
-- 共有ライブラリコードは `src/arena/lib`（`arena.lib`）に統合済みです。
-- パス解決は `src/arena/lib/paths.py` の `resolve_*()` を優先し、import時定数依存を段階的に削減しています。
-- 正式経路は CLI (`arena validate`, `arena run`) です。
-- 直接スクリプト実行は互換のため残っていますが、公開運用ではCLI経由を優先します。
+- Shared library code has been integrated into `src/arena/lib` (`arena.lib`).
+- For path resolution, `resolve_*()` of `src/arena/lib/paths.py` is prioritized, and import time constant dependence is gradually reduced.
+- The official route is CLI (`arena validate`, `arena run`).
+- Direct script execution remains for compatibility, but for public operations we will prioritize via CLI.

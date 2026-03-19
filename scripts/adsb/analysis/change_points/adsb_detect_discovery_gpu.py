@@ -41,7 +41,7 @@ try:
     numpyro.set_platform("cuda")
     print(f">>>  GPU detected: {jax.devices()}")
 except Exception:
-    print(">>> GPU が検出されません。CPU 並列モード（4コア）で実行します。")
+    print(">>> GPU not detected. Run in CPU parallel mode (4 cores).")
     numpyro.set_platform("cpu")
     numpyro.set_host_device_count(min(6, os.cpu_count() or 6))
 
@@ -49,19 +49,19 @@ def run_discovery_analysis():
     min_auc, _min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=None, require_proxy=True)
     if df is None or df.empty:
-        print("データファイルが見つかりません。")
+        print("Data file not found.")
         return
     df = df.sort_values('date').reset_index(drop=True)
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["auc_n_used", "log_traffic"])
     if len(df) < 5:
-        print("  警告: 有効データが不足しているため、変化点検出をスキップします。")
+        print("Warning: Skipping change point detection due to insufficient valid data.")
         return
     
     y = jnp.array(df['auc_n_used'].values, dtype=jnp.float32)
     log_traffic = jnp.array(df['log_traffic'].values, dtype=jnp.float32)
     n_days = len(df)
     
-    print(f">>> 解析対象: {df['date'].min().date()} ～ {df['date'].max().date()}（{n_days} 日）")
+    print(f">>> Parse target: {df['date'].min().date()} to {df['date'].max().date()} ({n_days} days)")
 
     def model(y, log_traffic, n_days):
         tau = numpyro.sample('tau', dist.DiscreteUniform(0, n_days - 1))
@@ -91,7 +91,7 @@ def run_discovery_analysis():
     detected_date = df.iloc[int(best_tau_idx)]['date']
     
     print("\n" + "="*40)
-    print(" 解析完了")
+    print("Analysis completed")
     print(f"[Detected structural change date]: {detected_date.strftime('%Y-%m-%d')}")
     print(f"[Estimated improvement (mean)]: {jnp.mean(improvement):+.2f}%")
     print(f"[Confidence]: {np.max(counts)/len(tau_samples)*100:.1f}%")

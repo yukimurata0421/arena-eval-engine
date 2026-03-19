@@ -1,51 +1,51 @@
 # Reanalysis Profiles
 
-このメモは、再評価時に混同しやすい `baseline_date` / `alt_baseline_date` / `analysis_start_date` の違いを整理するためのものです。
+This memo is to clarify the differences between `baseline_date` / `alt_baseline_date` / `analysis_start_date`, which can be easily confused during re-evaluation.
 
 ## 1) `baseline_date`
 
-- 役割:
-  - 主基準（メイン比較の基準日）を指す概念。
-- このリポジトリでの実態:
-  - `phases.txt` に `baseline_date` というキーはありません。
-  - 実運用では「主解析の基準」は `post_change_date`（現在は `2026-01-14`）として扱います。
-- 使いどころ:
-  - RTL-SDR -> Airspy の主解析境界を固定した比較。
+- role:
+  - A concept that refers to the main reference (base date of the main comparison).
+- Actual situation in this repository:
+  - There is no key called `baseline_date` in `phases.txt`.
+  - In actual operation, the "main analysis standard" is treated as `post_change_date` (currently `2026-01-14`).
+- When to use:
+  - RTL-SDR -> Comparison with fixed main analysis boundary of Airspy.
 
 ## 2) `alt_baseline_date`
 
-- 役割:
-  - 第二基準（代替ベースライン）の開始日。
-- 定義場所:
-  - `scripts/config/phases.txt` の `[settings]`
-- 現在値:
+- role:
+  - Start date of the second standard (alternative baseline).
+- Definition location:
+  - `[settings]` in `scripts/config/phases.txt`
+- Current value:
   - `2026-01-29`
-- 使いどころ:
-  - Airspy 導入直後の遷移期間を避け、Airspy 安定運用期を基準に cable/adapter の微差を比較する。
-  - `adsb_phase_evaluator_v3.py` の Section 2 で参照される。
+- When to use:
+  - Avoid the transition period immediately after Airspy introduction, and compare the slight differences in cable/adapter based on the stable operation period of Airspy.
+  - Referenced in Section 2 of `adsb_phase_evaluator_v3.py`.
 
 ## 3) `analysis_start_date`
 
-- 役割:
-  - 解析対象データの「読み込み開始日」フィルタ。
-- 指定方法:
+- role:
+  - "Loading start date" filter for analysis target data.
+- How to specify:
   - CLI: `--analysis-start-date YYYY-MM-DD`
-  - 環境変数: `ARENA_ANALYSIS_START_DATE`
-- 使いどころ:
-  - 例: `2026-01-14` を指定して Airspy 後限定の再評価を実行する。
-- 注意:
-  - これは基準日そのものではなく、対象データ範囲を切るための条件。
+  - Environment variable: `ARENA_ANALYSIS_START_DATE`
+- When to use:
+  - Example: Specify `2026-01-14` to perform re-evaluation only after Airspy.
+- Note:
+  - This is not the base date itself, but a condition for cutting the target data range.
 
-## 使い分けの要点
+## Key points for proper usage
 
-- `baseline_date`（概念）:
-  - 「何と比較するか」の主基準。
+- `baseline_date` (concept):
+  - The main criterion of "what to compare with".
 - `alt_baseline_date`:
-  - 「別の基準でも比較する」ための第二基準。
+  - A second standard for ``comparing with other standards.''
 - `analysis_start_date`:
-  - 「どこから先のデータを使うか」を決めるフィルタ。
+  - A filter that determines "from where to use the data."
 
-## 例（Airspy後限定 + 代替基準あり）
+## Example (only after Airspy + with alternative criteria)
 
 ```powershell
 python -m arena.cli run ^

@@ -1,7 +1,7 @@
 """
 NOTE:
-旧版のCUDAベイズ評価（介入日入力型）を、フェーズ比較モデルに統一。
-GPU版の本体は以下に移動しました:
+Unified the old version of CUDA Bayes evaluation (intervention date input type) into a phase comparison model.
+The main body of the GPU version has been moved to:
   <project>\\scripts\\adsb\\analysis\\gpu\\adsb_bayesian_phase_cuda_eval.py
 """
 import runpy

@@ -77,10 +77,10 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     ok = True
     if not scripts_root.exists():
-        logger.error("[NG] scripts ルートが見つかりません: %s", scripts_root)
+        logger.error("[NG] scripts root not found: %s", scripts_root)
         ok = False
     if not (scripts_root / "adsb").exists():
-        logger.error("[NG] scripts/adsb が見つかりません: %s", scripts_root / "adsb")
+        logger.error("[NG] scripts/adsb not found: %s", scripts_root / "adsb")
         ok = False
 
     logger.info("resolved_settings_path: %s", config_meta["resolved_settings_path"])
@@ -99,7 +99,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
             logger.error("[NG] %s", err)
 
     if not settings_path.exists():
-        logger.error("[NG] settings.toml が見つかりません: %s", settings_path)
+        logger.error("[NG] settings.toml not found: %s", settings_path)
         ok = False
     else:
         logger.info("[OK] settings.toml: %s", settings_path)
@@ -112,22 +112,22 @@ def cmd_validate(args: argparse.Namespace) -> int:
         )
         bins_ok = "distance_bins" in data and isinstance(data["distance_bins"], dict) and "km" in data["distance_bins"]
         if not (site_ok and quality_ok and bins_ok):
-            logger.error("[NG] settings.toml に必須キーがありません (site/quality/distance_bins)")
+            logger.error("[NG] settings.toml is missing a required key (site/quality/distance_bins)")
             ok = False
         else:
             try:
                 lat = float(data["site"]["lat"])
                 lon = float(data["site"]["lon"])
                 if lat == 0.0 and lon == 0.0:
-                    logger.warning("警告: site.lat/lon が 0.0 です（未設定）。settings.toml の [site] を設定してください。")
+                    logger.warning("Warning: site.lat/lon is 0.0 (not set). Please set [site] in settings.toml.")
             except (TypeError, ValueError):
-                logger.error("[NG] settings.toml [site] の lat/lon は数値である必要があります")
+                logger.error("[NG] lat/lon in settings.toml [site] must be a number")
                 ok = False
 
     if phase_cfg and phase_cfg.exists():
         logger.info("[OK] phases.txt: %s", phase_cfg)
     else:
-        logger.error("[NG] phases.txt が見つかりません（--phase-config または ARENA_PHASE_CONFIG を設定）")
+        logger.error("[NG] phases.txt not found (set --phase-config or ARENA_PHASE_CONFIG)")
         ok = False
 
     if args.create_dirs:
@@ -135,13 +135,13 @@ def cmd_validate(args: argparse.Namespace) -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
 
     if not data_dir.exists():
-        logger.error("[NG] data ディレクトリが見つかりません: %s", data_dir)
+        logger.error("[NG] data directory not found: %s", data_dir)
         ok = False
     else:
         logger.info("[OK] data dir: %s", data_dir)
 
     if not output_dir.exists():
-        logger.error("[NG] output ディレクトリが見つかりません: %s", output_dir)
+        logger.error("[NG] output directory not found: %s", output_dir)
         ok = False
     else:
         logger.info("[OK] output dir: %s", output_dir)
@@ -188,7 +188,7 @@ def cmd_fetch_opensky(args: argparse.Namespace) -> int:
 
     script = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(resolve_scripts_root()))) / "adsb" / "data_fetch" / "get_opensky_traffic.py"
     if not script.exists():
-        logger.error("[NG] OpenSky スクリプトが見つかりません: %s", script)
+        logger.error("[NG] OpenSky script not found: %s", script)
         return 1
 
     env = {**os.environ}
@@ -204,7 +204,7 @@ def cmd_sync_rpi_logs(args: argparse.Namespace) -> int:
 
     script = Path(os.getenv("ARENA_SCRIPTS_ROOT", str(resolve_scripts_root()))) / "adsb" / "ops" / "rpi_log_sync.py"
     if not script.exists():
-        logger.error("[NG] RPi同期スクリプトが見つかりません: %s", script)
+        logger.error("[NG] RPi sync script not found: %s", script)
         return 1
 
     env = {**os.environ}
@@ -269,19 +269,19 @@ def cmd_artifacts_replay(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="arena", description="ARENA 評価エンジン CLI")
+    p = argparse.ArgumentParser(prog="arena", description="ARENA Rating Engine CLI")
     sub = p.add_subparsers(dest="subcommand", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--scripts-root", help="scripts ルートを上書き")
-    common.add_argument("--data-dir", help="data ディレクトリを上書き")
-    common.add_argument("--output-dir", help="output ディレクトリを上書き")
-    common.add_argument("--settings", "--config", dest="settings", help="settings.toml のパス")
-    common.add_argument("--phase-config", help="phases.txt のパス")
-    common.add_argument("--analysis-start-date", help="解析対象の開始日(YYYY-MM-DD)。未指定時は全期間。")
-    common.add_argument("--analysis-end-date", help="解析対象の終了日(YYYY-MM-DD)。未指定時は全期間。")
+    common.add_argument("--scripts-root", help="Override scripts root")
+    common.add_argument("--data-dir", help="Overwrite data directory")
+    common.add_argument("--output-dir", help="Overwrite output directory")
+    common.add_argument("--settings", "--config", dest="settings", help="settings.toml path")
+    common.add_argument("--phase-config", help="phases.txt path")
+    common.add_argument("--analysis-start-date", help="Start date of analysis target (YYYY-MM-DD). If not specified, whole period.")
+    common.add_argument("--analysis-end-date", help="End date of analysis target (YYYY-MM-DD). If not specified, whole period.")
 
-    p_run = sub.add_parser("run", parents=[common], help="評価パイプラインを実行")
+    p_run = sub.add_parser("run", parents=[common], help="Run evaluation pipeline")
     p_run.add_argument("--stage", type=int, default=1)
     p_run.add_argument("--only", type=int, default=None)
     p_run.add_argument("--dry-run", action="store_true")
@@ -299,18 +299,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--workers",
         type=int,
         default=0,
-        help="並列度（0=自動: 論理CPU数）。ステージ2/3/5のステップ並列と各スクリプト内のProcessPool/ThreadPool・ベイズchain数に使用",
+        help="Parallelism degree (0=auto: number of logical CPUs). Used for step parallelism in stage 2/3/5 and the number of ProcessPool/ThreadPool/Bayesian chains in each script",
     )
     p_run.set_defaults(func=cmd_run)
 
-    p_val = sub.add_parser("validate", parents=[common], help="設定とディレクトリを検証")
-    p_val.add_argument("--create-dirs", action="store_true", help="data/output が無ければ作成")
+    p_val = sub.add_parser("validate", parents=[common], help="Validate settings and directories")
+    p_val.add_argument("--create-dirs", action="store_true", help="Create data/output if it does not exist")
     p_val.set_defaults(func=cmd_validate)
 
-    p_fetch = sub.add_parser("fetch-opensky", parents=[common], help="OpenSky の交通データを取得")
+    p_fetch = sub.add_parser("fetch-opensky", parents=[common], help="Fetch OpenSky traffic data")
     p_fetch.set_defaults(func=cmd_fetch_opensky)
 
-    p_sync = sub.add_parser("sync-rpi-logs", parents=[common], help="Raspberry Pi ログを差分同期")
+    p_sync = sub.add_parser("sync-rpi-logs", parents=[common], help="Differential synchronization of Raspberry Pi logs")
     p_sync.add_argument("--host", default="", help="Raspberry Pi hostname/IP")
     p_sync.add_argument("--user", default="", help="SSH user")
     p_sync.add_argument("--port", type=int, default=0, help="SSH port")
@@ -330,14 +330,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_sync.add_argument("--skip-plao-sync", action="store_true")
     p_sync.set_defaults(func=cmd_sync_rpi_logs)
 
-    p_artifacts = sub.add_parser("artifacts", help="artifact bundle の検証と再評価")
+    p_artifacts = sub.add_parser("artifacts", help="Validating and reevaluating artifact bundles")
     artifacts_sub = p_artifacts.add_subparsers(dest="artifacts_command", required=True)
 
-    p_artifacts_verify = artifacts_sub.add_parser("verify", help="artifact bundle を検証")
+    p_artifacts_verify = artifacts_sub.add_parser("verify", help="Verify artifact bundle")
     p_artifacts_verify.add_argument("artifact_bundle", nargs="?", default=".", help="artifact bundle root")
     p_artifacts_verify.set_defaults(func=cmd_artifacts_verify)
 
-    p_artifacts_replay = artifacts_sub.add_parser("replay", help="artifact bundle を再評価")
+    p_artifacts_replay = artifacts_sub.add_parser("replay", help="Re-evaluate artifact bundle")
     p_artifacts_replay.add_argument("artifact_bundle", help="artifact bundle root")
     p_artifacts_replay.set_defaults(func=cmd_artifacts_replay)
 

@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.9] - 2026-03-20
+
+### Changed
+- Strengthened public-release definition and boundary messaging in `README.md`:
+  - explicitly separates research/statistical reproducibility from release-layer smoke reproducibility
+  - emphasizes deterministic public smoke verification as a release contract
+
+### Added
+- Release-layer import isolation guard:
+  - added repository-local `arena` shim package so `import arena` resolves to this checkout (`src/arena`) even when other editable clones exist
+- Public smoke reproducibility subsystem and fixture:
+  - deterministic sample build/freeze/verify commands under `scripts/tools/sample_data/`
+  - frozen expected outputs under `sample_data/smoke/expected/`
+  - public reproducibility guide in `docs/reproducibility.md`
+- Coverage boundary hardening:
+  - added `.coveragerc` to fix measurement scope to this release tree (`src/arena`, `scripts`)
+  - integrated coverage flags into `pytest.ini`
+  - added import-boundary runtime tests to detect path contamination
+- Public packaging verification:
+  - added tests for `scripts/tools/build_public_zip.py` exclusion rules and deterministic zip behavior
+
+### Tests
+- Added/expanded tests for previously untested utility modules:
+  - `arena.lib.data_loader`
+  - `arena.lib.input_utils`
+  - `arena.lib.geo`
+  - `arena.lib.platform_setup`
+- Full suite passes with coverage-enabled pytest execution in release layer.
+
+---
+
 ## [0.2.8] - 2026-03-19
 
 ### Changed

@@ -187,16 +187,16 @@ def load_local_data(
     minute_dates: Dict[int, str] = {}
 
     if paths:
-        log.info(f"  [local] {len(paths)} ファイルを並列読込 (workers={MAX_WORKERS}) ...")
+        log.info(f" [local] {len(paths)} Read files in parallel (workers={MAX_WORKERS}) ...")
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = {ex.submit(_process_local_file, p, site_latlon): p for p in paths}
         for fut in as_completed(futures):
             p = futures[fut]
             try:
                 part_dist, part_dates, minute_count = fut.result()
-                log.info(f"  [local] 完了 {os.path.basename(p)} (minutes={minute_count}) ...")
+                log.info(f" [local] completed {os.path.basename(p)} (minutes={minute_count}) ...")
             except Exception as e:
-                log.info(f"  [local] 失敗 {os.path.basename(p)} ({e})")
+                log.info(f" [local] failure {os.path.basename(p)} ({e})")
                 continue
             for mk, hx_map in part_dist.items():
                 dst = minute_hex_dist[mk]

@@ -68,13 +68,13 @@ def test_print_summary_aggregates_status_counts_and_codes(tmp_path: Path, caplog
         runner.print_summary()
 
     text = "\n".join([r.getMessage() for r in caplog.records])
-    assert "パイプライン集計" in text
-    assert "結果:" in text
+    assert "pipeline aggregation" in text
+    assert "Result:" in text
     assert "1 OK" in text
     assert "1 WARN" in text
-    assert "1 NG(出力)" in text
+    assert "1 NG(output)" in text
     # Ensure error-code section appears for non-OK records
-    assert "エラーコード詳細" in text
+    assert "Error code details" in text
     assert "S1-02-E10" in text
 
 

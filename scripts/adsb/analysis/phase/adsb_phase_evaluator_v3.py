@@ -49,7 +49,7 @@ FORCE_INTERACTIVE = os.environ.get("ADSB_PHASE_INTERACTIVE") == "1"
 
 
 def _boxplot_compat(ax, data, labels, **kwargs):
-    """matplotlib < 3.9 は tick_labels= を知らないため labels= にフォールバックする互換ラッパー。"""
+    """Compatibility wrapper that falls back to labels= since matplotlib < 3.9 doesn't know about tick_labels=."""
     try:
         return ax.boxplot(data, tick_labels=labels, **kwargs)
     except TypeError:
@@ -161,7 +161,7 @@ def _detect_alt_baseline_idx(phases: list) -> int:
                     if phase_start <= alt_date:
                         return i
     except Exception as e:
-        log.info(f"  [警告] alt_baseline_date の読み込みに失敗 ({e}); 既定値を使用します")
+        log.info(f" [WARNING] Failed to load alt_baseline_date ({e}); Using default value")
 
     for i, p in enumerate(phases):
         hw = p.get("hardware", "")
@@ -206,7 +206,7 @@ def run_phase_analysis():
 
     data_path = str(ADSB_DAILY_SUMMARY)
     if not os.path.exists(data_path):
-        log.info(f"  エラー: {data_path} が見つかりません。")
+        log.info(f" Error: {data_path} not found.")
         return
 
     df_raw = pd.read_csv(data_path)
@@ -253,16 +253,16 @@ def run_phase_analysis():
         n_minutes_excluded = 0
         mask_all = mask_auc
 
-    log.info(f"\n  データ品質ゲート:")
-    log.info(f"    総日数:               {n_total}")
-    log.info(f"    AUC 除外 (<{MIN_AUC_N_USED}):  {n_auc_excluded}")
+    log.info(f"\nData quality gate:")
+    log.info(f" Total number of days: {n_total}")
+    log.info(f" AUC Excluded (<{MIN_AUC_N_USED}): {n_auc_excluded}")
     if has_minutes:
-        log.info(f"    分数除外 (<{MIN_MINUTES_COVERED}m): {n_minutes_excluded}")
-    log.info(f"    有効日数:             {int(mask_all.sum())}")
+        log.info(f" Minutes excluded (<{MIN_MINUTES_COVERED}m): {n_minutes_excluded}")
+    log.info(f" Valid days: {int(mask_all.sum())}")
 
     excluded = df_raw[~mask_all].copy()
     if len(excluded) > 0:
-        log.info(f"\n    除外日（最新10件）:")
+        log.info(f"\nExclusion date (latest 10):")
         for _, row in excluded.tail(10).iterrows():
             reason = []
             if row['auc_n_used'] <= MIN_AUC_N_USED:
@@ -273,7 +273,7 @@ def run_phase_analysis():
 
     phases = get_phases()
     if len(phases) < 2:
-        log.info("  フェーズが2未満のため比較できません。")
+        log.info("Unable to compare because phase is less than 2.")
         return
 
     df_raw['phase_idx'] = -1
@@ -285,28 +285,28 @@ def run_phase_analysis():
     df = df_raw_with_phase[mask_all_with_phase].copy().reset_index(drop=True)
 
     if len(df) < 5:
-        log.info("  有効日数が5未満です。")
+        log.info("Number of valid days is less than 5.")
         return
 
     init_numpyro_platform(n_data=len(df))
 
     alt_baseline_idx = _detect_alt_baseline_idx(phases)
-    log.info(f"  基準（元）: Phase 0 ({phases[0]['name']})")
-    log.info(f"  代替基準:  Phase {alt_baseline_idx} ({phases[alt_baseline_idx]['name']})")
+    log.info(f" Base: Phase 0 ({phases[0]['name']})")
+    log.info(f" Alternative criteria: Phase {alt_baseline_idx} ({phases[alt_baseline_idx]['name']})")
 
     num_phases = len(phases)
     phase_n_days = {}
     low_n_phases = []
     zero_data_diagnostics = []
 
-    log.info(f"\n  データ: {len(df)} 日, フェーズ数: {num_phases}")
+    log.info(f"\n data: {len(df)} days, number of phases: {num_phases}")
     for i, p in enumerate(phases):
         n_raw = int((df_raw_with_phase['phase_idx'] == i).sum())
         n = int((df['phase_idx'] == i).sum())
         phase_n_days[i] = n
         tag = _phase_reliability_tag(n)
         marker = " ← original baseline" if i == 0 else (" ← alt baseline" if i == alt_baseline_idx else "")
-        log.info(f"    {p['name']}: {n} 日{marker}{tag}")
+        log.info(f" {p['name']}: {n} days{marker}{tag}")
         if n == 0 and n_raw > 0:
             excluded_rows = df_raw_with_phase[(df_raw_with_phase['phase_idx'] == i) & (~mask_all_with_phase)]
             summary = f"{p['name']}: raw={n_raw} day(s), excluded_by_quality={len(excluded_rows)} day(s)"
@@ -326,8 +326,8 @@ def run_phase_analysis():
             low_n_phases.append((i, p['name'], n))
 
     if low_n_phases:
-        log.info(f"\n  ⚠ 注意: {len(low_n_phases)} フェーズが最小日数 ({MIN_DAYS_FOR_CONCLUSION}) 未満")
-        log.info("    → 参考値扱い（定量結論は出しません）。")
+        log.info(f"\n ⚠ Notice: {len(low_n_phases)} phases are less than minimum number of days ({MIN_DAYS_FOR_CONCLUSION})")
+        log.info(" → Treated as reference value (no quantitative conclusion drawn).")
 
     df['auc_n_used'] = df['auc_n_used'].fillna(0).clip(lower=0)
     hnd = df['hnd_nrt_movements'].fillna(1).replace(0, 1)
@@ -370,8 +370,8 @@ def run_phase_analysis():
         n_chains = resolve_workers(default_cap=12)
 
     mcmc = MCMC(NUTS(model), num_warmup=n_warmup, num_samples=n_samples, num_chains=n_chains)
-    log.info(f"\n  MCMC 実行中 (warmup={n_warmup}, samples={n_samples}, chains={n_chains})...")
-    log.info(f"  モデル: NegBin + traffic_control" + (" + minutes_offset" if use_minutes_offset else ""))
+    log.info(f"\n MCMC running (warmup={n_warmup}, samples={n_samples}, chains={n_chains})...")
+    log.info(f" model: NegBin + traffic_control" + (" + minutes_offset" if use_minutes_offset else ""))
     mcmc.run(random.PRNGKey(42), y, log_traffic, phase_idx, num_phases,
              log_minutes if use_minutes_offset else None)
 
@@ -523,8 +523,8 @@ def run_phase_analysis():
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
-    log.info(f"\n  結果を保存しました: {csv_path}")
-    log.info(f"  レポート:   {txt_path}")
+    log.info(f"\nResults saved: {csv_path}")
+    log.info(f" report: {txt_path}")
 
     _plot_dual_boxplot(alphas, phases, num_phases, alt_baseline_idx, phase_n_days)
 
@@ -549,7 +549,7 @@ def _plot_dual_boxplot(alphas, phases, num_phases, alt_baseline_idx, phase_n_day
 
     active_indices = [i for i in range(num_phases) if phase_n_days.get(i, 0) > 0]
     if not active_indices:
-        log.info("  プロット: 有効フェーズが無いためスキップ")
+        log.info("Plot: Skip due to no valid phase")
         return
 
     labels = [f"{phases[i]['name'][:20]}" for i in active_indices]
@@ -603,7 +603,7 @@ def _plot_dual_boxplot(alphas, phases, num_phases, alt_baseline_idx, phase_n_day
     if IS_BATCH or not hasattr(plt, 'show'):
         fig.savefig(png_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
-        log.info(f"  プロット:   {png_path}")
+        log.info(f" plot: {png_path}")
     else:
         plt.show()
 

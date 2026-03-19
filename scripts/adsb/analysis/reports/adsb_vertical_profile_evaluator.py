@@ -113,16 +113,16 @@ def process_one_file(f_path: str):
 
 def process_los_efficiency_trend():
     if not _site_is_valid(SITE_LAT, SITE_LON):
-        log.info(" 観測点座標が不正です (lat/lon=0)。settings.toml の [site] を確認してください。")
+        log.info("The observation point coordinates are invalid (lat/lon=0). Please check [site] in settings.toml.")
         return
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     files = glob.glob(os.path.join(INPUT_DIR, "*pos*.jsonl*"))
     if not files:
-        log.info(f" ファイルが見つかりません: {INPUT_DIR}")
+        log.info(f" File not found: {INPUT_DIR}")
         return
 
-    log.info(f">>> {len(files)} 日分のデータを走査し、LOS達成率(%)を算出中... (workers={MAX_WORKERS})\n")
+    log.info(f">>> Scanning {len(files)} days worth of data and calculating LOS achievement rate (%)... (workers={MAX_WORKERS})\n")
 
     trend_data = []
     with ProcessPoolExecutor(max_workers=MAX_WORKERS) as ex:
@@ -136,7 +136,7 @@ def process_los_efficiency_trend():
                 continue
 
     if not trend_data:
-        log.info("有効データがありません。")
+        log.info("No valid data.")
         return
 
     df_trend = pd.DataFrame(trend_data).sort_values('date').reset_index(drop=True)
@@ -187,8 +187,8 @@ def process_los_efficiency_trend():
     fig.savefig(TREND_IMG, dpi=150)
     plt.close(fig)
 
-    log.info(f"\n 保存しました: {TREND_CSV}")
-    log.info(f" 保存しました: {TREND_IMG}")
+    log.info(f"\nSaved: {TREND_CSV}")
+    log.info(f" Saved: {TREND_IMG}")
 
 if __name__ == "__main__":
     process_los_efficiency_trend()

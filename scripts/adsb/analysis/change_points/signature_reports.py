@@ -26,7 +26,7 @@ def write_text(path: Path, text: str) -> None:
 def summarize_change_points(change_point_df: pd.DataFrame) -> list[str]:
     lines: list[str] = []
     if change_point_df.empty:
-        return ["- 変化点は検出されませんでした。"]
+        return ["- No change points detected."]
     for _, row in change_point_df.iterrows():
         lines.append(
             "- {series_name} ({adjustment}) -> {date} [{method}] score={score}".format(
@@ -42,7 +42,7 @@ def summarize_change_points(change_point_df: pd.DataFrame) -> list[str]:
 
 def summarize_comparison_rows(df: pd.DataFrame, top_n: int = 6) -> list[str]:
     if df.empty:
-        return ["- 統計比較結果は空です。"]
+        return ["- Statistical comparison result is empty."]
     ordered = df.sort_values("p_value", na_position="last").head(top_n)
     lines = []
     for _, row in ordered.iterrows():
@@ -78,11 +78,11 @@ def build_summary_report(
     lines: list[str] = []
     lines.append("# Daily Signature Change Point Summary")
     lines.append("")
-    lines.append("## 実行日時")
-    lines.append(f"- 開始: {run_started_at}")
-    lines.append(f"- 完了: {run_completed_at}")
+    lines.append("## Execution date and time")
+    lines.append(f"- Started: {run_started_at}")
+    lines.append(f"- Completed: {run_completed_at}")
     lines.append("")
-    lines.append("## 入力採用ファイル一覧")
+    lines.append("## Input adopted file list")
     if selected_input_rows:
         for row in selected_input_rows:
             lines.append(
@@ -98,77 +98,77 @@ def build_summary_report(
     lines.append(f"- used_default_settings: {config_metadata.get('used_default_settings', '')}")
     lines.append(f"- experimental_mode: {config_metadata.get('experimental_mode', '')}")
     lines.append(
-        "- production default policy: override 未指定時は scripts/config/phases.txt と "
-        "scripts/config/settings.toml を使用し、既定値を自動置換しない。"
+        "- production default policy: If override is not specified, scripts/config/phases.txt and "
+        "Use scripts/config/settings.toml and do not auto-replace default values."
     )
     lines.append("")
-    lines.append("## 既存 change_points 配下に追加した理由")
+    lines.append("## Reason for adding under existing change_points")
     lines.append(
-        "- 既存の変化点分析責務を維持し、stage 9 連携時に import 単位で段階統合できるように、"
-        "scripts/adsb/analysis/change_points 配下へ append-only で拡張した。"
+        "- Maintaining the existing change point analysis responsibility and allowing stage integration by import unit when linking to stage 9."
+        "Extended under scripts/adsb/analysis/change_points with append-only."
     )
     lines.append("")
-    lines.append("## 採用した change point 手法と理由")
-    lines.append(f"- 手法: {cp_model}")
+    lines.append("## Change point method adopted and reason")
+    lines.append(f"- method: {cp_model}")
     lines.append(
-        "- rank_scan を基準に採用。非正規/外れ値に比較的頑健で、依存が軽く、将来の複数変化点拡張でも再利用しやすい。"
+        "- Adopted based on rank_scan. Relatively robust to non-normal/outlier values, light dependence, and easy to reuse in future multi-change point expansion."
     )
     lines.extend(summarize_change_points(change_point_df))
     lines.append("")
-    lines.append("## HL か PIM の選定理由")
+    lines.append("## Reason for choosing HL or PIM")
     lines.append(f"- effect_model: {effect_model}")
     lines.append(
-        "- 初期実装は MWU + Hodges-Lehmann を採用。実装容易性・再現性・解釈性を優先し、"
-        "追加依存のない構成で stage 9 へ移植しやすいことを重視した。"
+        "- The initial implementation uses MWU + Hodges-Lehmann. Prioritizes ease of implementation, reproducibility, and interpretability."
+        "We focused on making it easy to port to stage 9 with a configuration that does not require additional dependencies."
     )
     lines.append("")
-    lines.append("## traffic 補正方法と理由")
-    lines.append(f"- 補正方法: {traffic_adjustment_method}")
+    lines.append("## traffic correction method and reason")
+    lines.append(f"- Correction method: {traffic_adjustment_method}")
     lines.append(
-        "- traffic_count の log1p を共変量として線形残差化。説明可能で再計算が容易、"
-        "壊れ方（不足データ時は補正スキップ）が明確なため採用した。"
+        "- Linear residualization of log1p of traffic_count as a covariate. Explainable and easy to recalculate."
+        "We adopted this method because it is clear how it breaks (correction is skipped if there is insufficient data)."
     )
     lines.append("")
-    lines.append("## 補正なし / 補正あり の比較要約")
-    lines.append("- 補正なし:")
+    lines.append("## Comparison summary of without correction / with correction")
+    lines.append("- No correction:")
     lines.extend(summarize_comparison_rows(unadjusted_df))
-    lines.append("- 補正あり:")
+    lines.append("- With correction:")
     lines.extend(summarize_comparison_rows(adjusted_df))
     lines.append("")
-    lines.append("## traffic 系列の検定")
+    lines.append("## traffic series verification")
     if traffic_test_df.empty:
-        lines.append("- traffic_test_results は空。")
+        lines.append("- traffic_test_results is empty.")
     else:
         lines.extend(summarize_comparison_rows(traffic_test_df, top_n=3))
     lines.append("")
-    lines.append("## 何が言えるか")
+    lines.append("## What can you say")
     lines.append(
-        "- 日次AUC・quantile signature・coverage signature の3系列で、同一実行から"
-        "変化点候補日と前後比較統計を再計算可能な形で出力できる。"
+        "- Daily AUC, quantile signature, and coverage signature from the same run"
+        "Changing point candidate dates and before/after comparison statistics can be output in a format that can be recalculated."
     )
     lines.append("")
-    lines.append("## 何がまだ言えないか")
+    lines.append("## What can't be said yet")
     lines.append(
-        "- 因果解釈（機材変更や運用変更が主因かどうか）はこの分析だけでは断定できない。"
+        "- The causal interpretation (whether equipment changes or operational changes were the main cause) cannot be determined from this analysis alone."
     )
     lines.append("")
-    lines.append("## 限界")
+    lines.append("## limit")
     if assumptions:
         for assumption in assumptions:
-            lines.append(f"- 仮定: {assumption}")
-    lines.append("- coverage は距離バケット内一様分布を仮定した近似を含む。")
-    lines.append("- q99 は一部区間で補間値を使用する。")
+            lines.append(f"- {assumption}")
+    lines.append("- coverage includes an approximation assuming uniform distribution within the distance buckets.")
+    lines.append("- q99 uses interpolated values ​​in some sections.")
     if warnings:
         for warning in warnings:
             lines.append(f"- warning: {warning}")
     lines.append("")
-    lines.append("## stage 9 に統合する際の接続ポイント")
-    lines.append("- データ探索: daily_signature_sources.discover_daily_signature_sources")
-    lines.append("- 系列生成: daily_signature_builders.*")
-    lines.append("- traffic補正: traffic_adjustment.apply_traffic_adjustment")
-    lines.append("- 変化点: signature_change_point_models.detect_change_point_for_columns")
-    lines.append("- 効果推定: signature_effect_estimation.build_series_comparison_rows")
-    lines.append("- 出力: signature_reports.*")
+    lines.append("## Connection points when integrating into stage 9")
+    lines.append("- Data exploration: daily_signature_sources.discover_daily_signature_sources")
+    lines.append("- Line generation: daily_signature_builders.*")
+    lines.append("- traffic correction: traffic_adjustment.apply_traffic_adjustment")
+    lines.append("- Change point: signature_change_point_models.detect_change_point_for_columns")
+    lines.append("- Effect estimation: signature_effect_estimation.build_series_comparison_rows")
+    lines.append("- Output: signature_reports.*")
     lines.append("")
     return "\n".join(lines) + "\n"
 

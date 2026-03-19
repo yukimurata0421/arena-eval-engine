@@ -30,7 +30,7 @@ def load_summary(
         default_post_date = get_config().intervention_date
     csv_path = Path(path) if path else (resolve_output_dir() / "adsb_daily_summary_v2.csv")
     if not csv_path.exists():
-        print(f"  エラー: {csv_path} が見つかりません。")
+        print(f" Error: {csv_path} not found.")
         return None
 
     df = pd.read_csv(csv_path)
@@ -70,21 +70,21 @@ def load_summary(
 
     # local_traffic_proxy
     if require_proxy and "local_traffic_proxy" not in df.columns:
-        print("  local_traffic_proxy が見つかりません。adsb_daily_summary_v2.csv を確認してください。")
+        print(" local_traffic_proxy not found. Please check adsb_daily_summary_v2.csv.")
         return None
     if "local_traffic_proxy" in df.columns:
         df["local_traffic_proxy"] = pd.to_numeric(df["local_traffic_proxy"], errors="coerce")
         med_proxy = df["local_traffic_proxy"].median()
         if not pd.notna(med_proxy):
-            print("  [WARN] local_traffic_proxy が全て NaN です。" " fill_val=1 を使用しますが、GLM結果が縮退する可能性があります。")
+            print(" [WARN] local_traffic_proxy are all NaN." "Using fill_val=1, but GLM results may be degraded.")
         fill_val = med_proxy if pd.notna(med_proxy) else 1
         df["local_traffic_proxy"] = df["local_traffic_proxy"].fillna(fill_val)
         df["local_traffic_proxy"] = df["local_traffic_proxy"].replace(0, fill_val)
         neg_count = (df["local_traffic_proxy"] < 0).sum()
         if neg_count > 0:
             print(
-                f"  [WARN] local_traffic_proxy に負値が {neg_count} 件あります。"
-                " np.log() で NaN/-inf が発生します。データを確認してください。"
+                f" [WARN] local_traffic_proxy has {neg_count} negative values."
+                " NaN/-inf occurs in np.log(). Please check your data."
             )
         df["log_traffic"] = np.log(df["local_traffic_proxy"])
 
@@ -110,8 +110,8 @@ def check_proxy_endogeneity(df: pd.DataFrame):
     if df is None:
         return None
     if "post" not in df.columns or "local_traffic_proxy" not in df.columns:
-        print("  check_proxy_endogeneity: 必要な列がありません。")
+        print(" check_proxy_endogeneity: A required column is missing.")
         return None
     corr = np.corrcoef(df["post"].astype(float), df["local_traffic_proxy"].astype(float))[0, 1]
-    print(f"  プロキシ内生性（post vs local_traffic_proxy 相関）: {corr:.4f}")
+    print(f" Proxy endogeneity (post vs local_traffic_proxy correlation): {corr:.4f}")
     return corr

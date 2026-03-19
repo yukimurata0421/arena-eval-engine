@@ -37,19 +37,19 @@ def run_cuda_analysis():
     min_auc, min_minutes = get_quality_thresholds()
     df = load_summary(min_auc=min_auc, min_minutes=min_minutes, require_proxy=True)
     if df is None or df.empty:
-        log.info(" エラー: 入力データがありません。")
+        log.info("Error: No input data.")
         return
     df = df.sort_values("date").reset_index(drop=True)
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["auc_n_used", "log_traffic"])
     if len(df) < 5:
-        log.info("  警告: 有効データが不足しているため、変化点推定をスキップします。")
+        log.info("Warning: Skipping change point estimation due to lack of valid data.")
         return
 
     y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
     log_traffic = jnp.array(df["log_traffic"].values, dtype=jnp.float32)
     n_days = len(df)
     log.info(
-        f">>> 解析対象: {n_days} 日（{df['date'].min().date()} ~ {df['date'].max().date()}）"
+        f">>> Parsed: {n_days} days ({df['date'].min().date()} ~ {df['date'].max().date()})"
         f" [min_auc>{min_auc}, minutes>={min_minutes}]"
     )
 
@@ -73,7 +73,7 @@ def run_cuda_analysis():
     n_chains = max(1, min(CPU_HOST, 4))
     mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=n_chains)
 
-    log.info(f">>> ベイズ推論を実行中（CPU, warmup={num_warmup}, samples={num_samples}, chains={n_chains}）...")
+    log.info(f">>> Running Bayesian inference (CPU, warmup={num_warmup}, samples={num_samples}, chains={n_chains})...")
     mcmc.run(random.PRNGKey(42), y, log_traffic, n_days)
 
     samples = mcmc.get_samples()
