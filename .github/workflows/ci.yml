@@ -60,11 +60,25 @@ jobs:
         run: |
           python -m pip install -U pip
           pip install -e ".[dev]"
+      - name: Tool versions
+        run: |
+          python -m pytest --version
+          python - <<'PY'
+          import coverage
+          import pytest
+          import pytest_cov
+          print("pytest", pytest.__version__)
+          print("pytest-cov", pytest_cov.__version__)
+          print("coverage", coverage.__version__)
+          PY
       - name: Coverage
         run: |
-          coverage run -m pytest -q -m "not real_data"
-          coverage report
-          coverage xml
+          python -m pytest -q -m "not real_data"
+          if ls .coverage.* >/dev/null 2>&1; then
+            coverage combine
+          fi
+          coverage report --rcfile=.coveragerc -m
+          coverage xml --rcfile=.coveragerc
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
