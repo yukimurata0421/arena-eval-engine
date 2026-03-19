@@ -421,15 +421,15 @@ def run_from_args(args: argparse.Namespace) -> int:
     out_dir = Path(args.out)
 
     if not base_dir.exists():
-        print(f"[ERROR] base_dir が見つかりません: {base_dir}", file=sys.stderr)
+        print(f"[ERROR] base_dir not found: {base_dir}", file=sys.stderr)
         return 2
 
     legacy_flat_output = bool(getattr(args, "legacy_flat_output", False))
     if not legacy_flat_output and not args.dry_run:
         if args.no_ai_export:
-            print("[WARN] --no-ai-export は profile zip mode では無視されます。")
+            print("[WARN] --no-ai-export is ignored in profile zip mode.")
         if args.ai_export_use_out_parent and not args.ai_export_root:
-            print("[WARN] --ai-export-use-out-parent は非推奨です。出力先は --out を使用します。")
+            print("[WARN] --ai-export-use-out-parent is deprecated. Using --out as destination.")
         output_root = resolve_ai_export_root(out_dir, args.ai_export_root, args.ai_export_use_out_parent)
         run_ai_export_with_summary(
             base_dir=base_dir,
@@ -445,7 +445,7 @@ def run_from_args(args: argparse.Namespace) -> int:
 
     if args.export_ai_folder:
         if args.ai_export_use_out_parent and not args.ai_export_root:
-            print("[WARN] --ai-export-use-out-parent は非推奨です。出力先は --out を使用します。")
+            print("[WARN] --ai-export-use-out-parent is deprecated. Using --out as destination.")
         output_root = resolve_ai_export_root(out_dir, args.ai_export_root, args.ai_export_use_out_parent)
         run_ai_export_with_summary(
             base_dir=base_dir,
@@ -498,7 +498,7 @@ def run_from_args(args: argparse.Namespace) -> int:
     print(f"[OK] manifest: {manifest_path}")
 
     if args.dry_run:
-        print("[INFO] dry-run 有効: マージをスキップします")
+        print("[INFO] dry-run enabled: skipping merge output generation")
         return 0
 
     merge_to_markdown(base_dir, items, merged_path, args.max_bytes_per_file, deterministic=args.deterministic)
@@ -513,11 +513,11 @@ def run_from_args(args: argparse.Namespace) -> int:
     print(f"[SUMMARY] included={included_count} excluded={excluded_count} total={len(items)}")
 
     if args.no_ai_export:
-        print("[INFO] --no-ai-export が指定されたため、AIフォルダ出力をスキップします")
+        print("[INFO] --no-ai-export specified: skipping AI folder export")
         return 0
 
     if args.ai_export_use_out_parent and not args.ai_export_root:
-        print("[WARN] --ai-export-use-out-parent は非推奨です。出力先は --out を使用します。")
+        print("[WARN] --ai-export-use-out-parent is deprecated. Using --out as destination.")
     output_root = resolve_ai_export_root(out_dir, args.ai_export_root, args.ai_export_use_out_parent)
     run_ai_export_with_summary(
         base_dir=base_dir,

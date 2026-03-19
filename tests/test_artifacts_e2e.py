@@ -413,6 +413,6 @@ def test_legacy_wrapper_supports_dry_run(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "[INFO] dry-run 有効: マージをスキップします" in result.stdout
+    assert "[INFO] dry-run enabled: skipping merge output generation" in result.stdout
     assert (out_dir / "manifest.csv").exists()
     assert not (out_dir / "merged_for_ai.md").exists()
