@@ -3,6 +3,11 @@
 ARENA is a reproducible evaluation and artifact pipeline for ADS-B research workflows, with deterministic public smoke verification for the release layer.
 This repository intentionally separates research/statistical evaluation concerns from public release-layer reproducibility concerns.
 
+## Version and Release Status
+- Current source version in this repository: `0.2.9`.
+- GitHub Releases are currently published up to `v0.2.5`.
+- Until a new GitHub Release is published, treat this repository state and `CHANGELOG.md` as the primary reference for `0.2.6`-`0.2.9` updates.
+
 ## Highlights
 - 8-stage pipeline (`arena.pipeline`) for aggregation, evaluation, reporting, and comparisons.
 - Failure-resilient execution model: stage-level continuation and explicit error reporting.
@@ -52,6 +57,18 @@ Scope note:
 - This smoke sample is for artifact/release-layer reproducibility.
 - This is **not** research/statistical reproducibility of real ADS-B findings.
 - For details, see `docs/reproducibility.md`.
+
+## GitHub Actions Workflows
+- `verify-smoke` (`.github/workflows/verify-smoke.yml`):
+  lightweight deterministic smoke verification for the release layer (push/PR/manual).
+  It builds a synthetic smoke sample in CI temp storage and verifies against versioned frozen expected outputs.
+  It intentionally does not run `freeze_expected_outputs.py` in CI.
+- `artifacts-verify-replay` (`.github/workflows/artifacts-verify-replay.yml`):
+  manual heavier audit/revalidation path (`workflow_dispatch` only).
+  It generates a deterministic artifact bundle, runs `artifacts verify` and `artifacts replay`, then uploads logs/bundle outputs.
+
+These workflows validate release-layer reproducibility claims.
+They do not claim research/statistical reproducibility.
 
 ## Environment Setup
 Use one of the following setup levels:

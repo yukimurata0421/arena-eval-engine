@@ -1,0 +1,4 @@
+included,reason,rel_path,abs_path,ext,size_bytes,mtime_iso
+1,ok,README.txt,<SAMPLE_INPUT>/README.txt,.txt,113,2024-01-01T09:00:00
+1,ok,daily_metrics.csv,<SAMPLE_INPUT>/daily_metrics.csv,.csv,655,2024-01-01T09:00:00
+1,ok,signal_events.jsonl,<SAMPLE_INPUT>/signal_events.jsonl,.jsonl,2678,2024-01-01T09:00:00

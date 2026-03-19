@@ -11,6 +11,12 @@ It is designed to validate:
 - artifact generation
 - freeze/verify workflow
 
+## Version Scope
+
+- Current source version in this repository is `0.2.9`.
+- Public GitHub release tags are currently published up to `v0.2.5`.
+- Reproducibility checks in this document are intended for the current repository state; use `CHANGELOG.md` for post-`v0.2.5` change history.
+
 ## What It Guarantees
 
 - A fixed synthetic input fixture can be generated deterministically.
@@ -64,6 +70,19 @@ Exit code is non-zero when verification fails.
 - Output comparison uses explicit normalization for absolute-path and zip metadata stability.
 - `arena.lib.platform_setup` contains environment-dependent GPU/CUDA branches.
   Public tests cover deterministic CPU/fallback paths; hardware-specific paths are intentionally limited.
+
+## GitHub Actions Integration
+
+- `verify-smoke` workflow (`.github/workflows/verify-smoke.yml`):
+  lightweight release-layer smoke verification on `push`, `pull_request`, and `workflow_dispatch`.
+  It runs deterministic sample build in CI temp storage and verifies current outputs against frozen expected outputs.
+  It intentionally does not run freeze in normal CI.
+- `artifacts-verify-replay` workflow (`.github/workflows/artifacts-verify-replay.yml`):
+  heavier manual audit/revalidation path on `workflow_dispatch` only.
+  It generates an artifact bundle, runs `arena artifacts verify`, runs `arena artifacts replay`, and uploads logs plus bundle outputs.
+
+Both workflows are release-layer checks.
+They do not establish research/statistical reproducibility.
 
 ## Release Checklist
 

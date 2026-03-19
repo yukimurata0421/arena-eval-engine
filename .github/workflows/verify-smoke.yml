@@ -1,0 +1,47 @@
+name: verify-smoke
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+
+      - name: Build deterministic smoke sample (CI temp)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/verify-smoke-logs"
+          python scripts/tools/sample_data/build_public_sample.py \
+            --sample-root "$RUNNER_TEMP/public_smoke_sample" \
+            --force | tee "$RUNNER_TEMP/verify-smoke-logs/build.log"
+
+      - name: Verify frozen smoke outputs
+        run: |
+          set -euo pipefail
+          python scripts/tools/sample_data/verify_sample_outputs.py \
+            | tee "$RUNNER_TEMP/verify-smoke-logs/verify.log"
+
+      - name: Upload smoke verify logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-smoke-logs
+          path: ${{ runner.temp }}/verify-smoke-logs
+          retention-days: 14

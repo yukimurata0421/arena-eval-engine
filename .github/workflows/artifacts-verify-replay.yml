@@ -1,0 +1,84 @@
+name: artifacts-verify-replay
+
+on:
+  workflow_dispatch:
+
+jobs:
+  artifacts-verify-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+
+      - name: Build deterministic artifact fixture (CI temp)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/artifacts-verify-replay/logs"
+          python scripts/tools/sample_data/build_public_sample.py \
+            --sample-root "$RUNNER_TEMP/artifacts-verify-replay/smoke" \
+            --force | tee "$RUNNER_TEMP/artifacts-verify-replay/logs/build.log"
+
+      - name: Generate deterministic artifact bundle
+        id: bundle
+        run: |
+          set -euo pipefail
+          BUNDLE_ROOT="$RUNNER_TEMP/artifacts-verify-replay/bundles"
+          mkdir -p "$BUNDLE_ROOT"
+          python -m arena.artifact_cli run \
+            --base "$RUNNER_TEMP/artifacts-verify-replay/smoke/input" \
+            --out "$BUNDLE_ROOT" \
+            --deterministic \
+            --export-ai-folder | tee "$RUNNER_TEMP/artifacts-verify-replay/logs/artifact-run.log"
+
+          BUNDLE_DIR="$(find "$BUNDLE_ROOT" -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
+          if [ -z "$BUNDLE_DIR" ]; then
+            echo "::error::No artifact bundle was generated under $BUNDLE_ROOT"
+            exit 1
+          fi
+          echo "bundle_dir=$BUNDLE_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Verify artifact bundle
+        run: |
+          set -euo pipefail
+          python -m arena.cli artifacts verify "${{ steps.bundle.outputs.bundle_dir }}" \
+            | tee "$RUNNER_TEMP/artifacts-verify-replay/logs/verify.log"
+
+      - name: Replay artifact bundle
+        run: |
+          set -euo pipefail
+          python -m arena.cli artifacts replay "${{ steps.bundle.outputs.bundle_dir }}" \
+            | tee "$RUNNER_TEMP/artifacts-verify-replay/logs/replay.log"
+
+      - name: Stage workflow artifacts
+        if: always()
+        run: |
+          set -euo pipefail
+          STAGE_DIR="$RUNNER_TEMP/artifacts-verify-replay/upload"
+          mkdir -p "$STAGE_DIR"
+          if [ -n "${{ steps.bundle.outputs.bundle_dir }}" ] && [ -d "${{ steps.bundle.outputs.bundle_dir }}" ]; then
+            cp -R "${{ steps.bundle.outputs.bundle_dir }}" "$STAGE_DIR/bundle"
+          fi
+          if [ -d "$RUNNER_TEMP/artifacts-verify-replay/logs" ]; then
+            cp -R "$RUNNER_TEMP/artifacts-verify-replay/logs" "$STAGE_DIR/logs"
+          fi
+
+      - name: Upload verify/replay artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-verify-replay
+          path: ${{ runner.temp }}/artifacts-verify-replay/upload
+          retention-days: 14

@@ -63,3 +63,4 @@ scripts/master_log.txt
 !docs/**/*.png
 !docs/**/*.html
 !docs/**/*.csv
+!sample_data/smoke/expected/**/*.csv
