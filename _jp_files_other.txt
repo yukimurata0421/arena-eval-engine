@@ -1,5 +1,0 @@
-src\arena\pipeline\README.md
-scripts\reanalysis_profiles.md
-scripts\structure
-scripts\config\phases_v3_airspy_baseline.txt
-scripts\config\phases.txt
