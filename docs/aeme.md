@@ -106,10 +106,13 @@ and reproducible.
 
 ## Model Reuse
 
-Change-point and GPU-oriented scripts share core NegativeBinomial2 model definitions
-through `src/arena/lib/nb2_models.py`.
-This keeps statistical assumptions consistent across scripts
-while preserving script-level entry points for the pipeline.
+The current public tree does not expose a shared `src/arena/lib/nb2_models.py` module.
+NegativeBinomial2 model code currently lives in stage payload scripts
+(for example under `scripts/adsb/analysis/phase/`, `scripts/adsb/analysis/gpu/`,
+and `scripts/adsb/analysis/change_points/`).
+
+Consistency is maintained at the pipeline/output-contract level
+rather than by a single shared NB2 module.
 
 ---
 

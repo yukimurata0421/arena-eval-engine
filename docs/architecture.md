@@ -90,9 +90,23 @@ Boundary:
 
 `scripts/` is responsible for:
 
-- domain payload execution (aggregation/evaluation/reporting/ops)
-- sample-data build/freeze/verify tooling
-- artifact tool-layer compatibility paths
+- stage payloads used by `arena run` (`adsb/`, `signals/`, `plao/`)
+- release/runtime support tools (`tools/sample_data/`, `tools/artifacts/`, `tools/merge_output_for_ai/`)
+- runtime configuration assets (`config/`)
+- compatibility entrypoints (`master.py`, `phase_config.py`)
+
+Current public-tree structure (summary):
+
+```text
+scripts/
+├─ adsb/      # aggregation, stats, bayesian, change-point, reports, heatmap, ops
+├─ signals/   # signal aggregators/evaluators
+├─ plao/      # PLAO distance-AUC evaluation
+├─ tools/     # smoke sample, artifact compatibility, packaging/ops helpers
+├─ config/    # default settings + phase config templates
+├─ master.py
+└─ phase_config.py
+```
 
 Boundary:
 

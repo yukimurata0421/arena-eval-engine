@@ -27,7 +27,7 @@ Raspberry Pi (edge)                    WSL2 / Linux (analysis)
 │                     │                │  └─ cli.py    entry      │
 │  adsb-eval          │                │                          │
 │  └─ dist_1m.jsonl   │                │  scripts/{adsb,signals,  │
-│                     │                │           plao,...}       │
+│                     │                │   plao,tools,config,...}  │
 │  data flow edge->analysis            │                          │
 │  PLAO outputs    ───────────────────>│  consumed by ARENA       │
 │  adsb-eval outputs──────────────────>│  consumed by ARENA       │
@@ -47,7 +47,7 @@ flowchart LR
   end
 
   subgraph ANALYSIS["WSL2 / Linux (analysis)"]
-    A["ARENA<br/>pipeline / artifacts / lib / cli<br/>scripts/{adsb,signals,plao,...}"]
+    A["ARENA<br/>pipeline / artifacts / lib / cli<br/>scripts/{adsb,signals,plao,tools,config,...}"]
   end
 
   A -. "pull initiated here" .-> P
@@ -55,6 +55,14 @@ flowchart LR
   P -- "synced data" --> A
   E -- "synced data" --> A
 ```
+
+Current `scripts/` groups in this repository:
+
+- `scripts/adsb/`: aggregation, statistical evaluation, change-point, report, heatmap, and ops payloads
+- `scripts/signals/`: signal aggregation/evaluation payloads
+- `scripts/plao/`: PLAO distance-AUC payloads
+- `scripts/tools/`: smoke reproducibility and artifact compatibility tools
+- `scripts/config/`: default settings and phase templates
 
 ## Repository Roles
 
