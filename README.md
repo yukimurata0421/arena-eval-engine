@@ -1,3 +1,8 @@
+[![verify-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/verify-smoke.yml?branch=main&label=verify-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/verify-smoke.yml)
+[![artifacts-verify-replay](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/artifacts-verify-replay.yml?branch=main&label=artifacts-verify-replay)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/artifacts-verify-replay.yml)
+[![coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)](https://github.com/yukimurata0421/arena-eval-engine)
+[![version](https://img.shields.io/badge/version-0.2.9-blue)](https://github.com/yukimurata0421/arena-eval-engine/blob/main/README.md#version-and-release-status)
+
 # ARENA Public Release
 
 ARENA is a reproducible evaluation and artifact pipeline for ADS-B research workflows, with deterministic public smoke verification for the release layer.
@@ -45,6 +50,15 @@ For repository-internal responsibility boundaries, see [docs/architecture.md](do
 - Append-only JSONL execution logging (`output/performance/pipeline_runs.jsonl`) for auditability.
 - `PipelineBuildOptions` for environment-separated pipeline construction (feature toggles and optional stages).
 - CLI-first operation (`python -m arena.cli ...`) with deterministic path/env resolution.
+
+## Documentation Map
+- [Architecture](docs/architecture.md): public release-layer responsibility boundaries
+- [System Context](docs/system-context.md): where ARENA fits in the broader ADS-B telemetry stack
+- [Reproducibility](docs/reproducibility.md): release-layer reproducibility contract
+- [Artifact Design](docs/artifact-design.md): why the artifact control layer exists
+- [Failure Taxonomy](docs/failure-taxonomy.md): failure visibility and non-silent failure structure
+- [AI-Assisted Analysis](docs/ai-assisted-analysis.md): how AI is used and what is not trusted automatically
+- [AEME](docs/aeme.md): evaluation-method and analysis-core design
 
 ## Repository Layout
 - `src/arena/`: core CLI, pipeline, and shared runtime modules.
