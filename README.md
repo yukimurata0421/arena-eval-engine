@@ -8,9 +8,8 @@ ARENA is a reproducible evaluation and artifact pipeline for ADS-B research work
 This repository intentionally separates research/statistical evaluation concerns from public release-layer reproducibility concerns.
 
 ## Version and Release Status
+
 - Current source version in this repository: `0.2.9`.
-- GitHub Releases are currently published up to `v0.2.5`.
-- Until a new GitHub Release is published, treat this repository state and `CHANGELOG.md` as the primary reference for `0.2.6`-`0.2.9` updates.
 
 ## Where ARENA Fits
 
