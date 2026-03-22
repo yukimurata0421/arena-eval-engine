@@ -1,5 +1,4 @@
 [![verify-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/verify-smoke.yml?branch=main&label=verify-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/verify-smoke.yml)
-[![artifacts-verify-replay](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/artifacts-verify-replay.yml?branch=main&label=artifacts-verify-replay)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/artifacts-verify-replay.yml)
 [![coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)](https://github.com/yukimurata0421/arena-eval-engine)
 [![version](https://img.shields.io/badge/version-0.2.9-blue)](https://github.com/yukimurata0421/arena-eval-engine/blob/main/README.md#version-and-release-status)
 
