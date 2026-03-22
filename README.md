@@ -1,4 +1,5 @@
 [![verify-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/verify-smoke.yml?branch=main&label=verify-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/verify-smoke.yml)
+[![docker-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/docker-smoke.yml?branch=main&label=docker-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/docker-smoke.yml)
 [![coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)](https://github.com/yukimurata0421/arena-eval-engine)
 [![version](https://img.shields.io/badge/version-0.2.9-blue)](https://github.com/yukimurata0421/arena-eval-engine/blob/main/README.md#version-and-release-status)
 

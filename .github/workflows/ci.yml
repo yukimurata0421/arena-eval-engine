@@ -117,17 +117,3 @@ jobs:
           python -m pytest -q tests/test_cli.py tests/test_entrypoint_orchestration.py tests/test_artifacts_migration.py
       - name: Artifact CLI entrypoint smoke
         run: python -m arena.artifact_cli --help
-
-  docker-smoke:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Docker build
-        run: docker build -f docker/Dockerfile.cpu -t arena-release-smoke .
-      - name: Docker sample smoke
-        run: |
-          docker run --rm arena-release-smoke python -m arena.cli --help
-          docker run --rm arena-release-smoke python -m arena.cli validate
-          docker run --rm arena-release-smoke python -m arena.cli run --only 1 --dry-run --no-gpu --skip-plao

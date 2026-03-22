@@ -1,0 +1,20 @@
+name: docker-smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build
+        run: docker build -f docker/Dockerfile.cpu -t arena-release-smoke .
+      - name: Docker sample smoke
+        run: |
+          docker run --rm arena-release-smoke python -m arena.cli --help
+          docker run --rm arena-release-smoke python -m arena.cli validate
+          docker run --rm arena-release-smoke python -m arena.cli run --only 1 --dry-run --no-gpu --skip-plao
