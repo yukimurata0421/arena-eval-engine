@@ -10,6 +10,7 @@ This repository intentionally separates research/statistical evaluation concerns
 ## Version and Release Status
 
 - Current source version in this repository: `0.2.9`.
+- See GitHub Releases for published release notes and tagged versions.
 
 ## Where ARENA Fits
 
