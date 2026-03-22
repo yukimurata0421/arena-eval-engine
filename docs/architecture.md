@@ -1,124 +1,235 @@
-# Architecture
+# ARENA Architecture (Public Release Layer)
 
-ARENA is the statistical evaluation layer in a three-repository telemetry stack.
-It does not collect data or decode ADS-B signals. It evaluates telemetry produced by upstream systems.
+## What ARENA Is
 
-## System Context
+ARENA is an **evaluation runtime and reproducibility surface** for the public release layer.
+It is not only a collection of research scripts.
 
-```
-Raspberry Pi (edge)                    WSL2 / Linux (analysis)
-┌─────────────────────┐                ┌──────────────────────────┐
-│  readsb runtime     │                │         ARENA            │
-│  ├─ aircraft.json   │                │                          │
-│  └─ stats.json      │                │  src/arena/              │
-│                     │                │  ├─ pipeline/   8 stages │
-│  PLAO               │  rsync/pull    │  ├─ artifacts/  verify   │
-│  └─ pos_*.jsonl ────┼───────────────>│  ├─ lib/        config   │
-│                     │                │  └─ cli.py      entry    │
-│  adsb-eval          │                │                          │
-│  └─ dist_1m.jsonl ──┼───────────────>│  scripts/                │
-│                     │                │  └─ adsb/analysis/       │
-└─────────────────────┘                └──────────────────────────┘
-```
+This document is the canonical architecture description for the current public repository state.
+Detailed release evolution from `v0.2.5` to `v0.2.9` is documented in `docs/evolution/v0.2.5-to-v0.2.9.md`.
 
-Heavy computation runs on the analysis machine, not on the edge.
-The Raspberry Pi must maintain headroom to function as a reliable observation instrument.
-This is not a resource constraint workaround — there is no reason to process statistics at the edge.
+This document does not replace:
 
-Repositories:
+- `docs/artifact-design.md` (why artifact control exists and what responsibilities it carries)
+- `docs/ai-assisted-analysis.md` (how AI is used and what is not trusted automatically)
+- `docs/reproducibility.md` (public smoke reproducibility contract)
 
-- [PLAO](https://github.com/yukimurata0421/plao-pos-collector) — per-aircraft position logging on the Pi
-- [adsb-eval](https://github.com/yukimurata0421/adsb-eval) — minute-level distance and signal aggregation on the Pi
-- **ARENA** (this repository) — statistical evaluation on WSL2/Linux
+## System Position
 
-## Pipeline Stages
+In the broader stack, ARENA is positioned as the evaluation/reproducibility layer.
 
-All stages are orchestrated by `arena run` and emit artifacts into `output/`.
+- PLAO: raw position logging
+- adsb-eval: edge-side metric/telemetry generation
+- ARENA: orchestration, statistical evaluation runtime, artifact control, and public reproducibility surface
 
-```mermaid
-graph TD
-  A[Stage 1: Aggregation] --> B[Stage 2: Spatial / Visual]
-  B --> C[Stage 3: Statistics]
-  C --> D[Stage 4: Phase Evaluation]
-  D --> E[Stage 5: Bayesian & Change Points]
-  E --> F[Stage 6: Final Reports]
-  F --> G[Stage 7: PLAO]
-  G --> H[Stage 8: OpenSky Comparison]
-```
+This architecture document focuses on ARENA's public-layer responsibilities, not upstream system internals.
 
-| Stage | Name | Key Scripts | Primary Outputs |
-|---|---|---|---|
-| 1 | Aggregation | `adsb_aggregator.py`, `adsb_eval_pk_aggregator.py`, `signal_stats_aggregator.py` | `adsb_daily_summary_v2.csv`, signal summaries |
-| 2 | Spatial / Visual | `adsb_daily_heatmap.py`, `adsb_polar_coverage_evaluator.py` | Heatmap HTML, coverage trend CSV |
-| 3 | Statistics (CPU) | `adsb_baseline_nb_eval.py`, `adsb_distance_binomial_eval.py`, `adsb_stats_eval.py` | NB-GLM results, distance-bin comparisons |
-| 4 | Phase Evaluation | `adsb_phase_evaluator_v3.py` (Dual-Baseline NumPyro NUTS) | Phase evaluator report, Bayesian results CSV |
-| 5 | Bayesian & CP | `adsb_bayesian_dynamic_eval.py`, `adsb_detect_change_point.py` | Change-point reports, posterior summaries |
-| 6 | Final Reports | `adsb_total_performance_reporter.py`, `adsb_vertical_profile_evaluator.py` | Consolidated report, LOS efficiency trend |
-| 7 | PLAO | `plao_distance_auc_eval.py` | PLAO AUC summary (independent data source) |
-| 8 | OpenSky Compare | `adsb_opensky_comparison_eval.py` | OpenSky vs local reception comparison |
+## Design Goals
 
-Stages execute in dependency order. Each stage continues on failure and records the failure reason in `pipeline_runs.jsonl`.
+The public architecture prioritizes:
 
-## Package Structure
+1. Clear responsibility boundaries between orchestration, payload execution, runtime support, and artifact control.
+2. Explicit execution auditability for each run.
+3. Explicit config resolution and validation before execution.
+4. Reproducibility contracts that can be checked in CI and smoke flows.
+5. AI-assisted analysis as hypothesis-generation support under human judgment.
+6. Clear separation between public-release guarantees and development-side extensions.
 
-```
-src/arena/
-├── pipeline/           # Orchestration (7 modules)
-│   ├── entrypoint.py   # Top-level run flow
-│   ├── stages.py       # Step definitions and expected outputs
-│   ├── runner.py       # Execution, timeout, skip, output validation
-│   ├── decision.py     # Skip-existing logic with dependency tracking
-│   ├── backend.py      # Native / WSL backend resolution
-│   ├── record_io.py    # Append-only JSONL audit logging
-│   └── error_policy.py # Failure classification and recommended actions
-│
-├── artifacts/          # Research artifact substrate (14 modules)
-│   ├── integrity.py    # Bundle verification (hash, schema, provenance)
-│   ├── replay.py       # Bundle-level revalidation and audit replay
-│   ├── manifest.py     # Manifest record generation
-│   ├── policies.py     # Required/recommended targets, exclusion rules
-│   ├── schema.py       # JSON Schema validation for all bundle outputs
-│   ├── selection.py    # Ordered target list from required/recommended/candidate
-│   ├── discovery.py    # Source path resolution and glob fallbacks
-│   └── ...             # hash_utils, lineage, provenance, models, etc.
-│
-├── lib/                # Shared infrastructure
-│   ├── paths.py        # Injectable path resolution (scripts, output, data roots)
-│   ├── settings_loader.py  # TOML settings discovery and loading
-│   ├── phase_config.py     # Phase definition loading with cache/reload
-│   ├── runtime_config.py   # Runtime settings helper
-│   ├── nb2_models.py       # Shared NegativeBinomial2 model definitions
-│   └── stats_utils.py      # Common statistical utilities
-│
-└── cli.py              # Entry point: run, validate, fetch-opensky, artifacts verify/replay
-```
+## Responsibility Boundaries
 
-## Artifact Subsystem
+### CLI / entrypoint
 
-The artifact subsystem turns pipeline outputs into verifiable, reproducible bundles.
-It was extracted from `merge_output_for_ai.py` and promoted to `src/arena/artifacts/`.
+`src/arena/cli.py` is responsible for:
 
-Lifecycle: discovery → selection → manifest → packaging → documentation → integrity.
+- public runtime command surface
+- path/config override intake
+- config resolution/validation handoff before execution
+- delegation to pipeline runtime and artifact verify/replay operations
 
-Backward compatibility is maintained through `sys.modules` aliasing in `scripts/tools/artifacts/`,
-so existing operator scripts continue to work without path changes.
+`src/arena/artifact_cli.py` is responsible for:
 
-Design decision documented in [docs/adr/ADR-artifact-subsystem.md](./adr/ADR-artifact-subsystem.md).
+- artifact export command surface (`artifact run`)
+- compatibility delegation to tool-layer artifact CLI
 
-## Execution Backends
+Boundary:
 
-The pipeline supports two execution backends controlled by `--backend auto|native|wsl`:
+- CLI defines supported public entrypoints.
+- CLI does not implement payload analytics or artifact packaging internals.
 
-- **native**: Runs scripts directly on the host OS (Windows or Linux).
-- **wsl**: Runs scripts inside WSL from a Windows host. GPU detection is performed inside WSL.
-- **auto** (default): Detects the environment and selects the appropriate backend.
+### Pipeline / orchestration
 
-This matters because the development environment runs on Windows with WSL2,
-and output validation must resolve Windows paths even when execution happens inside WSL.
+`src/arena/pipeline/` is responsible for:
 
-## Configuration
+- step/stage contracts
+- orchestration flow control
+- runtime execution behavior and reporting
+- backend/environment selection
+- decision/error policies
+- run-record serialization
 
-Runtime behavior is controlled by `settings.toml` and phase configuration files.
-Path resolution uses injectable functions (`resolve_scripts_root()`, `resolve_output_dir()`, `resolve_data_dir()`)
-that can be overridden via environment variables (`ARENA_SCRIPTS_ROOT`, `ARENA_OUTPUT_DIR`, `ARENA_DATA_DIR`)
-or CLI arguments.
+Boundary:
+
+- The pipeline is responsible for execution control and expected-output enforcement.
+- Payload scripts remain responsible for domain computations.
+
+### Shared runtime support
+
+`src/arena/lib/` is responsible for:
+
+- path/root resolution
+- settings/phase resolution metadata
+- settings and runtime snapshot loading
+- shared runtime/config helpers used by orchestration and payload layers
+
+Boundary:
+
+- This layer provides reusable runtime substrate.
+- It does not own orchestration policy or artifact policy.
+
+### Scripts as payload layer
+
+`scripts/` is responsible for:
+
+- domain payload execution (aggregation/evaluation/reporting/ops)
+- sample-data build/freeze/verify tooling
+- artifact tool-layer compatibility paths
+
+Boundary:
+
+- Scripts implement payload behavior.
+- Orchestration and public execution contracts stay in CLI/pipeline layers.
+
+### Observability / execution audit
+
+Execution auditability is provided by:
+
+- append-only run records (`output/performance/pipeline_runs.jsonl`)
+- per-step status/timing/command/output-check logging
+- config snapshot logging at run start
+- structured error-code reporting
+
+Boundary:
+
+- This is run/audit visibility for execution behavior.
+- It is not equivalent to scientific validity of analysis conclusions.
+
+### Configuration resolution / validation
+
+Configuration responsibilities are split across:
+
+- path resolution metadata (`src/arena/lib/config_resolution.py`)
+- settings/runtime snapshot construction (`src/arena/lib/runtime_config.py`)
+- pre-run validation (`arena validate`)
+- run-path config checks before orchestration starts
+
+Boundary:
+
+- Resolution and validation are first-class runtime inputs.
+- Payload scripts consume resolved state.
+
+### Artifact / reproducibility layer
+
+In this public architecture, artifact/reproducibility is not a peripheral export helper.
+It is part of the control surface that carries execution-side consistency into AI-assisted interpretation, auditability, and re-validation.
+
+Confirmed public implementation surfaces:
+
+- core artifact substrate: `src/arena/artifacts/`
+- tool/compatibility layer: `scripts/tools/artifacts/`
+- bundle verification/replay via CLI (`arena artifacts verify`, `arena artifacts replay`)
+- artifact export entrypoint (`artifact run` or `python -m arena.artifact_cli run`)
+- artifact subsystem tests under `tests/`
+
+Boundary:
+
+- This document defines placement/responsibility of artifact control in the public architecture.
+- `docs/artifact-design.md` defines detailed rationale and design necessity.
+
+### Tests / CI / smoke / verification surface
+
+Public verification surface includes:
+
+- test suites under `tests/`
+- workflow surface under `.github/workflows/`
+- smoke reproducibility fixtures under `sample_data/smoke/expected/`
+
+Detailed workflow-level release evolution belongs in `docs/evolution/v0.2.5-to-v0.2.9.md`.
+
+Boundary:
+
+- These checks validate release-layer execution/reproducibility contracts.
+- They do not by themselves establish research/statistical validity.
+
+## End-to-End Execution Flow
+
+Public release-layer flow:
+
+1. Resolve runtime config paths and metadata.
+2. Validate runtime prerequisites.
+3. Build pipeline step plan from stage contracts and options.
+4. Execute payload steps according to orchestration policy.
+5. Validate expected outputs and apply fail/soft-fail policy.
+6. Persist run/config records for audit.
+7. Build artifact bundles for structured review/revalidation.
+8. Verify/replay artifact bundles when required.
+9. Feed AI-assisted outputs into human-managed validation loops.
+
+Detailed version-to-version execution changes belong in `docs/evolution/v0.2.5-to-v0.2.9.md`.
+
+## Reproducibility and Auditability Model
+
+The public reproducibility/auditability model combines:
+
+- deterministic smoke tooling and fixed expected outputs
+- explicit config resolution + validation
+- append-only execution logging and config snapshots
+- output contract checks in runtime execution
+- artifact integrity/provenance/lineage/hash/index checks
+- verify/replay execution paths
+
+Bottleneck principle:
+
+- overall analysis quality is capped by the weakest stage
+- this includes AI input/control quality, not only upstream data/statistical stages
+
+## Position of AI-Assisted Analysis
+
+AI-assisted analysis is positioned as:
+
+- hypothesis-generation support, not a truth engine
+- a validation-loop input, not an automatic conclusion
+- cross-model validation where agreement is baseline and disagreement is a validation target
+
+Boundary:
+
+- This document defines system position.
+- `docs/ai-assisted-analysis.md` defines detailed operating/trust rules.
+- `docs/artifact-design.md` defines why artifact control is required for that model.
+
+## Public Release Boundary vs Development Boundary
+
+Public release layer centers on:
+
+- CLI + pipeline control plane
+- shared runtime/config support
+- payload scripts
+- artifact verify/replay-capable subsystem
+- public verification surface
+
+Development boundary:
+
+- database-oriented extensions are documented as development-side and not part of the current public reproducibility path
+
+## Reading Guide
+
+Recommended reading order:
+
+1. `docs/system-context.md` (optional stack/context primer)
+2. `src/arena/cli.py`, `src/arena/artifact_cli.py`
+3. `src/arena/pipeline/`
+4. `src/arena/lib/`
+5. `src/arena/artifacts/` and `scripts/tools/artifacts/`
+6. `tests/` and `.github/workflows/`
+7. `docs/reproducibility.md`
+8. `docs/artifact-design.md` and `docs/ai-assisted-analysis.md`
+9. `docs/evolution/v0.2.5-to-v0.2.9.md` for release-evolution details

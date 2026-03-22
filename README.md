@@ -8,6 +8,37 @@ This repository intentionally separates research/statistical evaluation concerns
 - GitHub Releases are currently published up to `v0.2.5`.
 - Until a new GitHub Release is published, treat this repository state and `CHANGELOG.md` as the primary reference for `0.2.6`-`0.2.9` updates.
 
+## Where ARENA Fits
+
+ARENA is the statistical evaluation and public reproducibility layer within a broader ADS-B telemetry stack.
+
+- **PLAO** handles raw aircraft position logging.
+- **adsb-eval** handles edge-side metrics and telemetry summaries.
+- **ARENA** consumes those upstream outputs for evaluation, comparison, and reproducible public-release verification.
+
+The diagram below shows this relationship at a high level.
+
+```mermaid
+flowchart LR
+  subgraph EDGE["Raspberry Pi (edge)"]
+    R["readsb"]
+    P["PLAO<br/>raw position logs"]
+    E["adsb-eval<br/>edge metrics / telemetry"]
+    R --> P
+    R --> E
+  end
+
+  subgraph ANALYSIS["WSL2 / Linux (analysis)"]
+    A["ARENA<br/>statistical evaluation<br/>+ reproducibility surface"]
+  end
+
+  P --> A
+  E --> A
+```
+
+For broader stack context, see [docs/system-context.md](docs/system-context.md).  
+For repository-internal responsibility boundaries, see [docs/architecture.md](docs/architecture.md).
+
 ## Highlights
 - 8-stage pipeline (`arena.pipeline`) for aggregation, evaluation, reporting, and comparisons.
 - Failure-resilient execution model: stage-level continuation and explicit error reporting.
