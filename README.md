@@ -5,8 +5,12 @@
 
 # ARENA Public Release
 
-ARENA is a reproducible evaluation and artifact pipeline for ADS-B research workflows, with deterministic public smoke verification for the release layer.
+ARENA is a reproducible evaluation and artifact pipeline for ADS-B research workflows.
+
+Naive metrics such as maximum range are often misleading due to traffic and temporal bias.
+ARENA provides statistically grounded evaluation to measure sustained real-world performance.
 This repository intentionally separates research/statistical evaluation concerns from public release-layer reproducibility concerns.
+
 
 ## Version and Release Status
 
