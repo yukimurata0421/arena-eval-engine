@@ -5,12 +5,17 @@
 
 # ARENA Public Release
 
-ARENA is a reproducible evaluation and artifact pipeline for ADS-B research workflows.
+ARENA is a statistical evaluation engine for ADS-B receiver performance.
+
+It answers one question:
+
+"Did performance actually improve?"
 
 Naive metrics such as maximum range are often misleading due to traffic and temporal bias.
-ARENA provides statistically grounded evaluation to measure sustained real-world performance.
-This repository intentionally separates research/statistical evaluation concerns from public release-layer reproducibility concerns.
+ARENA uses AUC-based evaluation and normalization to isolate sustained real-world performance changes.
 
+This repository intentionally separates research/statistical evaluation concerns
+from public release-layer reproducibility concerns.
 
 ## Version and Release Status
 
@@ -246,3 +251,5 @@ The generated zip excludes at least:
 - Absolute local paths are not required; use environment variables or repo-relative defaults.
 - Generated data/log/output directories are not part of this release baseline.
 - `scripts/tools/debug/` contains developer diagnostics; `tmp_*` debug helpers are excluded from public zip artifacts.
+- ARENA originally stands for Aerial Evaluation & Network Analysis,
+but the project is designed as a general evaluation engine.
