@@ -8,7 +8,7 @@ from arena.pipeline import backend as be
 
 def test_windows_to_wsl_path_converts_drive(monkeypatch) -> None:
     monkeypatch.setattr(be.os, "name", "nt", raising=False)
-    p = PureWindowsPath("E:/arena/scripts")
+    p = PureWindowsPath("E:/repo/scripts")
     assert be._windows_to_wsl_path(p).startswith("/mnt/e/")
 
 
@@ -41,8 +41,8 @@ def test_backend_build_script_cmd_wsl_includes_pythonpath(monkeypatch, tmp_path:
         scripts_root_native=scripts_root,
         output_root_native=out,
         data_root_native=data,
-        scripts_root_exec="/mnt/e/arena/scripts",
-        pythonpath_exec="/mnt/e/arena/src",
+        scripts_root_exec="/mnt/e/repo/scripts",
+        pythonpath_exec="/mnt/e/repo/src",
     )
     cmd, cwd = b.build_script_cmd("adsb/x.py", extra_args=["--a", "1"])
     assert cmd[:3] == ["wsl", "-e", "bash"]

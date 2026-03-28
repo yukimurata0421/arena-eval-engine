@@ -1,0 +1,36 @@
+[
+  {
+    "id": "GPT-001",
+    "claim": "Adapter change phase improves daily AUC versus Airspy baseline.",
+    "claim_type": "supported",
+    "basis_summary": "Phase evaluator reports positive adapter effect with high posterior probability.",
+    "evidence_files": ["phase_evaluator_results.csv"],
+    "metrics_used": [
+      {
+        "file": "phase_evaluator_results.csv",
+        "metric": "adapter_delta_pct",
+        "value": 12.6,
+        "context": {"series_name": "daily", "condition": "adapter phase"}
+      }
+    ],
+    "evidence_level": "direct",
+    "limitation_or_counterpoint": "Overall capture ratio can differ by distance bin.",
+    "next_data_needed": "Validate with additional distance-stratified reports.",
+    "evidence_refs": ["ADAPT-001"],
+    "priority_hint": "high",
+    "created_at": "2026-03-27T00:00:00Z",
+    "exploration_axes": ["antenna", "distance", "coverage_auc"],
+    "fixed_conditions": ["same antenna mount"],
+    "variable_conditions": ["adapter state"],
+    "validity_scope": "Adapter-phase subset",
+    "review_status": "auto_unreviewed",
+    "required_files": [
+      {
+        "file_name": "phase_evaluator_results.csv",
+        "priority": "high",
+        "reason": "Primary adapter comparison",
+        "required_for": "adapter effect verification"
+      }
+    ]
+  }
+]

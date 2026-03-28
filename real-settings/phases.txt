@@ -1,0 +1,15 @@
+# Real Phase Configuration Template
+# Replace or extend this timeline for your environment.
+
+[events]
+2026-01-06 = RTL-SDR Default | rtl-sdr | #7f8c8d
+2026-01-14 = Airspy Baseline | airspy_mini | #e74c3c
+2026-02-14 = Cable Phase | airspy_mini_plus_cable | #c0392b
+2026-03-01 = Adapter Phase | airspy_adapter | #34495e
+
+[settings]
+post_change_date = 2026-01-14
+alt_baseline_date = 2026-01-29
+intervention_date = 2026-02-14
+report_start_date = 2026-01-14
+fringe_boundary = 2026-01-29,2026-02-14

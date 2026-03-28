@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.0] - 2026-03-27
+
+### Added
+- Public `synthesis` subsystem in the release layer:
+  - `arena synthesis` CLI entrypoint and `synthesis` console script.
+  - Core modules for ingest/repair/validate, enrichment, baseline clustering, proposition mapping, triage, and review-state updates.
+  - Externalized proposition definitions in `src/arena/synthesis/config/propositions.json`.
+- Public synthesis sample dataset:
+  - `sample_data/synthesis/raw/{claude,gemini,gpt,grok}/20260327.json`
+  - `sample_data/synthesis/README.md` with isolated validation commands.
+- New synthesis documentation:
+  - `docs/facts/synthesis.md` for path isolation, real-data run pattern, and verification checklist.
+- Synthesis test suite migrated into release tree (`tests/test_synthesis_*.py`).
+
+### Changed
+- Version bump:
+  - `pyproject.toml` -> `0.3.0`
+  - `arena.__version__` -> `0.3.0`
+- CLI integration:
+  - `arena cli` now exposes `synthesis` (`distill` alias) and daily-operation shorthand forwarding.
+- English unification:
+  - Converted synthesis module/config/test strings to English-only wording.
+- README refreshed for `v0.3.0` with synthesis quickstart, sample-data flow, and CI/Docker guidance.
+
+### CI / Quality
+- Coverage scope continues to include `src/arena` and `scripts`, now with synthesis paths included in normal test runs.
+- Added synthesis smoke validation path for containerized runs (`arena-synthesis-smoke` compose service).
+
+### Notes
+- Synthesis execution is path-isolated by design:
+  - defaults to `workspace/synthesis/`
+  - supports full override via CLI arguments and `ARENA_SYNTHESIS_DIR`.
+- Raw input files are never overwritten; original and repaired snapshots are persisted separately.
+
+---
+
 ## [0.2.9] - 2026-03-20
 
 ### Changed
@@ -17,7 +53,7 @@ All notable changes to this project will be documented in this file.
 - Public smoke reproducibility subsystem and fixture:
   - deterministic sample build/freeze/verify commands under `scripts/tools/sample_data/`
   - frozen expected outputs under `sample_data/smoke/expected/`
-  - public reproducibility guide in `docs/reproducibility.md`
+  - public reproducibility guide in `docs/facts/reproducibility.md`
 - Coverage boundary hardening:
   - added `.coveragerc` to fix measurement scope to this release tree (`src/arena`, `scripts`)
   - integrated coverage flags into `pytest.ini`
@@ -230,11 +266,11 @@ Major themes:
 - Docker smoke job in CI.
 
 **Documentation**
-- `docs/architecture.md`: Full architecture document with system context, package structure, and execution backend description.
-- `docs/aeme.md`: Design philosophy with method rationale table and dual-baseline explanation.
-- `docs/failure-taxonomy.md`: Structured failure reference with error codes, conditions, and recovery actions.
-- `docs/sample_outputs.md`: Per-file descriptions for all sample outputs.
-- `docs/real-data-smoke.md`: Opt-in real-data validation guide.
+- `docs/facts/architecture.md`: Full architecture document with system context, package structure, and execution backend description.
+- `docs/principles/aeme.md`: Design philosophy with method rationale table and dual-baseline explanation.
+- `docs/facts/failure-taxonomy.md`: Structured failure reference with error codes, conditions, and recovery actions.
+- `docs/facts/sample_outputs.md`: Per-file descriptions for all sample outputs.
+- `docs/facts/real-data-smoke.md`: Opt-in real-data validation guide.
 
 ### Changed
 
@@ -301,7 +337,7 @@ Major themes:
 ## [0.1.7] - 2026-03-08
 
 ### Added
-- Added `docs/statistical-assumptions-and-limitations.md` to document model assumptions, failed specifications, proxy limitations, and evidence boundaries.
+- Added `docs/principles/statistical-assumptions-and-limitations.md` to document model assumptions, failed specifications, proxy limitations, and evidence boundaries.
 - Added README links to detailed methodology and limitation documents.
 
 ### Changed
@@ -329,7 +365,7 @@ Major themes:
 
 ## [0.1.5] - 2026-03-07
 ### Added
-- Added `docs/aeme.md` for AEME analytical framework documentation.
+- Added `docs/principles/aeme.md` for AEME analytical framework documentation.
 - Added documentation links from README to architecture and AEME details.
 
 ### Changed
@@ -372,3 +408,4 @@ Major themes:
 - Initial public release.
 - Core evaluation engine (AEME statistical framework).
 - CLI orchestration layer.
+

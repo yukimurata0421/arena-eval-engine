@@ -18,6 +18,35 @@ services:
         "arena.cli",
         "validate",
       ]
+  arena-synthesis-smoke:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cpu
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    command:
+      [
+        "python",
+        "-m",
+        "arena.cli",
+        "synthesis",
+        "run",
+        "--path",
+        "sample_data/synthesis/raw",
+        "--db",
+        "/workspace/tmp/synthesis-smoke/synthesis.sqlite3",
+        "--enriched-dir",
+        "/workspace/tmp/synthesis-smoke/enriched",
+        "--review-dir",
+        "/workspace/tmp/synthesis-smoke/review",
+        "--raw-original-dir",
+        "/workspace/tmp/synthesis-smoke/raw_original",
+        "--raw-repaired-dir",
+        "/workspace/tmp/synthesis-smoke/raw_repaired",
+        "--repair-log-dir",
+        "/workspace/tmp/synthesis-smoke/repair_logs",
+      ]
   arena-run-stage1:
     build:
       context: ..

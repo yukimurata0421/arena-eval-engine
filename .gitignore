@@ -42,6 +42,20 @@ output/*
 !output/sample/
 !data/sample/**
 !output/sample/**
+workspace/synthesis/
+!workspace/synthesis/
+workspace/synthesis/*
+!workspace/synthesis/raw/
+workspace/synthesis/raw/*
+!workspace/synthesis/raw/README.md
+!workspace/synthesis/raw/*/
+workspace/synthesis/raw/*/*
+!workspace/synthesis/raw/*/.gitkeep
+tmp/
+real-data/*
+real-output/*
+!real-data/README.md
+!real-output/README.md
 scripts/secrets/*
 !scripts/secrets/
 !scripts/secrets/*.example.*
@@ -64,3 +78,6 @@ scripts/master_log.txt
 !docs/**/*.html
 !docs/**/*.csv
 !sample_data/smoke/expected/**/*.csv
+!sample_data/synthesis/**/*.json
+!sample_data/synthesis/**/*.md
+!sample_data/README.md

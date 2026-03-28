@@ -6,13 +6,14 @@ ARENA is an **evaluation runtime and reproducibility surface** for the public re
 It is not only a collection of research scripts.
 
 This document is the canonical architecture description for the current public repository state.
-Detailed release evolution from `v0.2.5` to `v0.2.9` is documented in `docs/evolution/v0.2.5-to-v0.2.9.md`.
+Detailed release evolution from `v0.2.9` to `v0.3.0` is documented in `docs/evolution/v0.2.9-to-v0.3.0.md`.
 
 This document does not replace:
 
-- `docs/artifact-design.md` (why artifact control exists and what responsibilities it carries)
-- `docs/ai-assisted-analysis.md` (how AI is used and what is not trusted automatically)
-- `docs/reproducibility.md` (public smoke reproducibility contract)
+- `docs/principles/artifact-design.md` (why artifact control exists and what responsibilities it carries)
+- `docs/principles/ai-assisted-analysis.md` (how AI is used and what is not trusted automatically)
+- `docs/facts/reproducibility.md` (public smoke reproducibility contract)
+- `docs/facts/synthesis.md` (synthesis path-isolated ingest/triage/review workflow)
 
 ## System Position
 
@@ -157,7 +158,7 @@ Confirmed public implementation surfaces:
 Boundary:
 
 - This document defines placement/responsibility of artifact control in the public architecture.
-- `docs/artifact-design.md` defines detailed rationale and design necessity.
+- `docs/principles/artifact-design.md` defines detailed rationale and design necessity.
 
 ### Tests / CI / smoke / verification surface
 
@@ -167,7 +168,7 @@ Public verification surface includes:
 - workflow surface under `.github/workflows/`
 - smoke reproducibility fixtures under `sample_data/smoke/expected/`
 
-Detailed workflow-level release evolution belongs in `docs/evolution/v0.2.5-to-v0.2.9.md`.
+Detailed workflow-level release evolution belongs in `docs/evolution/v0.2.9-to-v0.3.0.md`.
 
 Boundary:
 
@@ -188,7 +189,7 @@ Public release-layer flow:
 8. Verify/replay artifact bundles when required.
 9. Feed AI-assisted outputs into human-managed validation loops.
 
-Detailed version-to-version execution changes belong in `docs/evolution/v0.2.5-to-v0.2.9.md`.
+Detailed version-to-version execution changes belong in `docs/evolution/v0.2.9-to-v0.3.0.md`.
 
 ## Reproducibility and Auditability Model
 
@@ -217,8 +218,8 @@ AI-assisted analysis is positioned as:
 Boundary:
 
 - This document defines system position.
-- `docs/ai-assisted-analysis.md` defines detailed operating/trust rules.
-- `docs/artifact-design.md` defines why artifact control is required for that model.
+- `docs/principles/ai-assisted-analysis.md` defines detailed operating/trust rules.
+- `docs/principles/artifact-design.md` defines why artifact control is required for that model.
 
 ## Public Release Boundary vs Development Boundary
 
@@ -238,12 +239,14 @@ Development boundary:
 
 Recommended reading order:
 
-1. `docs/system-context.md` (optional stack/context primer)
+1. `docs/facts/system-context.md` (optional stack/context primer)
 2. `src/arena/cli.py`, `src/arena/artifact_cli.py`
 3. `src/arena/pipeline/`
 4. `src/arena/lib/`
 5. `src/arena/artifacts/` and `scripts/tools/artifacts/`
 6. `tests/` and `.github/workflows/`
-7. `docs/reproducibility.md`
-8. `docs/artifact-design.md` and `docs/ai-assisted-analysis.md`
-9. `docs/evolution/v0.2.5-to-v0.2.9.md` for release-evolution details
+7. `docs/facts/reproducibility.md`
+8. `docs/facts/synthesis.md`
+9. `docs/principles/artifact-design.md` and `docs/principles/ai-assisted-analysis.md`
+10. `docs/evolution/v0.2.9-to-v0.3.0.md` for release-evolution details
+

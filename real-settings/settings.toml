@@ -1,0 +1,26 @@
+# Real Runtime Settings Template
+# Replace values with your own station/environment before real-data runs.
+
+[paths]
+# Keep auto unless you intentionally override.
+# root = "auto"
+
+[site]
+# Example coordinates (replace with your receiver location)
+lat = 35.681236
+lon = 139.767125
+
+[quality]
+min_auc_n_used = 5000
+min_minutes_covered = 1380
+
+[distance_bins]
+km = [0, 50, 100, 150, 200, 9999]
+
+[rpi_sync]
+host = ""
+user = ""
+ssh_port = 22
+remote_dir = "/path/to/adsb_monitor/data/logs"
+plao_remote_dir = "/path/to/plao/data/logs/plao_pos"
+strict_host_key_checking = "accept-new"

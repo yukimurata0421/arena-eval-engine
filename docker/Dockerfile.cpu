@@ -8,6 +8,7 @@ COPY pyproject.toml README.md /workspace/
 COPY scripts /workspace/scripts
 COPY src /workspace/src
 COPY tests /workspace/tests
+COPY sample_data /workspace/sample_data
 RUN mkdir -p /workspace/data /workspace/output /workspace/output/performance
 
 RUN python -m pip install -U pip \

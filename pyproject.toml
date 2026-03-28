@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arena-eval-engine"
-version = "0.2.9"
+version = "0.3.0"
 requires-python = ">=3.11"
 description = "Statistical evaluation engine for ADS-B receiver performance"
 dependencies = [
@@ -31,6 +31,7 @@ dev = [
 [project.scripts]
 arena = "arena.cli:main"
 artifact = "arena.artifact_cli:main"
+synthesis = "arena.synthesis.cli:main"
 
 [tool.setuptools.package-dir]
 "" = "src"
@@ -38,6 +39,9 @@ artifact = "arena.artifact_cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["arena*"]
+
+[tool.setuptools.package-data]
+"arena.synthesis" = ["config/*.json"]
 
 # ── Ruff ──────────────────────────────────────────────
 [tool.ruff]

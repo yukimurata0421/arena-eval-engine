@@ -1,0 +1,36 @@
+[
+  {
+    "id": "GEMINI-001",
+    "claim": "Traffic volume does not significantly predict AUC in this window.",
+    "claim_type": "supported",
+    "basis_summary": "NB-GLM and phase evaluator both show non-significant traffic terms.",
+    "evidence_files": ["traffic_effect_report.txt"],
+    "metrics_used": [
+      {
+        "file": "traffic_effect_report.txt",
+        "metric": "beta_traffic",
+        "value": -0.008,
+        "context": {"series_name": "daily", "condition": "traffic-adjusted"}
+      }
+    ],
+    "evidence_level": "inferred",
+    "limitation_or_counterpoint": "Applies only to the current data period.",
+    "next_data_needed": "Retest with extended seasonal coverage.",
+    "evidence_refs": ["TRAF-001"],
+    "priority_hint": "medium",
+    "created_at": "2026-03-27T00:00:00Z",
+    "exploration_axes": ["traffic", "stats"],
+    "fixed_conditions": ["same scoring pipeline"],
+    "variable_conditions": ["traffic level"],
+    "validity_scope": "Current baseline period",
+    "review_status": "auto_unreviewed",
+    "required_files": [
+      {
+        "file_name": "traffic_effect_report.txt",
+        "priority": "medium",
+        "reason": "Traffic coefficient evidence",
+        "required_for": "traffic/AUC relationship"
+      }
+    ]
+  }
+]

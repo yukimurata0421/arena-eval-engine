@@ -4,11 +4,11 @@ from arena.lib import paths
 
 
 def test_win_to_wsl_path_conversion() -> None:
-    assert paths._win_to_wsl_path(r"E:\arena\data") == "/mnt/e/arena/data"
+    assert paths._win_to_wsl_path(r"E:\repo\data") == "/mnt/e/repo/data"
 
 
 def test_wsl_to_win_path_conversion() -> None:
-    assert paths._wsl_to_win_path("/mnt/e/arena/data") == r"E:\arena\data"
+    assert paths._wsl_to_win_path("/mnt/e/repo/data") == r"E:\repo\data"
 
 
 def test_looks_like_windows_path() -> None:

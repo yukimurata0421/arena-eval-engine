@@ -1,0 +1,36 @@
+[
+  {
+    "id": "CLAIM-001",
+    "claim": "The primary change point in auc_n_used appears around 2026-01-10.",
+    "claim_type": "supported",
+    "basis_summary": "Derived from change-point summary outputs.",
+    "evidence_files": ["change_point_report.txt"],
+    "metrics_used": [
+      {
+        "file": "change_point_report.txt",
+        "metric": "auc_n_used",
+        "value": 1.0,
+        "context": {"series_name": "daily", "condition": "baseline"}
+      }
+    ],
+    "evidence_level": "direct",
+    "limitation_or_counterpoint": "Date precision differs slightly across methods.",
+    "next_data_needed": "Compare bootstrap and rank-scan windows.",
+    "evidence_refs": ["CP-PRIMARY"],
+    "priority_hint": "high",
+    "created_at": "2026-03-27T00:00:00Z",
+    "exploration_axes": ["baseline", "gain"],
+    "fixed_conditions": ["site constant"],
+    "variable_conditions": ["method"],
+    "validity_scope": "January 2026 window",
+    "review_status": "auto_unreviewed",
+    "required_files": [
+      {
+        "file_name": "change_point_report.txt",
+        "priority": "high",
+        "reason": "Primary evidence",
+        "required_for": "change-point verification"
+      }
+    ]
+  }
+]

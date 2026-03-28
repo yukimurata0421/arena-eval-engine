@@ -1,0 +1,36 @@
+[
+  {
+    "id": "GROK-001",
+    "claim": "Pipeline health and hash checks indicate acceptable release reliability.",
+    "claim_type": "supported",
+    "basis_summary": "Health checks and integrity validation passed for generated artifacts.",
+    "evidence_files": ["integrity_summary.json"],
+    "metrics_used": [
+      {
+        "file": "integrity_summary.json",
+        "metric": "hash_pass_rate",
+        "value": 1.0,
+        "context": {"series_name": "bundle", "condition": "deterministic replay"}
+      }
+    ],
+    "evidence_level": "direct",
+    "limitation_or_counterpoint": "Bit-identical reruns are not guaranteed when deterministic mode is disabled.",
+    "next_data_needed": "Repeat checks after major pipeline changes.",
+    "evidence_refs": ["REL-001"],
+    "priority_hint": "low",
+    "created_at": "2026-03-27T00:00:00Z",
+    "exploration_axes": ["stats", "dropout"],
+    "fixed_conditions": ["same release scripts"],
+    "variable_conditions": ["run timestamp"],
+    "validity_scope": "Release-layer checks",
+    "review_status": "auto_unreviewed",
+    "required_files": [
+      {
+        "file_name": "integrity_summary.json",
+        "priority": "low",
+        "reason": "Integrity baseline",
+        "required_for": "reliability status"
+      }
+    ]
+  }
+]

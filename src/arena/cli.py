@@ -268,6 +268,38 @@ def cmd_artifacts_replay(args: argparse.Namespace) -> int:
         return 1
 
 
+def _expand_synthesis_shorthand(forwarded: list[str]) -> list[str]:
+    if not forwarded:
+        return forwarded
+
+    # Daily-operation shorthand:
+    # arena synthesis enrich            -> enrich --only-unreviewed
+    # arena synthesis cluster-baselines -> cluster-baselines --rebuild
+    # arena synthesis report-baselines  -> report-baselines --limit 20
+    # arena synthesis suggest-actions   -> suggest-actions --min-severity high --sort-by score
+    if forwarded == ["enrich"]:
+        return ["enrich", "--only-unreviewed"]
+    if forwarded == ["cluster-baselines"]:
+        return ["cluster-baselines", "--rebuild"]
+    if forwarded == ["report-baselines"]:
+        return ["report-baselines", "--limit", "20"]
+    if forwarded == ["suggest-actions"]:
+        return ["suggest-actions", "--min-severity", "high", "--sort-by", "score"]
+    return forwarded
+
+
+def cmd_synthesis(args: argparse.Namespace) -> int:
+    from arena.synthesis import cli as synthesis_cli
+
+    forwarded = list(args.synthesis_args or [])
+    if forwarded[:1] == ["--"]:
+        forwarded = forwarded[1:]
+    if not forwarded:
+        forwarded = ["--help"]
+    forwarded = _expand_synthesis_shorthand(forwarded)
+    return int(synthesis_cli.main(forwarded))
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="arena", description="ARENA Rating Engine CLI")
     sub = p.add_subparsers(dest="subcommand", required=True)
@@ -329,6 +361,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_sync.add_argument("--fail-on-missing-remote", action="store_true")
     p_sync.add_argument("--skip-plao-sync", action="store_true")
     p_sync.set_defaults(func=cmd_sync_rpi_logs)
+
+    p_synthesis = sub.add_parser(
+        "synthesis",
+        aliases=["distill"],
+        help="Synthesis CLI (ingest/enrich/proposition/review helpers with daily shorthand defaults)",
+    )
+    p_synthesis.add_argument("synthesis_args", nargs=argparse.REMAINDER, help="Arguments passed through to synthesis CLI")
+    p_synthesis.set_defaults(func=cmd_synthesis)
 
     p_artifacts = sub.add_parser("artifacts", help="Validating and reevaluating artifact bundles")
     artifacts_sub = p_artifacts.add_subparsers(dest="artifacts_command", required=True)

@@ -13,9 +13,8 @@ It is designed to validate:
 
 ## Version Scope
 
-- Current source version in this repository is `0.2.9`.
-- Public GitHub release tags are currently published up to `v0.2.5`.
-- Reproducibility checks in this document are intended for the current repository state; use `CHANGELOG.md` for post-`v0.2.5` change history.
+- Current source version in this repository is `0.3.0`.
+- Reproducibility checks in this document are intended for the current repository state; use `CHANGELOG.md` for release-by-release details.
 
 ## What It Guarantees
 
@@ -40,7 +39,7 @@ This sample is for release reproducibility, not research validity.
 
 ## Quickstart
 
-Run from repository root (`E:\arena_release`).
+Run from the repository root (`<repo-root>`).
 
 ### 1) Build deterministic smoke input
 
@@ -61,6 +60,21 @@ python scripts/tools/sample_data/verify_sample_outputs.py
 ```
 
 Exit code is non-zero when verification fails.
+
+## Synthesis Sample Validation
+
+You can also validate the synthesis pipeline with public fixture data:
+
+```powershell
+python -m arena.cli synthesis run `
+  --path sample_data/synthesis/raw `
+  --db ./tmp/synthesis-smoke/synthesis.sqlite3 `
+  --enriched-dir ./tmp/synthesis-smoke/enriched `
+  --review-dir ./tmp/synthesis-smoke/review `
+  --raw-original-dir ./tmp/synthesis-smoke/raw_original `
+  --raw-repaired-dir ./tmp/synthesis-smoke/raw_repaired `
+  --repair-log-dir ./tmp/synthesis-smoke/repair_logs
+```
 
 ## Notes on Determinism
 
@@ -102,4 +116,5 @@ They do not establish research/statistical reproducibility.
 
 Recommended short pointer text:
 
-> For public reproducibility checks (synthetic smoke sample, freeze, verify), see `docs/reproducibility.md`.
+> For public reproducibility checks (synthetic smoke sample, freeze, verify), see `docs/facts/reproducibility.md`.
+

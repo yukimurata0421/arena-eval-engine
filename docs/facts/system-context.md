@@ -1,7 +1,7 @@
 # ARENA System Context (Reference)
 
 This document preserves the broader three-repository context and an execution-context reference.
-The canonical public architecture document is `docs/architecture.md`.
+The canonical public architecture document is `docs/facts/architecture.md`.
 
 ## System Context
 
@@ -79,5 +79,6 @@ ARENA keeps logical stages in step definitions, but runtime execution is not a s
 - Early launch is used for independent stages (`EARLY_LAUNCH_STAGES`).
 - Stage 3 is intentionally separated from the cross-stage parallel group because it consumes Stage 2 outputs.
 
-For authoritative architecture boundaries, see `docs/architecture.md`.
-For release evolution details from `v0.2.5` to `v0.2.9`, see `docs/evolution/v0.2.5-to-v0.2.9.md`.
+For authoritative architecture boundaries, see `docs/facts/architecture.md`.
+For release evolution details from `v0.2.9` to `v0.3.0`, see `docs/evolution/v0.2.9-to-v0.3.0.md`.
+

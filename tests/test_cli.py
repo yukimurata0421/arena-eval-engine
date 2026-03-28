@@ -631,3 +631,24 @@ def test_cmd_sync_rpi_logs_builds_expected_cli_args(monkeypatch, tmp_path: Path)
         "--skip-plao-sync",
     ]:
         assert expected in cmd
+
+
+def test_expand_synthesis_shorthand_defaults() -> None:
+    assert arena_cli._expand_synthesis_shorthand(["enrich"]) == ["enrich", "--only-unreviewed"]
+    assert arena_cli._expand_synthesis_shorthand(["cluster-baselines"]) == ["cluster-baselines", "--rebuild"]
+    assert arena_cli._expand_synthesis_shorthand(["report-baselines"]) == ["report-baselines", "--limit", "20"]
+    assert arena_cli._expand_synthesis_shorthand(["suggest-actions"]) == ["suggest-actions", "--min-severity", "high", "--sort-by", "score"]
+
+
+def test_cmd_synthesis_forwards_arguments(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_main(argv):
+        captured["argv"] = list(argv)
+        return 0
+
+    monkeypatch.setattr("arena.synthesis.cli.main", fake_main)
+    args = argparse.Namespace(synthesis_args=["--", "enrich"])
+    rc = arena_cli.cmd_synthesis(args)
+    assert rc == 0
+    assert captured["argv"] == ["enrich", "--only-unreviewed"]

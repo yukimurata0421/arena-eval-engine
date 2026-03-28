@@ -20,6 +20,10 @@ Use Docker with local mounts so private data and credentials never need to be co
 
 1. Copy `docker/.env.example` to `docker/.env`.
 2. Edit `docker/.env` with your local absolute paths.
+3. Optionally use repository templates in `real-settings/` as a starting point:
+   - `real-settings/settings.toml`
+   - `real-settings/phases.txt`
+   Then copy them to a private path and point `docker/.env` to that private copy.
 
 `docker/.env` is ignored by Git.
 

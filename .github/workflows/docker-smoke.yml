@@ -18,3 +18,4 @@ jobs:
           docker run --rm arena-release-smoke python -m arena.cli --help
           docker run --rm arena-release-smoke python -m arena.cli validate
           docker run --rm arena-release-smoke python -m arena.cli run --only 1 --dry-run --no-gpu --skip-plao
+          docker run --rm arena-release-smoke python -m arena.cli synthesis run --path /workspace/sample_data/synthesis/raw --db /tmp/synthesis-smoke/synthesis.sqlite3 --enriched-dir /tmp/synthesis-smoke/enriched --review-dir /tmp/synthesis-smoke/review --raw-original-dir /tmp/synthesis-smoke/raw_original --raw-repaired-dir /tmp/synthesis-smoke/raw_repaired --repair-log-dir /tmp/synthesis-smoke/repair_logs
