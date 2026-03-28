@@ -1,7 +1,7 @@
 [![ci](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/ci.yml?branch=main&label=ci)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml)
 [![verify-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/verify-smoke.yml?branch=main&label=verify-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/verify-smoke.yml)
 [![docker-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/docker-smoke.yml?branch=main&label=docker-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/docker-smoke.yml)
-[![coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)](https://github.com/yukimurata0421/arena-eval-engine)
+[![coverage-threshold](https://img.shields.io/badge/coverage-%E2%89%A586%25-brightgreen)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml)
 [![version](https://img.shields.io/badge/version-0.3.0-blue)](https://github.com/yukimurata0421/arena-eval-engine/blob/main/CHANGELOG.md)
 
 # ARENA — ADS-B Receiver Evaluation Engine
@@ -55,6 +55,13 @@ Three subsystems:
 
 Design decisions (why rsync --append, why CSVs over graphs for LLM input, why edge/analysis separation) are documented in [`docs/principles/`](docs/principles/).
 
+## Design Philosophy
+
+ARENA treats LLMs as hypothesis generators, not truth sources — claims are
+validated through structured evidence and cross-model convergence.
+The full catalogue of 31 engineering decisions is in
+[docs/principles/engineering-decisions.md](docs/principles/engineering-decisions.md).
+
 ## Quick Start
 
 ```bash
@@ -91,7 +98,7 @@ Detailed docs live in `docs/`. Start at [docs/README.md](docs/README.md).
 | Category | Key Documents |
 |---|---|
 | Operations | [Architecture](docs/facts/architecture.md) · [Reproducibility](docs/facts/reproducibility.md) · [Synthesis](docs/facts/synthesis.md) |
-| Design | [Artifact Design](docs/principles/artifact-design.md) · [AI-Assisted Analysis](docs/principles/ai-assisted-analysis.md) · [AEME](docs/principles/aeme.md) |
+| Design | [Engineering Decisions](docs/principles/engineering-decisions.md) · [Artifact Design](docs/principles/artifact-design.md) · [AI-Assisted Analysis](docs/principles/ai-assisted-analysis.md) · [AEME](docs/principles/aeme.md) |
 | Context | [System Context](docs/facts/system-context.md) · [Statistical Assumptions](docs/principles/statistical-assumptions-and-limitations.md) |
 
 ## Tech Stack

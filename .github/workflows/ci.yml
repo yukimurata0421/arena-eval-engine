@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  COVERAGE_FAIL_UNDER: "86"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -45,7 +48,7 @@ jobs:
           python -m pip install -U pip
           pip install -e ".[dev]"
       - name: Pytest
-        run: python -m pytest -q -m "not real_data"
+        run: python -m pytest -q -m "not real_data" --cov-fail-under=${{ env.COVERAGE_FAIL_UNDER }}
 
   coverage:
     runs-on: ubuntu-latest
@@ -73,11 +76,11 @@ jobs:
           PY
       - name: Coverage
         run: |
-          python -m pytest -q -m "not real_data"
+          python -m pytest -q -m "not real_data" --cov-fail-under=${{ env.COVERAGE_FAIL_UNDER }}
           if ls .coverage.* >/dev/null 2>&1; then
             coverage combine
           fi
-          coverage report --rcfile=.coveragerc -m
+          coverage report --rcfile=.coveragerc --fail-under=${{ env.COVERAGE_FAIL_UNDER }} -m
           coverage xml --rcfile=.coveragerc
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -114,7 +117,7 @@ jobs:
         run: python scripts/tools/artifacts/cli.py --help
       - name: Compatibility regression tests
         run: |
-          python -m pytest -q tests/test_cli.py tests/test_entrypoint_orchestration.py tests/test_artifacts_migration.py
+          python -m pytest -q --no-cov tests/test_cli.py tests/test_entrypoint_orchestration.py tests/test_artifacts_migration.py
       - name: Artifact CLI entrypoint smoke
         run: python -m arena.artifact_cli --help
       - name: Synthesis sample smoke
