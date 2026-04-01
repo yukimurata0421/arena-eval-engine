@@ -232,8 +232,7 @@ Public release layer centers on:
 - public verification surface
 
 Development boundary:
-
-- database-oriented extensions are documented as development-side and not part of the current public reproducibility path
+As of v0.3.1, the synthesis subsystem (claim ingestion, triage, proposition review) is part of the public release layer. Its database schema and workflow are still evolving; breaking changes may occur in future releases. Experimental extensions not yet exposed through arena synthesis CLI remain development-side.
 
 ## Reading Guide
 
@@ -249,4 +248,3 @@ Recommended reading order:
 8. `docs/facts/synthesis.md`
 9. `docs/principles/artifact-design.md` and `docs/principles/ai-assisted-analysis.md`
 10. `docs/evolution/v0.2.9-to-v0.3.0.md` for release-evolution details
-

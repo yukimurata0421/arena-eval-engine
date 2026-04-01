@@ -22,7 +22,7 @@ from arena.log import get_script_logger
 log = get_script_logger(__name__)
 AUC_CSV = str(ADSB_DAILY_SUMMARY_V2 if ADSB_DAILY_SUMMARY_V2.exists() else ADSB_DAILY_SUMMARY)
 SIG_CSV = str(ADSB_SIGNAL_RANGE_SUMMARY)
-REPORT_IMG = str(Path(OUTPUT_DIR) / "tsuchiura_master_log_report.png")
+REPORT_IMG = str(Path(OUTPUT_DIR) / "integrated_master_log_report.png")
 
 
 def generate_report():

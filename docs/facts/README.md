@@ -9,4 +9,3 @@ This section contains operational and structure-oriented documents.
 - [Synthesis Workflow](synthesis.md)
 - [Failure Taxonomy](failure-taxonomy.md)
 - [Sample Outputs](sample_outputs.md)
-

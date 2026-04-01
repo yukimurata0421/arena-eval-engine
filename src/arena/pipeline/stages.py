@@ -625,10 +625,10 @@ def build_stage6_steps() -> list[Step]:
         Step(
             stage=6,
             script_rel="adsb/analysis/reports/adsb_total_performance_reporter.py",
-            label="Integrated report (→ tsuchiura_master_log_report.png)",
+            label="Integrated report (→ integrated_master_log_report.png)",
             timeout_s=240,
             est_s=30,
-            expected_outputs=["tsuchiura_master_log_report.png"],
+            expected_outputs=["integrated_master_log_report.png"],
             expected_min_bytes=200,
         )
     ]

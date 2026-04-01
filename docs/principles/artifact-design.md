@@ -254,7 +254,7 @@ It does not exist in isolation. ARENA also includes a database-oriented layer in
 
 In the context of artifact design, the relevant point is that the artifact subsystem sits **upstream** of this database layer. It generates input units that are structured, auditable, and reproducible enough to be trusted as reusable analytical records later.
 
-At present, however, the database layer exists only in the development environment and is not part of the public release layer. Therefore, the practical focus of this document remains the current artifact-centered control model:
+As of `v0.3.1`, the synthesis database layer is part of the public release layer, but it remains downstream of artifact generation and is still evolving. Therefore, the practical focus of this document remains the artifact-centered control model that feeds that database safely:
 
 - input control,
 - auditability,

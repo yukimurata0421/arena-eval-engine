@@ -237,13 +237,13 @@ This makes it possible to do more than look up old results. It allows later anal
 
 The longer-term goal is to feed this structured layer back into AI-assisted workflows so that the model can help prioritize claims with stronger support, unresolved items worth re-checking, and viewpoints with higher potential analytical value. The purpose is not to replace human judgment. The purpose is to reduce human review burden while accelerating movement toward better-grounded inference.
 
-At present, however, this database layer exists only in the development environment. It is not yet included in the public release layer or public reproducibility path. Therefore, current public-facing AI-assisted analysis in ARENA should still be understood as centered on:
+As of `v0.3.1`, this database layer is included in the public release layer through the synthesis subsystem. It is still an evolving review-oriented layer rather than a public automation endpoint. Therefore, current public-facing AI-assisted analysis in ARENA should still be understood as centered on:
 
 - artifact-mediated input control,
 - explicit re-validation,
 - human final judgment,
 
-with the database layer positioned as an emerging knowledge substrate rather than a public automation dependency.
+with the database layer positioned as an emerging knowledge substrate rather than a final public automation dependency.
 
 ---
 

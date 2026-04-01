@@ -61,6 +61,8 @@ scripts/secrets/*
 !scripts/secrets/*.example.*
 scripts/master_log.txt
 *.log
+docs/facts/release-vs-dev-feedback.md
+scripts/tools/release_feedback/
 
 # --- large artifacts ---
 *.zip

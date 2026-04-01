@@ -13,6 +13,10 @@ This index is the entry point for detailed ARENA documentation.
 - [Real-Data Docker Validation](facts/real-data-smoke.md): opt-in private real-data checks
 - [Artifact Design](principles/artifact-design.md): why artifact controls exist
 
+## Design Decisions
+
+- [Engineering Decisions](principles/engineering-decisions.md): 31 design decisions organised by data-flow stage
+
 ## Synthesis
 
 - [Synthesis Workflow](facts/synthesis.md): ingest/enrich/cluster/proposition/triage/review flow
@@ -30,4 +34,3 @@ This index is the entry point for detailed ARENA documentation.
 
 - [Changelog](../CHANGELOG.md)
 - [Evolution v0.2.9 to v0.3.0](evolution/v0.2.9-to-v0.3.0.md)
-

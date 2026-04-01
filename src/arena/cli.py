@@ -301,13 +301,13 @@ def cmd_synthesis(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="arena", description="ARENA Rating Engine CLI")
+    p = argparse.ArgumentParser(prog="arena", description="ARENA Evaluation Engine CLI")
     sub = p.add_subparsers(dest="subcommand", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--scripts-root", help="Override scripts root")
-    common.add_argument("--data-dir", help="Overwrite data directory")
-    common.add_argument("--output-dir", help="Overwrite output directory")
+    common.add_argument("--data-dir", help="Override data directory")
+    common.add_argument("--output-dir", help="Override output directory")
     common.add_argument("--settings", "--config", dest="settings", help="settings.toml path")
     common.add_argument("--phase-config", help="phases.txt path")
     common.add_argument("--analysis-start-date", help="Start date of analysis target (YYYY-MM-DD). If not specified, whole period.")

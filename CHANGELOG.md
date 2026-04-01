@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.1] - 2026-04-02
+
+### Changed
+- Version bump:
+  - `pyproject.toml` -> `0.3.1`
+  - `arena.__version__` -> `0.3.1`
+- Removed internal release-vs-development comparison artifacts from the public documentation surface.
+- Added `docker/.env.example` so the real-data Docker validation guide points to a tracked template.
+- Renamed the integrated report output from `tsuchiura_master_log_report.png` to `integrated_master_log_report.png` to avoid site-specific naming in the public release.
+
+### Docs
+- Updated public-facing version references (`README.md`, reproducibility docs, architecture notes) for `v0.3.1`.
+- Tightened public release messaging so the documentation tree only points to externally useful materials.
+- Aligned CLI wording and principle documents with the current public release state now that the synthesis subsystem is included in `v0.3.1`.
+
+---
+
 ## [0.3.0] - 2026-03-28
 
 ### Added
