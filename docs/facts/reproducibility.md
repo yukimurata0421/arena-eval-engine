@@ -107,7 +107,7 @@ Both workflows are release-layer checks. They do not establish research/statisti
 
 - `pytest` passes in this repository tree.
 - Coverage boundary is fixed to this release tree (`.coveragerc`: `src/arena`, `scripts`).
-- Coverage total remains at or above the release target (currently 80%+).
+- Coverage total remains at or above the release target (currently 86%+).
 - README Quickstart commands are copy-paste verified.
 - Smoke sample flow passes:
 `build_public_sample.py` -> `freeze_expected_outputs.py` -> `verify_sample_outputs.py`.

@@ -30,7 +30,7 @@ omit =
 [report]
 show_missing = True
 skip_empty = True
-fail_under = 80
+fail_under = 86
 omit =
     tests/*
     */__pycache__/*
