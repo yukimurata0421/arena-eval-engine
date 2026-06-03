@@ -83,7 +83,7 @@ scripts/
   Output: `output/performance/baseline_nb_summary.txt`, `output/performance/baseline_nb_results.json`
 
 - `scripts/adsb/analysis/stats/adsb_distance_nb_eval.py`
-  Purpose: Comparison by distance range (MWU + bootstrap)
+  Purpose: Comparison by distance range (MWU + Hodges-Lehmann, plus target mean CI)
   Output: `output/performance/distance_performance_summary.csv`
 
 - `scripts/adsb/analysis/stats/adsb_distance_binomial_eval.py`

@@ -1,17 +1,16 @@
 """
 adsb_detect_multi_change_points.py module.
 """
+
 from __future__ import annotations
 
 import json
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,11 +20,11 @@ HAS_MCMC_DEPS = True
 MCMC_IMPORT_ERROR = ""
 try:
     import jax
-    from jax import random
     import jax.numpy as jnp
     import numpyro
     import numpyro.distributions as dist
-    from numpyro.infer import DiscreteHMCGibbs, MCMC, NUTS
+    from jax import random
+    from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 except Exception as e:  # pragma: no cover - runtime dependency guard
     HAS_MCMC_DEPS = False
     MCMC_IMPORT_ERROR = str(e)
@@ -41,20 +40,15 @@ except Exception as e:  # pragma: no cover - runtime dependency guard
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
 from arena.lib.paths import resolve_output_dir
-from arena.lib.platform_setup import resolve_workers
-
+from arena.lib.platform_setup import init_numpyro_platform, resolve_workers
 from arena.log import get_script_logger
-
-
 
 log = get_script_logger(__name__)
 SCRIPT_NAME = Path(__file__).name
 METRIC_NAME = "auc_n_used"
 CPU_HOST = resolve_workers(default_cap=12)
 if HAS_MCMC_DEPS:
-    numpyro.set_platform("cpu")
-    numpyro.set_host_device_count(CPU_HOST)
-    log.info(f">>> Platform: CPU ({CPU_HOST} devices) {jax.devices()}")
+    log.info(f">>> Platform: pending auto-selection (host_devices={CPU_HOST})")
 else:
     log.info(f"[WARN] multi change point dependencies unavailable: {MCMC_IMPORT_ERROR}")
 
@@ -100,7 +94,7 @@ def _compute_base_drop_reasons(source_path: Path, min_auc: int, min_minutes: int
         warnings.append(f"source_csv_read_failed: {e}")
         return 0, reasons, warnings
 
-    total_rows = int(len(raw_df))
+    total_rows = len(raw_df)
     if "date" not in raw_df.columns:
         reasons["missing_date_column"] = total_rows
     else:
@@ -132,7 +126,7 @@ def _compute_base_drop_reasons(source_path: Path, min_auc: int, min_minutes: int
 
 
 def _build_segment_breakdown(df: pd.DataFrame, change_indices: list[int]) -> list[dict[str, Any]]:
-    boundaries = [0] + sorted(change_indices) + [len(df)]
+    boundaries = [0, *sorted(change_indices), len(df)]
     segments: list[dict[str, Any]] = []
     for i in range(len(boundaries) - 1):
         lo = boundaries[i]
@@ -257,10 +251,10 @@ def run_multi_discovery_analysis():
         log.info("Data file not found.")
         return
 
-    before_dropna_rows = int(len(df))
+    before_dropna_rows = len(df)
     df = df.sort_values("date").reset_index(drop=True)
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["auc_n_used", "log_traffic"])
-    after_dropna_rows = int(len(df))
+    after_dropna_rows = len(df)
     payload["dropped_reasons"]["dropna_auc_or_log_traffic_after_preprocess"] = before_dropna_rows - after_dropna_rows
     payload["usable_rows"] = after_dropna_rows
     payload["dropped_rows"] = max(payload["total_rows"] - payload["usable_rows"], 0)
@@ -279,9 +273,10 @@ def run_multi_discovery_analysis():
         log.info("Warning: Skipping change point detection due to lack of valid data.")
         return
 
+    n_days = len(df)
+    platform = init_numpyro_platform(n_data=n_days)
     y = jnp.array(df["auc_n_used"].values, dtype=jnp.float32)
     log_traffic = jnp.array(df["log_traffic"].values, dtype=jnp.float32)
-    n_days = len(df)
     k_points = 3
 
     def model(y, log_traffic, n_days, K):
@@ -304,7 +299,9 @@ def run_multi_discovery_analysis():
     n_chains = int(os.environ.get("ADSB_MCP_CHAINS", str(max(1, min(CPU_HOST, 4)))))
     mcmc = MCMC(kernel, num_warmup=n_warmup, num_samples=n_samples, num_chains=n_chains)
 
-    log.info(f"\n>>> {k_points} change points being inferred (CPU, chains={n_chains}, devices={CPU_HOST}, warmup={n_warmup}, samples={n_samples})...")
+    log.info(
+        f"\n>>> {k_points} change points being inferred ({platform}, chains={n_chains}, host_devices={CPU_HOST}, warmup={n_warmup}, samples={n_samples})..."
+    )
     mcmc.run(random.PRNGKey(0), y, log_traffic, n_days, k_points)
 
     samples = mcmc.get_samples()
@@ -327,7 +324,7 @@ def run_multi_discovery_analysis():
                 "confidence_pct": prob,
             }
         )
-        log.info(f"Change point {i+1}: {detected_date_str} (Confidence: {prob:.1f}%)")
+        log.info(f"Change point {i + 1}: {detected_date_str} (Confidence: {prob:.1f}%)")
     log.info("=" * 40)
 
     payload["detected_change_points"] = detected
@@ -341,7 +338,7 @@ def run_multi_discovery_analysis():
             df["date"].values[tau_samples[:, i].astype(int)],
             bins=n_days,
             alpha=0.6,
-            label=f"Change Point {i+1}",
+            label=f"Change Point {i + 1}",
         )
     plt.title("Detected Multiple Structural Breaks")
     plt.legend()
@@ -364,5 +361,3 @@ def run_multi_discovery_analysis():
 
 if __name__ == "__main__":
     run_multi_discovery_analysis()
-
-

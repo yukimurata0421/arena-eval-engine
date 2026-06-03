@@ -9,3 +9,5 @@ This section contains operational and structure-oriented documents.
 - [Synthesis Workflow](synthesis.md)
 - [Failure Taxonomy](failure-taxonomy.md)
 - [Sample Outputs](sample_outputs.md)
+- [Performance Notes](performance/README.md)
+- [Model Disagreement Report Example](examples/model_disagreement_report_example.md)

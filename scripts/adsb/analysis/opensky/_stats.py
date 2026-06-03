@@ -1,31 +1,18 @@
 """Statistical tests for OpenSky vs Local ADS-B comparison."""
 from __future__ import annotations
 
-from typing import List, Tuple
-
 import numpy as np
 import pandas as pd
-from scipy.stats import kruskal, mannwhitneyu
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-
 from _common import DISTANCE_BIN_LABELS
+from scipy.stats import kruskal
+
+from arena.lib.robust_stats import format_estimate_ci, mann_whitney_hodges_lehmann
 
 
-def bootstrap_mean_diff(
-    a: np.ndarray, b: np.ndarray, n: int = 20000, seed: int = 42
-) -> Tuple[float, float, float]:
-    rng = np.random.default_rng(seed)
-    if len(a) == 0 or len(b) == 0:
-        return (np.nan, np.nan, np.nan)
-    aa = rng.choice(a, size=(n, len(a)), replace=True).mean(axis=1)
-    bb = rng.choice(b, size=(n, len(b)), replace=True).mean(axis=1)
-    diffs = bb - aa
-    return (float(np.mean(diffs)), float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975)))
-
-
-def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
-    lines: List[str] = []
+def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> list[str]:
+    lines: list[str] = []
     sep = "=" * 70
 
     used_dates = set(daily.loc[daily["use_for_stats"], "date"].values)
@@ -79,7 +66,7 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
 
     # 2. Mann-Whitney U (capture_ratio)
     lines.append(sep)
-    lines.append("2. Phase comparison: Mann-Whitney U (capture_ratio, minute-level)")
+    lines.append("2. Phase comparison: Mann-Whitney U + Hodges-Lehmann CI (capture_ratio, minute-level)")
     lines.append(sep)
     lines.append("")
 
@@ -90,11 +77,14 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
                 a = df.loc[df["phase"] == ph_a, "capture_ratio"].dropna().values
                 b = df.loc[df["phase"] == ph_b, "capture_ratio"].dropna().values
                 if len(a) >= 5 and len(b) >= 5:
-                    u_stat, u_p = mannwhitneyu(a, b, alternative="two-sided")
-                    md, lo, hi = bootstrap_mean_diff(a, b, n=20000, seed=42)
+                    mwu_hl = mann_whitney_hodges_lehmann(a, b, min_samples=5)
                     lines.append(f"  {ph_a} (n={len(a)}) vs {ph_b} (n={len(b)})")
-                    lines.append(f"    MWU: U={u_stat:.1f}  p={u_p:.6g}")
-                    lines.append(f"    Bootstrap delta_mean({ph_b}-{ph_a}): {md:.4f}  95%CI[{lo:.4f}, {hi:.4f}]")
+                    lines.append(f"    MWU: U={mwu_hl.u_statistic:.1f}  p={mwu_hl.p_value:.6g}")
+                    lines.append(
+                        f"    HL shift({ph_b}-{ph_a}): "
+                        f"{format_estimate_ci(mwu_hl.hl_estimate, mwu_hl.hl_ci_low, mwu_hl.hl_ci_high, digits=4)}"
+                    )
+                    lines.append(f"    rank_biserial_effect={mwu_hl.rank_biserial:.4f}")
                     lines.append("")
     else:
         lines.append("  Only 1 phase in valid data — no comparison possible.")
@@ -102,7 +92,7 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
 
     # 3. Distance-bin phase comparison
     lines.append(sep)
-    lines.append("3. Distance-bin phase comparison (Mann-Whitney U on capture_bin)")
+    lines.append("3. Distance-bin phase comparison (Mann-Whitney U + Hodges-Lehmann CI on capture_bin)")
     lines.append(sep)
     lines.append("")
 
@@ -116,16 +106,18 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
                     a = df.loc[df["phase"] == ph_a, col].dropna().values
                     b = df.loc[df["phase"] == ph_b, col].dropna().values
                     if len(a) >= 5 and len(b) >= 5:
-                        u_stat, u_p = mannwhitneyu(a, b, alternative="two-sided")
-                        md, lo, hi = bootstrap_mean_diff(a, b, n=10000, seed=42)
-                        lines.append(f"  {ph_a} vs {ph_b}: MWU p={u_p:.6g}  delta={md:.4f} [{lo:.4f},{hi:.4f}]")
+                        mwu_hl = mann_whitney_hodges_lehmann(a, b, min_samples=5)
+                        lines.append(
+                            f"  {ph_a} vs {ph_b}: MWU p={mwu_hl.p_value:.6g}  "
+                            f"HL={format_estimate_ci(mwu_hl.hl_estimate, mwu_hl.hl_ci_low, mwu_hl.hl_ci_high, digits=4)}"
+                        )
                     else:
                         lines.append(f"  {ph_a} vs {ph_b}: insufficient data (n={len(a)}/{len(b)})")
             lines.append("")
 
     # 4. Daily-level comparison
     lines.append(sep)
-    lines.append("4. Daily-level comparison (MWU on daily median_capture_ratio)")
+    lines.append("4. Daily-level comparison (MWU + Hodges-Lehmann CI on daily median_capture_ratio)")
     lines.append(sep)
     lines.append("")
 
@@ -136,12 +128,15 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
                 a = daily_used.loc[daily_used["phase"] == ph_a, "median_capture_ratio"].dropna().values
                 b = daily_used.loc[daily_used["phase"] == ph_b, "median_capture_ratio"].dropna().values
                 if len(a) >= 3 and len(b) >= 3:
-                    u_stat, u_p = mannwhitneyu(a, b, alternative="two-sided")
-                    md, lo, hi = bootstrap_mean_diff(a, b, n=20000, seed=42)
+                    mwu_hl = mann_whitney_hodges_lehmann(a, b, min_samples=3)
                     lines.append(f"  {ph_a} (n_days={len(a)}, mean={np.mean(a):.4f})")
                     lines.append(f"  vs {ph_b} (n_days={len(b)}, mean={np.mean(b):.4f})")
-                    lines.append(f"    MWU: U={u_stat:.1f}  p={u_p:.6g}")
-                    lines.append(f"    Bootstrap delta: {md:.4f} [{lo:.4f},{hi:.4f}]")
+                    lines.append(f"    MWU: U={mwu_hl.u_statistic:.1f}  p={mwu_hl.p_value:.6g}")
+                    lines.append(
+                        "    HL shift: "
+                        f"{format_estimate_ci(mwu_hl.hl_estimate, mwu_hl.hl_ci_low, mwu_hl.hl_ci_high, digits=4)}"
+                    )
+                    lines.append(f"    rank_biserial_effect={mwu_hl.rank_biserial:.4f}")
                     lines.append("")
                 else:
                     lines.append(f"  {ph_a} (n={len(a)}) vs {ph_b} (n={len(b)}): need >=3 each")
@@ -169,7 +164,7 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
         res = model.fit()
         lines.append(res.summary().as_text())
     except Exception as e:
-        lines.append(f"  [ERROR] NB-GLM failed: {repr(e)}")
+        lines.append(f"  [ERROR] NB-GLM failed: {e!r}")
     lines.append("")
 
     # 6. Distance-bin NB-GLM
@@ -200,7 +195,7 @@ def run_statistics(df_all: pd.DataFrame, daily: pd.DataFrame) -> List[str]:
             res = model.fit()
             lines.append(res.summary().as_text())
         except Exception as e:
-            lines.append(f"  [ERROR] {repr(e)}")
+            lines.append(f"  [ERROR] {e!r}")
         lines.append("")
 
     # 7. Kruskal-Wallis (3+ phases)

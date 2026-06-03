@@ -5,7 +5,7 @@
 > statistical evidence, where each model is reliable, and where
 > conclusions must be qualified.
 >
-> Last updated: 2026-03-08  
+> Last updated: 2026-06-03
 > Primary evaluation window: 2025-12-26 to 2026-03-08  
 > (Some sections use 73 raw calendar days, 68 quality-filtered days, or 61 strictly filtered days as noted below.)
 >
@@ -23,7 +23,7 @@
 3. [Model-by-Model Analysis](#3-model-by-model-analysis)
    - 3.1 [Negative Binomial GLM (Baseline)](#31-negative-binomial-glm-baseline)
    - 3.2 [Bayesian Phase Evaluation (NumPyro / NUTS)](#32-bayesian-phase-evaluation-numpyro--nuts)
-   - 3.3 [Mann-Whitney U + Bootstrap CI](#33-mann-whitney-u--bootstrap-ci)
+   - 3.3 [Mann-Whitney U + Hodges-Lehmann CI](#33-mann-whitney-u--hodges-lehmann-ci)
    - 3.4 [Distance-bin NB-GLM with OpenSky Offset](#34-distance-bin-nb-glm-with-opensky-offset)
    - 3.5 [Binomial GLM (Quality)](#35-binomial-glm-quality)
    - 3.6 [Change-Point Detection](#36-change-point-detection)
@@ -171,9 +171,14 @@ Intervals (HDI) and P(effect > 0).
 **Model specification (Phase Evaluator v3.1):**
 ```
 auc_n_used ~ phase + traffic_control + offset(log(minutes_covered))
-Family: NegBin, MCMC: warmup=1000, samples=2000, chains=12
+Family: NegBin, MCMC: warmup=1000, samples=2000, chains=4 by default
 Dual baseline: Phase 0 (RTL-SDR) and Phase 1 (Airspy Mini)
 ```
+
+The current runtime separates pipeline workers from MCMC chains. A 36-worker
+pipeline on the Xeon workstation does not imply 36 chains. The default
+4-chain run is treated as the production path; 8- or 12-chain reruns are
+reserved for poor convergence diagnostics or sensitivity checks.
 
 **What the data showed (vs Original Baseline, Phase 0):**
 
@@ -244,24 +249,28 @@ over-interpreted.
   prior rather than the data. ARENA flags this as `[prelim: low N]`.
 - Adjacent-phase comparisons (vs_previous) all have P(>0) < 67%,
   meaning the model cannot distinguish cable/adapter effects from noise.
-- The 12-chain MCMC with 2000 samples shows good convergence for Phases
-  0–2 and 4, but the Phase 3 posterior is wide due to minimal data.
+- A chains=4 vs chains=12 sensitivity check did not change the supported /
+  unclear judgment on the current real-data comparison. This is not a universal
+  proof that chains=4 is always sufficient; future runs should check R-hat,
+  ESS, and divergences before raising chains adaptively.
 - Traffic elasticity is β = -0.015 (HDI: [-0.185, +0.138]), consistent
   with the frequentist result: the traffic proxy has no predictive power.
 
 ---
 
-### 3.3 Mann-Whitney U + Bootstrap CI
+### 3.3 Mann-Whitney U + Hodges-Lehmann CI
 
 **General assumptions:**
 MWU is a non-parametric rank test that assumes independent observations
 and tests whether one distribution stochastically dominates another.
-It makes no distributional assumptions. Bootstrap CI estimates the
-sampling distribution of the mean difference via resampling.
+It makes no distributional assumptions. The current runtime pairs MWU with
+a Hodges-Lehmann location-shift estimate and confidence interval, because this
+keeps the non-parametric effect estimate aligned with the rank-based test and
+is less sensitive to tail behavior than a bootstrapped mean difference.
 
 **What the data showed (OpenSky minute-level capture ratio):**
 
-| Comparison | N₁ | N₂ | p-value | Bootstrap Δ | 95% CI |
+| Comparison | N₁ | N₂ | p-value | Reported Δ | 95% CI |
 |------------|----|----|---------|-------------|--------|
 | Airspy Mini vs Airspy+Cable | 7001 | 12674 | 9.7e-164 | -0.048 | [-0.052, -0.044] |
 | Airspy Mini vs airspy_adapter | 7001 | 7029 | 1.0e-97 | -0.042 | [-0.047, -0.038] |
@@ -374,15 +383,16 @@ abrupt transitions.
 
 **What the data showed:**
 - Pipeline runs completed successfully (single: 317s, multi K=3: 1377s).
-- CPU execution was forced after discovering that GPU (GTX 1060) was
-  38–50× slower than CPU for small datasets — a counterintuitive but
-  reproducible finding specific to JAX/NumPyro on this hardware.
+- CPU execution is preferred for small-N Bayesian/change-point models. Earlier
+  GTX 1060 benchmarks showed 38–50× slower GPU execution for these small
+  workloads; the current Xeon E5-2695 v4 / GTX 1070 workstation must be
+  interpreted through the current JAX runtime, which exposes CPU only unless
+  CUDA is available to JAX.
 
 #### GPU vs CPU Performance on Small Datasets
 
-During development, all Bayesian/change-point scripts were initially
-run on GPU (NVIDIA GTX 1060 6GB). Benchmarking revealed a dramatic
-inversion:
+During development, Bayesian/change-point scripts were initially run on GPU
+(NVIDIA GTX 1060 6GB). Benchmarking revealed a dramatic inversion:
 
 | Script | GPU (GTX 1060) | CPU (i7-8700K) | Ratio |
 |--------|---------------|----------------|-------|
@@ -396,10 +406,11 @@ host-device data transfer cost dominate the computation. The GPU's
 parallel execution units remain underutilized because the workload
 is too small and too sequential to benefit from parallelism.
 
-Based on these benchmarks, ARENA defaults to CPU execution for all
-Bayesian and change-point scripts via `numpyro.set_platform("cpu")`
-when the dataset is below a configurable threshold (currently N < 500).
-This decision is recorded in the pipeline execution log.
+Based on these benchmarks, ARENA defaults to CPU execution for small datasets
+below a configurable GPU threshold (currently N <= 5000 unless overridden by
+`ADSB_GPU_MIN_N` / `ARENA_GPU_MIN_N`). This decision is recorded in the
+pipeline execution log, together with whether physical NVIDIA hardware and
+JAX CUDA are both available.
 
 **Limitations specific to this data:**
 - The RTL-SDR → Airspy transition (Jan 10–14) involved simultaneous
@@ -703,7 +714,7 @@ auc_n_used and hnd_nrt_movements (which has zero predictive power).
    full season change (June–August) before drawing long-term conclusions.
 
 8. **Characterize the GPU/CPU crossover point.** The current threshold
-   (datasets below N < 500 default to CPU execution) is based on
+   (datasets at or below N <= 5000 default to CPU execution) is based on
    empirical benchmarking on small datasets, including the N=59
    development case. As data accumulates, re-benchmark to find the
    dataset size where GPU parallelism begins to outperform CPU

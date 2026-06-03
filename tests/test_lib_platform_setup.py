@@ -47,3 +47,17 @@ def test_init_numpyro_platform_falls_back_when_cuda_unavailable(monkeypatch) -> 
     assert platform == "cpu"
     assert ("set_platform", "cpu") in calls
 
+
+def test_init_numpyro_platform_respects_gpu_min_n_override(monkeypatch) -> None:
+    calls: list[tuple[str, object]] = []
+    fake_numpyro = types.SimpleNamespace(
+        set_platform=lambda x: calls.append(("set_platform", x)),
+        set_host_device_count=lambda x: calls.append(("set_host_device_count", x)),
+    )
+    monkeypatch.setitem(__import__("sys").modules, "numpyro", fake_numpyro)
+    monkeypatch.setenv("ADSB_GPU_MIN_N", "200")
+
+    platform = ps.init_numpyro_platform(n_data=199, force_cpu=False)
+
+    assert platform == "cpu"
+    assert ("set_platform", "cpu") in calls

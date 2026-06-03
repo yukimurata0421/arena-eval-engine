@@ -2,7 +2,7 @@
 [![verify-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/verify-smoke.yml?branch=main&label=verify-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/verify-smoke.yml)
 [![docker-smoke](https://img.shields.io/github/actions/workflow/status/yukimurata0421/arena-eval-engine/docker-smoke.yml?branch=main&label=docker-smoke)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/docker-smoke.yml)
 [![coverage-threshold](https://img.shields.io/badge/coverage-%E2%89%A586%25-brightgreen)](https://github.com/yukimurata0421/arena-eval-engine/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.3.1-blue)](https://github.com/yukimurata0421/arena-eval-engine/blob/main/CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/yukimurata0421/arena-eval-engine/blob/main/CHANGELOG.md)
 
 # ARENA — ADS-B Receiver Evaluation Engine
  
@@ -16,7 +16,7 @@ The core difficulty is that observed improvements are easily confounded: traffic
 Raspberry Pi (edge)                WSL2 / Linux (analysis)
 ┌──────────────────┐               ┌────────────────────────────┐
 │  readsb → PLAO   │  rsync/pull   │                            │
-│       → adsb-eval│──────────────>│  pipeline (8 stages,       │
+│       → adsb-eval│──────────────>│  pipeline (9 stages,       │
 └──────────────────┘               │           wave-parallel)   │
                                    │      │                     │
                                    │      ├──> /output          │
@@ -49,13 +49,15 @@ Raspberry Pi (edge)                WSL2 / Linux (analysis)
  
 Three subsystems:
  
-- **Pipeline** — 8-stage orchestration with wave-parallel scheduling, failure-resilient execution, and append-only audit logging. Outputs human-readable graphs and reports to `/output`.
+- **Pipeline** — 9-stage orchestration with wave-parallel scheduling, failure-resilient execution, append-only audit logging, and a final evidence synthesis stage. Outputs human-readable graphs, reports, and evidence matrices to `/output`.
 - **Artifacts** — Converts pipeline outputs into verifiable, LLM-ready evidence bundles. Content identity (SHA-256), schema validation, and provenance/lineage ensure that downstream analysis operates on auditable evidence, not implicit assumptions. Integrity verification carries through to synthesis ingestion.
 - **Synthesis** — Cross-model claim ingestion from multiple LLMs, enrichment, baseline clustering, proposition mapping, automated triage, and human review queue. Two-layer DB design (proposition + claim layers with convergence judgments). SQLite-backed, path-isolated.
  
 ## Design Philosophy
  
-ARENA treats LLMs as hypothesis generators, not truth sources — claims are validated through structured evidence and cross-model convergence. The full catalogue of 31 engineering decisions is in [docs/principles/engineering-decisions.md](docs/principles/engineering-decisions.md).
+ARENA treats LLMs as hypothesis generators, not truth sources — claims are validated through structured evidence and cross-model convergence. It does not average model families into a weighted ensemble score; support, counter-evidence, caveats, and validation targets remain separate so disagreement stays reviewable.
+
+The full catalogue of 33 engineering decisions is in [docs/principles/engineering-decisions.md](docs/principles/engineering-decisions.md).
  
 ## Quick Start
  
@@ -92,9 +94,9 @@ Detailed docs live in `docs/`. Start at [docs/README.md](docs/README.md).
  
 | Category | Key Documents |
 |---|---|
-| Operations | [Architecture](docs/facts/architecture.md) · [Reproducibility](docs/facts/reproducibility.md) · [Synthesis](docs/facts/synthesis.md) |
-| Design | [Engineering Decisions](docs/principles/engineering-decisions.md) · [Artifact Design](docs/principles/artifact-design.md) · [AI-Assisted Analysis](docs/principles/ai-assisted-analysis.md) · [AEME](docs/principles/aeme.md) |
-| Context | [System Context](docs/facts/system-context.md) · [Statistical Assumptions](docs/principles/statistical-assumptions-and-limitations.md) |
+| Operations | [Architecture](docs/facts/architecture.md) · [Reproducibility](docs/facts/reproducibility.md) · [Synthesis](docs/facts/synthesis.md) · [MCMC / GPU Policy](docs/facts/performance/mcmc-parallelism-and-gpu-policy.md) |
+| Design | [Engineering Decisions](docs/principles/engineering-decisions.md) · [Why Not Weighted Ensemble](docs/principles/why-not-weighted-ensemble.md) · [Evidence Synthesis Stage](docs/principles/evidence-synthesis-stage.md) · [AEME](docs/principles/aeme.md) |
+| Context | [System Context](docs/facts/system-context.md) · [Statistical Assumptions](docs/principles/statistical-assumptions-and-limitations.md) · [Model Disagreement Report Example](docs/facts/examples/model_disagreement_report_example.md) |
  
 ## Tech Stack
  

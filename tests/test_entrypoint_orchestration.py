@@ -128,3 +128,40 @@ def test_run_pipeline_stages_aborts_and_collects_early_on_group_failure(monkeypa
 
     assert ok is False
     assert collect_called, "expected early futures to be collected before abort"
+
+
+def test_run_pipeline_stages_aborts_after_critical_single_stage_failure(monkeypatch) -> None:
+    runner = SimpleNamespace()
+    steps = [
+        Step(stage=1, script_rel="critical.py", label="critical", critical=True),
+        Step(stage=3, script_rel="later.py", label="later"),
+    ]
+    collect_called: list[bool] = []
+    called_single: list[int] = []
+
+    def should_run_stage(_n: int) -> bool:
+        return True
+
+    def fake_run_single_stage(_runner, _steps, st: int, _resolved_workers: int, _fail_fast: bool):
+        called_single.append(st)
+        return st != 1
+
+    def fake_collect_early(*_args, **_kwargs):
+        collect_called.append(True)
+        return True
+
+    monkeypatch.setattr(entrypoint, "_launch_early_stages", lambda *_args, **_kwargs: ({}, None, set()))
+    monkeypatch.setattr(entrypoint, "_run_single_stage", fake_run_single_stage)
+    monkeypatch.setattr(entrypoint, "_collect_early", fake_collect_early)
+
+    ok = entrypoint._run_pipeline_stages(
+        runner=runner,
+        steps=steps,
+        cfg=SimpleNamespace(fail_fast=False),
+        should_run_stage=should_run_stage,
+        resolved_workers=1,
+    )
+
+    assert ok is False
+    assert called_single == [1]
+    assert collect_called

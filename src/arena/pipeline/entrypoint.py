@@ -25,6 +25,7 @@ from arena.pipeline.backend import (
     now_iso,
     resolve_default_workers,
     wsl_available,
+    wsl_path_is_dir,
 )
 from arena.pipeline.runner import PipelineRunner
 from arena.pipeline.stages import (
@@ -308,9 +309,20 @@ def _build_backend(
         backend_kind = "wsl"
     else:
         if is_windows() and wsl_available():
-            backend_kind = "wsl"
-        else:
-            backend_kind = "native"
+            wsl_ready, missing = _wsl_required_paths_accessible(scripts_root_native, output_root_native, data_root_native)
+            if not wsl_ready:
+                logger.warning("[WARN] WSL is available, but project paths are not accessible inside WSL; falling back to native backend.")
+                for item in missing[:4]:
+                    logger.warning("  - %s", item)
+            else:
+                backend_kind = "wsl"
+
+    if cfg.backend == "wsl" and is_windows():
+        wsl_ready, missing = _wsl_required_paths_accessible(scripts_root_native, output_root_native, data_root_native)
+        if not wsl_ready:
+            logger.warning("[WARN] WSL backend requested, but some project paths are not accessible inside WSL.")
+            for item in missing[:4]:
+                logger.warning("  - %s", item)
 
     if backend_kind == "wsl" and (not is_windows()) and os.name != "posix":
         backend_kind = "native"
@@ -339,6 +351,25 @@ def _build_backend(
         data_root_exec=d_exec,
         pythonpath_exec=py_exec,
     )
+
+
+def _wsl_required_paths_accessible(
+    scripts_root_native: Path,
+    output_root_native: Path,
+    data_root_native: Path,
+) -> tuple[bool, list[str]]:
+    checks = [
+        ("scripts root", scripts_root_native),
+        ("data root", data_root_native),
+    ]
+    output_probe = output_root_native if output_root_native.exists() else output_root_native.parent
+    checks.append(("output root" if output_root_native.exists() else "output parent", output_probe))
+
+    missing: list[str] = []
+    for label, path in checks:
+        if not wsl_path_is_dir(path):
+            missing.append(f"{label}: {_windows_to_wsl_path(path)}")
+    return not missing, missing
 
 
 def _print_header(
@@ -391,7 +422,10 @@ def _detect_gpu(cfg: RunConfig, backend: Backend, env: dict[str, str]) -> str:
     if gpu_info["available"]:
         logger.info("GPU: OK (%s)", gpu_info["device"])
         return "cuda,cpu"
-    logger.info("GPU: Not detected -> CPU")
+    if gpu_info.get("reason"):
+        logger.info("GPU: Not available to JAX -> CPU (%s: %s)", gpu_info.get("device", "CPU only"), gpu_info["reason"])
+    else:
+        logger.info("GPU: Not detected -> CPU")
     return "cpu"
 
 
@@ -479,6 +513,9 @@ def _run_pipeline_stages(
         )
         if not stage_ok:
             ok_all = False
+            if cfg.fail_fast or any(step.critical for step in steps if step.stage == st):
+                _collect_early(early_futures, early_executor, cfg.fail_fast, runner)
+                return False
 
     if not _collect_early(early_futures, early_executor, cfg.fail_fast, runner):
         ok_all = False

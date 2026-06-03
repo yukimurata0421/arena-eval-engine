@@ -33,11 +33,37 @@ Use Docker with local mounts so private data and credentials never need to be co
 docker compose --env-file docker/.env -f docker/docker-compose.yml --profile real run --rm arena-real-stage1
 ```
 
-## Run Full Stage 1-8 Pipeline Against Real Data
+## Run Full Stage 1-9 Pipeline Against Real Data
 
 ```powershell
 docker compose --env-file docker/.env -f docker/docker-compose.yml --profile real run --rm arena-real-full
 ```
+
+Stage 9 writes the evidence synthesis artifacts after the statistical, PLAO,
+and OpenSky comparison stages complete:
+
+- `performance/model_evidence_matrix.csv`
+- `performance/model_evidence_summary.json`
+- `performance/model_disagreement_report.md`
+
+## Native Real-Data Validation
+
+Docker is the preferred public validation surface, but the same path-isolated
+contract applies to native execution:
+
+```bash
+arena run \
+  --scripts-root <repo_root>/scripts \
+  --data-dir <private_data_root> \
+  --output-dir <temporary_output_root> \
+  --settings <private_settings.toml> \
+  --phase-config <private_phases.txt> \
+  --workers <logical_cpu_count>
+```
+
+Keep `<private_data_root>`, settings, phase definitions, and credentials
+outside this repository. Runtime outputs should go to a scratch directory that
+is ignored by Git.
 
 ## Cleanup
 

@@ -1,13 +1,12 @@
 """
 adsb_distance_nb_eval.py module.
 """
+
 import os
-import sys
-from pathlib import Path
+import warnings
+
 import numpy as np
 import pandas as pd
-from scipy import stats as sp_stats
-import warnings
 
 # Suppress only FitWarning (statsmodels convergence warning). Other DeprecationWarnings are displayed.
 warnings.filterwarnings("ignore", category=Warning, module="statsmodels")
@@ -15,18 +14,17 @@ warnings.filterwarnings("ignore", message=".*Maximum Likelihood.*", category=War
 
 
 from arena.lib.paths import OUTPUT_DIR as OUT_ROOT
-
+from arena.lib.robust_stats import format_estimate_ci, mann_whitney_hodges_lehmann
 from arena.log import get_script_logger
 
-
 log = get_script_logger(__name__)
-OUTPUT_DIR  = str(OUT_ROOT / "performance")
-FRINGE_CSV  = os.path.join(str(OUT_ROOT / "fringe_decoding"), "fringe_decoding_stats.csv")
+OUTPUT_DIR = str(OUT_ROOT / "performance")
+FRINGE_CSV = os.path.join(str(OUT_ROOT / "fringe_decoding"), "fringe_decoding_stats.csv")
 
 PHASES = {
-    '1_Old_Settings':   'Phase0_Old',
-    '2_New_Filter':     'Phase1_Filter',
-    '3_Post_Cable_Fix': 'Phase2_Cable',
+    "1_Old_Settings": "Phase0_Old",
+    "2_New_Filter": "Phase1_Filter",
+    "3_Post_Cable_Fix": "Phase2_Cable",
 }
 
 
@@ -36,7 +34,7 @@ def bootstrap_ci(data, n_boot=10000, ci=0.95, seed=42):
     """
     rng = np.random.default_rng(seed)
     if len(data) == 0:
-        return np.array([float('nan'), float('nan')])
+        return np.array([float("nan"), float("nan")])
     samples = rng.choice(data, size=(n_boot, len(data)), replace=True)
     means = samples.mean(axis=1)
     alpha = (1 - ci) / 2
@@ -52,27 +50,27 @@ def run_distance_analysis():
         return
 
     df = pd.read_csv(FRINGE_CSV)
-    df['date'] = pd.to_datetime(df['date'])
+    df["date"] = pd.to_datetime(df["date"])
 
-    if 'phase' in df.columns:
-        df['phase_label'] = df['phase'].map(PHASES).fillna(df['phase'])
+    if "phase" in df.columns:
+        df["phase_label"] = df["phase"].map(PHASES).fillna(df["phase"])
     else:
         log.info(" Phase column is missing. Please check fringe_decoding_stats.csv.")
         return
 
     dist_cols = {
-        '0-100km (Near)':    'dist_0_100',
-        '100-200km (Mid)':   'dist_100_200',
-        '200-300km (Far)':   'dist_200_300',
-        '300km+ (Extreme)':  'dist_300_plus',
+        "0-100km (Near)": "dist_0_100",
+        "100-200km (Mid)": "dist_100_200",
+        "200-300km (Far)": "dist_200_300",
+        "300km+ (Extreme)": "dist_300_plus",
     }
 
-    for label, col in dist_cols.items():
-        df[f'ratio_{col}'] = df[col] / df['total'] * 100
+    for _label, col in dist_cols.items():
+        df[f"ratio_{col}"] = df[col] / df["total"] * 100
 
-    phases = sorted(df['phase_label'].unique())
+    phases = sorted(df["phase_label"].unique())
     baseline_phase = phases[0]
-    baseline_data = df[df['phase_label'] == baseline_phase]
+    baseline_data = df[df["phase_label"] == baseline_phase]
 
     log.info("=" * 80)
     log.info("Performance analysis by distance range (ratio comparison)")
@@ -82,19 +80,21 @@ def run_distance_analysis():
     all_results = []
 
     for target_phase in phases[1:]:
-        target_data = df[df['phase_label'] == target_phase]
+        target_data = df[df["phase_label"] == target_phase]
         log.info(f"\n--- {target_phase} ({len(target_data)} days) vs {baseline_phase} ---")
-        log.info(f"{'Distance band':<22} {'Reference%':>10} {'Target%':>10}"
-              f"{'Change':>10} {'P-value':>10} {'Significance':>14}")
+        log.info(
+            f"{'Distance band':<22} {'Reference%':>10} {'Target%':>10}"
+            f"{'Change':>10} {'P-value':>10} {'HL Δ[95%CI]':>24} {'Significance':>14}"
+        )
         log.info("-" * 80)
 
         for label, col in dist_cols.items():
-            ratio_col = f'ratio_{col}'
+            ratio_col = f"ratio_{col}"
             base_vals = baseline_data[ratio_col].values
-            tgt_vals  = target_data[ratio_col].values
+            tgt_vals = target_data[ratio_col].values
 
             base_mean = np.mean(base_vals)
-            tgt_mean  = np.mean(tgt_vals)
+            tgt_mean = np.mean(tgt_vals)
 
             if base_mean > 0:
                 relative_change = ((tgt_mean / base_mean) - 1) * 100
@@ -102,12 +102,23 @@ def run_distance_analysis():
                 relative_change = np.nan
 
             if len(base_vals) >= 3 and len(tgt_vals) >= 3:
-                u_stat, p_value = sp_stats.mannwhitneyu(
-                    base_vals, tgt_vals, alternative='two-sided'
-                )
+                mwu_hl = mann_whitney_hodges_lehmann(base_vals, tgt_vals, min_samples=3)
+                u_stat = mwu_hl.u_statistic
+                p_value = mwu_hl.p_value
+                rank_biserial = mwu_hl.rank_biserial
+                hl_delta = mwu_hl.hl_estimate
+                hl_ci_low = mwu_hl.hl_ci_low
+                hl_ci_high = mwu_hl.hl_ci_high
+                hl_ci_str = format_estimate_ci(hl_delta, hl_ci_low, hl_ci_high, digits=2)
                 sig = "significant *" if p_value < 0.05 else "not significant"
             else:
+                u_stat = np.nan
                 p_value = np.nan
+                rank_biserial = np.nan
+                hl_delta = np.nan
+                hl_ci_low = np.nan
+                hl_ci_high = np.nan
+                hl_ci_str = "---"
                 sig = "N too small"
 
             # Bootstrap CI for target mean
@@ -117,44 +128,58 @@ def run_distance_analysis():
             else:
                 ci_str = "---"
 
-            log.info(f"{label:<22} {base_mean:>9.2f}% {tgt_mean:>9.2f}% "
-                  f"{relative_change:>+9.1f}% {p_value:>10.4f} {sig:>14}")
+            log.info(
+                f"{label:<22} {base_mean:>9.2f}% {tgt_mean:>9.2f}% {relative_change:>+9.1f}% {p_value:>10.4f} {hl_ci_str:>24} {sig:>14}"
+            )
 
-            all_results.append({
-                'Phase': target_phase,
-                'Distance_Band': label,
-                'Baseline_Mean_Pct': round(base_mean, 4),
-                'Target_Mean_Pct': round(tgt_mean, 4),
-                'Relative_Change_Pct': round(relative_change, 2) if not np.isnan(relative_change) else None,
-                'Mann_Whitney_P': round(p_value, 6) if not np.isnan(p_value) else None,
-                'Target_95CI': ci_str,
-                'Significance': sig,
-            })
+            all_results.append(
+                {
+                    "Phase": target_phase,
+                    "Distance_Band": label,
+                    "Comparison_Method": "MWU+Hodges-Lehmann",
+                    "Baseline_Mean_Pct": round(base_mean, 4),
+                    "Target_Mean_Pct": round(tgt_mean, 4),
+                    "Relative_Change_Pct": round(relative_change, 2) if not np.isnan(relative_change) else None,
+                    "Mann_Whitney_U_Target_vs_Baseline": round(u_stat, 6) if not np.isnan(u_stat) else None,
+                    "Mann_Whitney_P": round(p_value, 6) if not np.isnan(p_value) else None,
+                    "Rank_Biserial_Effect": round(rank_biserial, 6) if not np.isnan(rank_biserial) else None,
+                    "HL_Diff_Pct": round(hl_delta, 6) if not np.isnan(hl_delta) else None,
+                    "HL_95CI_Low_Pct": round(hl_ci_low, 6) if not np.isnan(hl_ci_low) else None,
+                    "HL_95CI_High_Pct": round(hl_ci_high, 6) if not np.isnan(hl_ci_high) else None,
+                    "HL_95CI_Pct": hl_ci_str,
+                    "Target_95CI": ci_str,
+                    "Significance": sig,
+                }
+            )
 
     log.info("\n" + "=" * 80)
 
     log.info("\n--- Aggregate evaluation of long distance ratio (200km+) ---")
-    df['ratio_fringe'] = (df['dist_200_300'] + df['dist_300_plus']) / df['total'] * 100
+    df["ratio_fringe"] = (df["dist_200_300"] + df["dist_300_plus"]) / df["total"] * 100
 
     for target_phase in phases[1:]:
-        base_fringe = baseline_data['ratio_fringe' if 'ratio_fringe' in baseline_data else 'fringe_ratio'].values
-        # Re-calculate from df
-        tgt_mask = df['phase_label'] == target_phase
-        base_mask = df['phase_label'] == baseline_phase
-        base_fringe = df.loc[base_mask, 'ratio_fringe'].values
-        tgt_fringe = df.loc[tgt_mask, 'ratio_fringe'].values
+        tgt_mask = df["phase_label"] == target_phase
+        base_mask = df["phase_label"] == baseline_phase
+        base_fringe = df.loc[base_mask, "ratio_fringe"].values
+        tgt_fringe = df.loc[tgt_mask, "ratio_fringe"].values
 
         if len(base_fringe) < 3 or len(tgt_fringe) < 3:
-            log.info(f" [WARN] Fringe aggregation: Insufficient samples (base={len(base_fringe)}, tgt={len(tgt_fringe)})."
-                  "Skip Mann-Whitney U.")
+            log.info(
+                f" [WARN] Fringe aggregation: Insufficient samples (base={len(base_fringe)}, tgt={len(tgt_fringe)}).Skip Mann-Whitney U."
+            )
             continue
-        u, p = sp_stats.mannwhitneyu(base_fringe, tgt_fringe, alternative='two-sided')
+        mwu_hl = mann_whitney_hodges_lehmann(base_fringe, tgt_fringe, min_samples=3)
+        p = mwu_hl.p_value
         base_ci = bootstrap_ci(base_fringe)
         tgt_ci = bootstrap_ci(tgt_fringe)
 
         log.info(f"  {baseline_phase}: {np.mean(base_fringe):.2f}% (95%CI [{base_ci[0]:.2f}, {base_ci[1]:.2f}])")
         log.info(f"  {target_phase}:  {np.mean(tgt_fringe):.2f}% (95%CI [{tgt_ci[0]:.2f}, {tgt_ci[1]:.2f}])")
         log.info(f" Mann-Whitney P = {p:.6f} → {'significant' if p < 0.05 else 'not significant'}")
+        log.info(
+            "  Hodges-Lehmann shift (target-baseline) = "
+            f"{format_estimate_ci(mwu_hl.hl_estimate, mwu_hl.hl_ci_low, mwu_hl.hl_ci_high, digits=2)}"
+        )
 
     res_df = pd.DataFrame(all_results)
     save_path = os.path.join(OUTPUT_DIR, "distance_performance_summary.csv")

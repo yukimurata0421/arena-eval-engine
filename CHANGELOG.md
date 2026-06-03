@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+---
+
+## [0.4.0] - 2026-06-03
+
+### Added
+- Added Stage 9 evidence synthesis to `arena run`, producing:
+  - `performance/model_evidence_matrix.csv`
+  - `performance/model_evidence_summary.json`
+  - `performance/model_disagreement_report.md`
+- Added the public evidence contract in `src/arena/evidence/`:
+  - `EvidenceRow` schema
+  - evidence scoring components
+  - claim routing into support, counter-evidence, caveats, validation targets, and next-data-needed
+- Added public docs for:
+  - why ARENA does not use weighted ensemble
+  - Stage 9 evidence synthesis responsibilities
+  - model disagreement report example
+  - MCMC parallelism and CPU/GPU policy
+
+### Changed
+- Version bump:
+  - `pyproject.toml` -> `0.4.0`
+  - `arena.__version__` -> `0.4.0`
+- Separated outer pipeline workers from MCMC chain counts.
+- Updated probabilistic stages to default to 4 chains with independent chain/cap environment knobs.
+- Updated GPU handling so physical NVIDIA hardware and JAX CUDA availability are reported separately.
+- Updated small-N Bayesian/change-point execution policy to prefer CPU unless the GPU threshold or force flags say otherwise.
+- Updated non-parametric effect reporting toward Mann-Whitney U plus Hodges-Lehmann location shift and CI.
+- Updated public docs to reflect the current Xeon E5-2695 v4 / GTX 1070 workstation instead of reusing old Core i7 / GTX 1060 wall-clock expectations.
+
+### Fixed
+- Hardened native/WSL backend selection so unavailable WSL paths do not force a broken backend.
+- Hardened pipeline fail-fast behavior so downstream critical work is not allowed to continue after an upstream critical failure.
+- Fixed the OpenSky credentials PowerShell path example.
+- Added RPi log-sync protection for the case where a local file is larger than the remote source.
+
+### Validation
+- Added tests for evidence synthesis, robust statistics, ArviZ compatibility, MCMC worker/chain separation, GPU diagnostics, fail-fast orchestration, and RPi local-larger backup behavior.
+- Verified the full Stage 1-9 real-data pipeline in the public repository with 37 OK in 174 s using explicit private data/settings/phase path overrides.
+
+---
+
 ## [0.3.1] - 2026-04-02
 
 ### Changed

@@ -13,7 +13,7 @@ It is designed to validate:
 
 ## Version Scope
 
-- Current source version in this repository is `0.3.1`.
+- Current source version in this repository is `0.4.0`.
 - Reproducibility checks in this document are intended for the current repository state; use `CHANGELOG.md` for release-by-release details.
 
 ## What It Guarantees

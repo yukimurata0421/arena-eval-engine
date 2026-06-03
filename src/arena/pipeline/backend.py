@@ -52,6 +52,26 @@ def _windows_to_wsl_path(p: Path) -> str:
     return f"/mnt/{drive}/{rest}"
 
 
+def _safe_wsl_cwd() -> str | None:
+    if not is_windows():
+        return None
+    for raw in (os.environ.get("SYSTEMROOT"), os.environ.get("USERPROFILE"), "C:\\"):
+        if not raw:
+            continue
+        try:
+            p = Path(raw)
+            if p.exists():
+                return str(p)
+        except OSError:
+            continue
+    return None
+
+
+def _wsl_subprocess_kwargs() -> dict[str, str]:
+    cwd = _safe_wsl_cwd()
+    return {"cwd": cwd} if cwd else {}
+
+
 def default_roots_exec_for_wsl(
     scripts_root_native: Path,
     output_root_native: Path,
@@ -76,8 +96,25 @@ def wsl_available() -> bool:
             capture_output=True,
             text=True,
             timeout=15,
+            **_wsl_subprocess_kwargs(),
         )
         return p.returncode == 0 and p.stdout.strip().endswith("0")
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def wsl_path_is_dir(path: Path) -> bool:
+    if not is_windows():
+        return False
+    try:
+        p = subprocess.run(
+            ["wsl", "-e", "bash", "-lc", f"test -d {shlex.quote(_windows_to_wsl_path(path))}"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            **_wsl_subprocess_kwargs(),
+        )
+        return p.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
 
@@ -148,7 +185,7 @@ class Backend:
         # WSL: run python3 -c ...
         code_q = shlex.quote(code)
         cmd = ["wsl", "-e", "bash", "-lc", f"python3 -c {code_q}"]
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, env=env)
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, env=env, **_wsl_subprocess_kwargs())
 
     def build_script_cmd(self, script_rel_posix: str, extra_args: list[str] | None = None) -> tuple[list[str], str | None]:
         """
@@ -173,7 +210,7 @@ class Backend:
         if args_str:
             payload += f" {args_str}"
         cmd = ["wsl", "-e", "bash", "-lc", payload]
-        return cmd, None
+        return cmd, _safe_wsl_cwd()
 
 
 BASE_MODULES = ["numpy", "pandas", "scipy", "statsmodels", "matplotlib", "folium", "requests"]
@@ -207,13 +244,28 @@ def detect_gpu_jax(backend: Backend, env: dict[str, str]) -> dict:
     """
     Detect GPU availability for JAX in the *execution environment*.
     """
-    info = {"available": False, "device": "CPU only", "jax": False}
+    info = {"available": False, "device": "CPU only", "jax": False, "reason": ""}
     code = (
-        "import jax; "
-        "ds=jax.devices(); "
-        "gpu=[d for d in ds if d.platform=='gpu']; "
-        "print('1' if len(gpu)>0 else '0'); "
-        "print(gpu[0].device_kind if gpu else 'none')"
+        "import subprocess\n"
+        "try:\n"
+        " p=subprocess.run(['nvidia-smi','--query-gpu=name','--format=csv,noheader'],"
+        "capture_output=True,text=True,timeout=5)\n"
+        " hw=(p.stdout or '').strip().splitlines()[0] if p.returncode==0 and p.stdout.strip() else ''\n"
+        "except Exception:\n"
+        " hw=''\n"
+        "try:\n"
+        " import jax\n"
+        " ds=jax.devices()\n"
+        " gpu=[d for d in ds if d.platform=='gpu']\n"
+        " print('1' if len(gpu)>0 else '0')\n"
+        " print(gpu[0].device_kind if gpu else 'none')\n"
+        " print(hw)\n"
+        " print('')\n"
+        "except Exception as e:\n"
+        " print('0')\n"
+        " print('none')\n"
+        " print(hw)\n"
+        " print(type(e).__name__ + ': ' + str(e))"
     )
     try:
         proc = backend.run_python_snippet(code, env={**env, "JAX_PLATFORMS": "cuda,cpu"}, timeout_s=30)
@@ -222,7 +274,22 @@ def detect_gpu_jax(backend: Backend, env: dict[str, str]) -> dict:
             info["available"] = True
             info["jax"] = True
             info["device"] = lines[1].strip() if len(lines) > 1 else "GPU"
+        else:
+            info["jax"] = True
+            hardware = lines[2].strip() if len(lines) > 2 else ""
+            detail = lines[3].strip() if len(lines) > 3 else ""
+            stderr_tail = tail_text((proc.stderr or "").strip(), 400)
+            if hardware:
+                info["device"] = hardware
+                info["reason"] = "NVIDIA hardware found, but JAX did not expose a CUDA device"
+                if detail:
+                    info["reason"] += f" ({detail})"
+            elif stderr_tail:
+                info["reason"] = stderr_tail
+            else:
+                info["reason"] = "JAX reported no CUDA devices"
     except (OSError, subprocess.TimeoutExpired) as exc:
+        info["reason"] = f"{type(exc).__name__}: {exc}"
         logger.warning(
             "Exception occurred during GPU (JAX) detection: %s: %s - Falling back to CPU mode",
             type(exc).__name__,

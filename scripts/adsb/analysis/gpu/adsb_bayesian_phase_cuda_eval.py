@@ -1,17 +1,17 @@
 """
 adsb_bayesian_phase_cuda_eval.py module.
 """
+
 import os
-import sys
-from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-
+from arena.lib.arviz_compat import hdi_bounds
 from arena.lib.config import get_quality_thresholds
 from arena.lib.data_loader import load_summary
 from arena.lib.paths import OUTPUT_DIR as OUT_ROOT
-from arena.lib.platform_setup import resolve_workers
+from arena.lib.platform_setup import init_numpyro_platform
 from arena.log import get_script_logger
 
 log = get_script_logger(__name__)
@@ -20,29 +20,25 @@ OUTPUT_DIR = str(OUT_ROOT / "performance")
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "bayesian_phase_results_cuda.csv")
 
 
-def _hdi_bounds(samples, hdi_prob: float = 0.94):
-    """Helper that absorbs the return type of arviz hdi().
-    arviz < 0.14: ndarray([lo, hi])
-    arviz >= 0.14: Dataset / dict {'x': array([lo, hi])}
-    Always returns a tuple of (lo, hi).
-    """
-    import arviz as az
-    import numpy as np
-    result = az.hdi(samples, hdi_prob=hdi_prob)
-    if isinstance(result, np.ndarray):
-        return float(result[0]), float(result[1])
-    arr = result[list(result.keys())[0]] if hasattr(result, 'keys') else list(result.data_vars.values())[0]
-    arr = np.asarray(arr).flatten()
-    return float(arr[0]), float(arr[1])
-
-
 from arena.lib.phase_config import get_config as _get_cfg
+
 _cfg = _get_cfg()
 PHASE_MAP = _cfg.get_hardware_map()
 PHASE_NAMES = _cfg.get_phase_names()
 
 
-CHAINS = resolve_workers(default_cap=12)
+def _env_posint(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        val = int(raw)
+    except ValueError:
+        return default
+    return val if val > 0 else default
+
+
+CHAINS = _env_posint("ADSB_BAYES_PHASE_CHAINS", 4)
 DRAWS = 2000
 TUNE = 1000
 RANDOM_SEED = 42
@@ -50,17 +46,14 @@ RANDOM_SEED = 42
 
 def run_bayesian_phase_cuda_analysis():
     try:
-        import pymc as pm
         import arviz as az
     except ImportError as e:
         log.info(f" A required library is missing: {e}")
         return
 
-    # ============================================================
-    # ============================================================
     n_cores = min(os.cpu_count() or 4, CHAINS)
 
-    log.info(f" ADS-B Bayesian evaluation (CPU parallel {n_cores} cores / NumPyro backend)")
+    log.info(f" ADS-B Bayesian evaluation (NumPyro backend, chains={CHAINS})")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -98,16 +91,23 @@ def run_bayesian_phase_cuda_analysis():
         name = PHASE_NAMES.get(i, f"Phase{i}")
         log.info(f" {name}: {n} days")
 
-    log.info(f"\n Building PyMC model (NumPyro/CPU {n_cores} cores parallel)...")
-    with pm.Model() as model:
+    platform = init_numpyro_platform(n_data=len(df))
+    if platform == "cuda":
+        n_cores = 1
+    try:
+        import pymc as pm
+    except ImportError as e:
+        log.info(f" A required library is missing: {e}")
+        return
+
+    log.info(f"\n Building PyMC model (NumPyro/{platform}, cores={n_cores})...")
+    with pm.Model():
         alphas = pm.Normal("alphas", mu=10.0, sigma=3.0, shape=num_phases)
         beta_traffic = pm.Normal("beta_traffic", mu=0.5, sigma=0.5)
         beta_weekend = pm.Normal("beta_weekend", mu=0.0, sigma=0.5)
         phi = pm.Exponential("phi", 1.0)
 
-        mu = pm.math.exp(
-            alphas[phase_idx] + beta_traffic * log_traffic + beta_weekend * is_weekend
-        )
+        mu = pm.math.exp(alphas[phase_idx] + beta_traffic * log_traffic + beta_weekend * is_weekend)
         pm.NegativeBinomial("y_obs", mu=mu, alpha=phi, observed=y)
 
         log.info(f" MCMC running (chains={CHAINS}, draws={DRAWS}, tune={TUNE})...")
@@ -123,7 +123,7 @@ def run_bayesian_phase_cuda_analysis():
         )
 
     log.info("\n" + "=" * 70)
-    log.info("ADS-B Bayesian report (CPU parallel / PyMC+NumPyro)")
+    log.info(f"ADS-B Bayesian report ({platform} / PyMC+NumPyro)")
     log.info("=" * 70)
 
     summary = az.summary(trace, var_names=["alphas", "beta_traffic", "beta_weekend", "phi"])
@@ -142,53 +142,48 @@ def run_bayesian_phase_cuda_analysis():
         diff_vs_base = alphas_flat[:, i] - alphas_flat[:, 0]
         improvement_vs_base = (np.exp(diff_vs_base) - 1) * 100
         mean_imp = np.mean(improvement_vs_base)
-        hdi_lo, hdi_hi = _hdi_bounds(improvement_vs_base, hdi_prob=0.94)
+        hdi_lo, hdi_hi = hdi_bounds(improvement_vs_base, hdi_prob=0.94)
         prob_positive = (improvement_vs_base > 0).mean() * 100
 
         name_i = PHASE_NAMES.get(i, f"Phase{i}")
         name_0 = PHASE_NAMES.get(0, "Phase0")
         label = f"{name_i} vs {name_0}"
-        log.info(
-            f"{label:<35} {mean_imp:>+7.1f}% "
-            f"[{hdi_lo:>+7.1f}, {hdi_hi:>+7.1f}]  {prob_positive:>6.1f}%"
+        log.info(f"{label:<35} {mean_imp:>+7.1f}% [{hdi_lo:>+7.1f}, {hdi_hi:>+7.1f}]  {prob_positive:>6.1f}%")
+        results.append(
+            {
+                "comparison": label,
+                "mean_improvement_pct": round(mean_imp, 2),
+                "hdi_94_lower": round(hdi_lo, 2),
+                "hdi_94_upper": round(hdi_hi, 2),
+                "prob_positive_pct": round(prob_positive, 1),
+            }
         )
-        results.append({
-            "comparison": label,
-            "mean_improvement_pct": round(mean_imp, 2),
-            "hdi_94_lower": round(hdi_lo, 2),
-            "hdi_94_upper": round(hdi_hi, 2),
-            "prob_positive_pct": round(prob_positive, 1),
-        })
 
         if i > 1:
             diff_vs_prev = alphas_flat[:, i] - alphas_flat[:, i - 1]
             improvement_vs_prev = (np.exp(diff_vs_prev) - 1) * 100
             mean_prev = np.mean(improvement_vs_prev)
-            hdi_prev_lo, hdi_prev_hi = _hdi_bounds(improvement_vs_prev, hdi_prob=0.94)
+            hdi_prev_lo, hdi_prev_hi = hdi_bounds(improvement_vs_prev, hdi_prob=0.94)
             prob_prev = (improvement_vs_prev > 0).mean() * 100
 
-            name_prev = PHASE_NAMES.get(i - 1, f"Phase{i-1}")
+            name_prev = PHASE_NAMES.get(i - 1, f"Phase{i - 1}")
             label_prev = f"{name_i} vs {name_prev}"
-            log.info(
-                f"{label_prev:<35} {mean_prev:>+7.1f}% "
-                f"[{hdi_prev_lo:>+7.1f}, {hdi_prev_hi:>+7.1f}]  {prob_prev:>6.1f}%"
+            log.info(f"{label_prev:<35} {mean_prev:>+7.1f}% [{hdi_prev_lo:>+7.1f}, {hdi_prev_hi:>+7.1f}]  {prob_prev:>6.1f}%")
+            results.append(
+                {
+                    "comparison": label_prev,
+                    "mean_improvement_pct": round(mean_prev, 2),
+                    "hdi_94_lower": round(hdi_prev_lo, 2),
+                    "hdi_94_upper": round(hdi_prev_hi, 2),
+                    "prob_positive_pct": round(prob_prev, 1),
+                }
             )
-            results.append({
-                "comparison": label_prev,
-                "mean_improvement_pct": round(mean_prev, 2),
-                "hdi_94_lower": round(hdi_prev_lo, 2),
-                "hdi_94_upper": round(hdi_prev_hi, 2),
-                "prob_positive_pct": round(prob_prev, 1),
-            })
 
     beta_traffic_samples = trace.posterior["beta_traffic"].values.flatten()
     beta_weekend_samples = trace.posterior["beta_weekend"].values.flatten()
 
-    log.info(f"\n--- covariate effects ---")
-    log.info(
-        f"  Traffic elasticity: {np.mean(beta_traffic_samples):.4f} "
-        f"(94% HDI: {az.hdi(beta_traffic_samples, hdi_prob=0.94)})"
-    )
+    log.info("\n--- covariate effects ---")
+    log.info(f"  Traffic elasticity: {np.mean(beta_traffic_samples):.4f} (94% HDI: {hdi_bounds(beta_traffic_samples, hdi_prob=0.94)})")
     weekend_pct = (np.exp(beta_weekend_samples) - 1) * 100
     log.info(
         f"  Weekend effect: {np.mean(weekend_pct):+.1f}% "

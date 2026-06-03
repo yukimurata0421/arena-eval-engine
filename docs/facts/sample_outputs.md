@@ -51,5 +51,8 @@ For real-data pipeline runs (`arena run`), representative outputs include:
 - `output/<run>/fringe_decoding/fringe_decoding_stats.csv`
 - `output/<run>/plao/distance_auc/plao_daily_distance_auc_summary.csv`
 - `output/<run>/opensky_comparison/opensky_comparison_daily_summary.csv`
+- `output/<run>/performance/model_evidence_matrix.csv`
+- `output/<run>/performance/model_evidence_summary.json`
+- `output/<run>/performance/model_disagreement_report.md`
 
 These are runtime artifacts and are intentionally not part of the versioned smoke fixture set.

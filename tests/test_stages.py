@@ -21,12 +21,12 @@ def _by_stage(steps: list[Step]) -> dict[int, list[Step]]:
 # ── Snapshot: overall structure ──────────────────────────────────────
 
 def test_total_step_count() -> None:
-    assert len(_steps()) == 36
+    assert len(_steps()) == 37
 
 
 def test_step_count_per_stage() -> None:
     stages = _by_stage(_steps())
-    expected = {1: 8, 2: 5, 3: 11, 4: 1, 5: 8, 6: 1, 7: 1, 8: 1}
+    expected = {1: 8, 2: 5, 3: 11, 4: 1, 5: 8, 6: 1, 7: 1, 8: 1, 9: 1}
     actual = {k: len(v) for k, v in stages.items()}
     assert actual == expected
 
@@ -197,3 +197,40 @@ def test_stage5_main_scripts_fixed() -> None:
         "adsb/analysis/gpu/adsb_cuda_evaluator.py",
         "adsb/analysis/gpu/adsb_cuda_processor.py",
     ]
+
+
+def test_mcmc_steps_cap_chains_independently_from_pipeline_workers() -> None:
+    steps = _steps()
+    by_script = {s.script_rel: s for s in steps}
+
+    phase = by_script["adsb/analysis/phase/adsb_phase_evaluator_v3.py"]
+    assert phase.env_overrides["ADSB_PHASE_CHAINS"] == "4"
+    assert phase.env_overrides["ADSB_MAX_WORKERS"] == "12"
+    assert "JAX_PLATFORMS" not in phase.env_overrides
+
+    bayes_phase = by_script["adsb/analysis/gpu/adsb_bayesian_phase_cuda_eval.py"]
+    assert bayes_phase.env_overrides["ADSB_BAYES_PHASE_CHAINS"] == "4"
+    assert bayes_phase.env_overrides["ADSB_MAX_WORKERS"] == "12"
+    assert "JAX_PLATFORMS" not in bayes_phase.env_overrides
+
+    single_cp = by_script["adsb/analysis/change_points/adsb_detect_change_point.py"]
+    multi_cp = by_script["adsb/analysis/change_points/adsb_detect_multi_change_points.py"]
+    assert single_cp.env_overrides["ADSB_CP_CHAINS"] == "4"
+    assert multi_cp.env_overrides["ADSB_MCP_CHAINS"] == "4"
+
+
+def test_pipeline_build_options_can_override_mcmc_caps() -> None:
+    opts = PipelineBuildOptions(
+        phase_chains=6,
+        bayes_phase_chains=5,
+        change_point_chains=3,
+        multi_change_point_chains=2,
+        mcmc_worker_cap=8,
+    )
+    by_script = {s.script_rel: s for s in _steps(options=opts)}
+
+    assert by_script["adsb/analysis/phase/adsb_phase_evaluator_v3.py"].env_overrides["ADSB_PHASE_CHAINS"] == "6"
+    assert by_script["adsb/analysis/gpu/adsb_bayesian_phase_cuda_eval.py"].env_overrides["ADSB_BAYES_PHASE_CHAINS"] == "5"
+    assert by_script["adsb/analysis/change_points/adsb_detect_change_point.py"].env_overrides["ADSB_CP_CHAINS"] == "3"
+    assert by_script["adsb/analysis/change_points/adsb_detect_multi_change_points.py"].env_overrides["ADSB_MCP_CHAINS"] == "2"
+    assert by_script["adsb/analysis/phase/adsb_phase_evaluator_v3.py"].env_overrides["ADSB_MAX_WORKERS"] == "8"

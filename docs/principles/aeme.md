@@ -9,6 +9,12 @@ AEME uses multiple complementary statistical approaches rather than a single met
 No single method is treated as authoritative — conclusions are drawn from convergence or divergence
 across models.
 
+AEME also does not collapse model families into a weighted ensemble score. Coverage AUC,
+rank probability, location shift, posterior ratio, and OpenSky capture ratio all describe
+different evidence targets. Averaging them would hide contradictions, proxy-quality issues,
+and small-N uncertainty. ARENA preserves those outputs as `EvidenceRow` records and routes
+them into support, counter-evidence, caveats, validation targets, and next-data-needed fields.
+
 For detailed model-by-model assumptions, limitations, and evidence boundaries, see
 [statistical-assumptions-and-limitations.md](./statistical-assumptions-and-limitations.md).
 
@@ -27,7 +33,7 @@ and different failure modes, and checking whether they agree.
 |---|---|---|
 | Negative Binomial GLM | Overall trend with traffic offset | Assumes linear log-link; misses phase-specific effects |
 | Bayesian Phase Evaluation (NumPyro NUTS) | Phase-level improvement with posterior uncertainty | Requires sufficient days per phase; sensitive to prior specification |
-| Mann-Whitney U + Bootstrap CI | Distribution shift without parametric assumptions | Low power with small samples; no confounder control |
+| Mann-Whitney U + Hodges-Lehmann CI | Distribution shift without parametric assumptions | Low power with small samples; no confounder control |
 | Distance-bin NB-GLM with OpenSky | Per-distance-bin improvement with external traffic control | Depends on OpenSky data quality and coverage overlap |
 | Binomial GLM (Quality) | Proportion-based quality metric change | Only captures binary quality, not magnitude |
 | Change-point detection | Structural break timing | Can detect spurious breaks from traffic shifts |
@@ -36,6 +42,12 @@ and different failure modes, and checking whether they agree.
 When most methods agree on the direction and approximate magnitude of an effect,
 the conclusion is defensible. When they disagree, AEME reports the disagreement
 rather than choosing a preferred result.
+
+The Stage 9 evidence synthesis layer is where this becomes an artifact contract:
+`model_evidence_matrix.csv`, `model_evidence_summary.json`, and
+`model_disagreement_report.md` preserve support and counter-evidence side by side.
+See [why-not-weighted-ensemble.md](./why-not-weighted-ensemble.md) and
+[evidence-synthesis-stage.md](./evidence-synthesis-stage.md).
 
 ---
 
@@ -78,7 +90,8 @@ AEME checks for stale outputs, empty files, and truncated results.
 
 Outputs report effect size and uncertainty bounds, not just binary significance.
 Bayesian results include HDI (Highest Density Interval) and P(>0) posterior probability.
-Frequentist results include confidence intervals and bootstrap distributions.
+Frequentist results include confidence intervals, rank-based tests, and robust
+location-shift estimates where appropriate.
 The goal is decision support — "likely real" versus "promising but not yet conclusive" —
 not binary accept/reject.
 

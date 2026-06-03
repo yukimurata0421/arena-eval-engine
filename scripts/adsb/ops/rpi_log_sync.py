@@ -14,7 +14,6 @@ from typing import Any
 from arena.lib.paths import DATA_DIR, OUTPUT_DIR
 from arena.lib.runtime_config import load_settings
 
-
 DEFAULT_FILES = [
     ("adsb_airspy_decoder_metrics_1m.jsonl", "adsb_airspy_decoder_metrics_1m.jsonl", True),
     ("adsb_airspy_metrics_1m.jsonl", "adsb_airspy_metrics_1m.jsonl", False),
@@ -89,6 +88,50 @@ def _stat_remote(host: str, user: str, port: int, ssh_key: str, strict: str, rem
     return False, msg
 
 
+def _remote_file_size(
+    host: str,
+    user: str,
+    port: int,
+    ssh_key: str,
+    strict: str,
+    remote_file: str,
+    use_wsl: bool,
+) -> tuple[int | None, str]:
+    target = f"{user}@{host}" if user else host
+    remote_cmd = f"stat -c %s {shlex.quote(remote_file)}"
+    cmd = ["ssh", "-p", str(port), "-o", "BatchMode=yes", "-o", f"StrictHostKeyChecking={strict}"]
+    if ssh_key:
+        cmd += ["-i", ssh_key]
+    cmd += [target, remote_cmd]
+    proc = _run_cmd(cmd, use_wsl=use_wsl)
+    out = (proc.stdout or "").strip()
+    if proc.returncode == 0:
+        try:
+            return int(out), "ok"
+        except ValueError:
+            return None, f"unexpected remote stat output: {out!r}"
+    return None, (proc.stderr or out or "remote stat failed").strip()
+
+
+def _backup_if_local_larger(*, local_file: Path, remote_size: int | None) -> str:
+    if remote_size is None or not local_file.exists() or not local_file.is_file():
+        return ""
+    try:
+        local_size = local_file.stat().st_size
+    except OSError as exc:
+        return f"local stat failed before rsync: {exc}"
+    if local_size <= remote_size:
+        return ""
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup = local_file.with_name(f"{local_file.name}.local-larger-{stamp}.bak")
+    try:
+        local_file.replace(backup)
+    except OSError as exc:
+        return f"local file larger than remote but backup failed: local={local_size} remote={remote_size} error={exc}"
+    return f"local file larger than remote; backed up {local_file} -> {backup} before full re-sync (local={local_size} remote={remote_size})"
+
+
 def _rsync_one(
     host: str,
     user: str,
@@ -104,6 +147,16 @@ def _rsync_one(
     local_file.parent.mkdir(parents=True, exist_ok=True)
     local_path = _to_wsl_path(local_file) if use_wsl else str(local_file)
     transport = _build_ssh_transport(port, ssh_key, strict)
+    remote_size, remote_size_msg = _remote_file_size(
+        host=host,
+        user=user,
+        port=port,
+        ssh_key=ssh_key,
+        strict=strict,
+        remote_file=remote_file,
+        use_wsl=use_wsl,
+    )
+    backup_msg = _backup_if_local_larger(local_file=local_file, remote_size=remote_size)
     cmd = [
         "rsync",
         "-av",
@@ -117,6 +170,9 @@ def _rsync_one(
     cmd += [f"{target}:{remote_file}", local_path]
     proc = _run_cmd(cmd, use_wsl=use_wsl)
     msg = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()
+    notes = [note for note in (backup_msg, "" if remote_size is not None else f"remote size check skipped: {remote_size_msg}") if note]
+    if notes:
+        msg = "\n".join(notes + ([msg] if msg else []))
     return proc.returncode, msg
 
 

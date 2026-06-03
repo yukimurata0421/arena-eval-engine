@@ -21,9 +21,31 @@ import sys
 
 from arena.log import get_logger
 
-# GPU_THRESHOLD: force CPU when data size is below this
-# Heuristic: on GTX 1060, DiscreteHMCGibbs beats CPU around n > 10,000
-GPU_THRESHOLD = 5000
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"", "0", "false", "no", "off"}
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def gpu_threshold() -> int:
+    # Keep this conservative; GTX 10xx-class GPUs lose on small ARENA daily-N models.
+    return _env_int("ADSB_GPU_MIN_N", _env_int("ARENA_GPU_MIN_N", 5000))
+
+
+GPU_THRESHOLD = gpu_threshold()
 
 logger = get_logger(__name__)
 
@@ -108,10 +130,18 @@ def init_numpyro_platform(n_data: int = 0, force_cpu: bool = False):
     """
     import numpyro
 
-    use_cpu = force_cpu or (0 < n_data <= GPU_THRESHOLD)
+    force_gpu = _env_bool("ADSB_FORCE_GPU") or _env_bool("ARENA_FORCE_GPU")
+    disable_gpu = _env_bool("ADSB_DISABLE_GPU") or _env_bool("ARENA_DISABLE_GPU")
+    threshold = gpu_threshold()
+    use_cpu = force_cpu or disable_gpu or ((not force_gpu) and 0 < n_data <= threshold)
 
     if use_cpu:
-        reason = "force_cpu=True" if force_cpu else f"n={n_data} <= {GPU_THRESHOLD}"
+        if force_cpu:
+            reason = "force_cpu=True"
+        elif disable_gpu:
+            reason = "GPU disabled by env"
+        else:
+            reason = f"n={n_data} <= {threshold}"
         os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=true"
         numpyro.set_platform("cpu")
         numpyro.set_host_device_count(CPU_HOST_DEVICE_COUNT)

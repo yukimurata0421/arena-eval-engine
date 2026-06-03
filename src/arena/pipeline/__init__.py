@@ -25,8 +25,9 @@ Usage (CLI):
   arena run --scripts-root <project>/scripts --output-root <project>/output --data-root <project>/data
   arena validate
 
-  --workers N: 0=auto(logical CPU count). Stage 2/3/5 run steps in parallel; scripts use it for
-  ProcessPool/ThreadPool and Bayesian chains (ARENA_MAX_WORKERS, ADSB_PHASE_CHAINS).
+  --workers N: 0=auto(logical CPU count). Controls outer pipeline step parallelism.
+  MCMC chains are controlled separately by ADSB_PHASE_CHAINS,
+  ADSB_BAYES_PHASE_CHAINS, ADSB_CP_CHAINS, and ADSB_MCP_CHAINS.
 
 Pipeline stages:
   Stage 1: Aggregation      — daily AUC aggregation, traffic merge, signal strength aggregation
@@ -37,6 +38,7 @@ Pipeline stages:
   Stage 6: Final Reports    — consolidated report generation
   Stage 7: PLAO             — PLAO pos distance-bin AUC (independent data source)
   Stage 8: OpenSky Compare  — OpenSky vs local reception comparison and tests
+  Stage 9: Evidence Synth   — EvidenceRow normalization and model disagreement report
 
 Recommendation:
   In public/production usage, keep `pipeline_runs.jsonl` as an evidence log.

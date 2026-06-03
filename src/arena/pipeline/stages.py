@@ -141,6 +141,7 @@ STAGE_NAMES = {
     6: "Final Report",
     7: "PLAO",
     8: "OpenSky comparison",
+    9: "Evidence synthesis",
 }
 
 
@@ -155,12 +156,16 @@ class PipelineBuildOptions:
 
     phase_warmup: int = 1000
     phase_samples: int = 2000
+    phase_chains: int = 4
+    bayes_phase_chains: int = 4
+    change_point_chains: int = 4
+    multi_change_point_chains: int = 4
+    mcmc_worker_cap: int = 12
 
     bayes_dynamic_mode: str = "quick"
     bayes_dynamic_draws: int = 120
     bayes_dynamic_tune: int = 120
-    # 0 means: use ARENA_MAX_WORKERS / orchestrator-provided parallelism.
-    bayes_dynamic_max_chains: int = 0
+    bayes_dynamic_max_chains: int = 4
 
     plao_plots: bool = True
     opensky_compare_plots: bool = True
@@ -189,10 +194,15 @@ def resolve_pipeline_build_options(env: dict[str, str] | None = None) -> Pipelin
     return PipelineBuildOptions(
         phase_warmup=_env_posint(e, "ADSB_PHASE_WARMUP", 1000),
         phase_samples=_env_posint(e, "ADSB_PHASE_SAMPLES", 2000),
+        phase_chains=_env_posint(e, "ADSB_PHASE_CHAINS", 4),
+        bayes_phase_chains=_env_posint(e, "ADSB_BAYES_PHASE_CHAINS", 4),
+        change_point_chains=_env_posint(e, "ADSB_CP_CHAINS", 4),
+        multi_change_point_chains=_env_posint(e, "ADSB_MCP_CHAINS", 4),
+        mcmc_worker_cap=_env_posint(e, "ADSB_MCMC_MAX_WORKERS", 12),
         bayes_dynamic_mode=str(e.get("ADSB_BAYES_DYNAMIC_MODE", "quick") or "quick"),
         bayes_dynamic_draws=_env_posint(e, "ADSB_BAYES_DYNAMIC_DRAWS", 120),
         bayes_dynamic_tune=_env_posint(e, "ADSB_BAYES_DYNAMIC_TUNE", 120),
-        bayes_dynamic_max_chains=_env_posint(e, "ADSB_BAYES_DYNAMIC_MAX_CHAINS", 0),
+        bayes_dynamic_max_chains=_env_posint(e, "ADSB_BAYES_DYNAMIC_MAX_CHAINS", 4),
         plao_plots=_env_bool(e, "ARENA_PLAO_PLOTS", True),
         opensky_compare_plots=_env_bool(e, "ARENA_OPENSKY_COMPARE_PLOTS", True),
     )
@@ -409,7 +419,7 @@ def build_stage3_steps(*, dynamic_date: str) -> list[Step]:
         Step(
             stage=3,
             script_rel="adsb/analysis/stats/adsb_distance_nb_eval.py",
-            label="Distance band comparison (MWU + bootstrap) (→ performance/distance_performance_summary.csv)",
+            label="Distance band comparison (MWU + Hodges-Lehmann) (→ performance/distance_performance_summary.csv)",
             timeout_s=240,
             est_s=30,
             expected_outputs=["performance/distance_performance_summary.csv"],
@@ -495,10 +505,11 @@ def build_stage4_steps(*, options: PipelineBuildOptions) -> list[Step]:
             env_overrides={
                 "ADSB_BATCH_MODE": "1",
                 "ADSB_PHASE_INTERACTIVE": "0",
-                "JAX_PLATFORMS": "cpu",
-                # Default keeps production-quality sampling, but allow explicit env override for fast runs.
                 "ADSB_PHASE_WARMUP": str(options.phase_warmup),
                 "ADSB_PHASE_SAMPLES": str(options.phase_samples),
+                "ADSB_PHASE_CHAINS": str(options.phase_chains),
+                "ADSB_MAX_WORKERS": str(options.mcmc_worker_cap),
+                "ARENA_MAX_WORKERS": str(options.mcmc_worker_cap),
             },
             expected_outputs=[
                 "performance/phase_evaluator_results.csv",
@@ -519,9 +530,14 @@ def build_stage5_steps(*, dynamic_date: str, full_mode: bool, options: PipelineB
             label="Bayesian phase comparison (→ performance/bayesian_phase_results_cuda.csv)",
             timeout_s=300,
             est_s=20,
-            env_overrides={"JAX_PLATFORMS": "cpu"},
+            env_overrides={
+                "ADSB_BAYES_PHASE_CHAINS": str(options.bayes_phase_chains),
+                "ADSB_MAX_WORKERS": str(options.mcmc_worker_cap),
+                "ARENA_MAX_WORKERS": str(options.mcmc_worker_cap),
+            },
             expected_outputs=["performance/bayesian_phase_results_cuda.csv"],
-            expected_min_bytes=200,
+            # Two-phase datasets can legitimately produce a compact one-row CSV.
+            expected_min_bytes=80,
         ),
         Step(
             stage=5,
@@ -535,8 +551,8 @@ def build_stage5_steps(*, dynamic_date: str, full_mode: bool, options: PipelineB
                 "ADSB_BAYES_DYNAMIC_MODE": options.bayes_dynamic_mode,
                 "ADSB_BAYES_DYNAMIC_DRAWS": str(options.bayes_dynamic_draws),
                 "ADSB_BAYES_DYNAMIC_TUNE": str(options.bayes_dynamic_tune),
-                # MAX_CHAINS: 0 or unset = use ARENA_MAX_WORKERS (--workers); 1+ = explicit.
                 "ADSB_BAYES_DYNAMIC_MAX_CHAINS": str(options.bayes_dynamic_max_chains),
+                "ADSB_MAX_WORKERS": str(options.mcmc_worker_cap),
             },
             expected_outputs=[],
         ),
@@ -555,7 +571,11 @@ def build_stage5_steps(*, dynamic_date: str, full_mode: bool, options: PipelineB
             label="Multiple change point detection (standard deliverable: change_point/multi_change_points_*)",
             timeout_s=300,
             est_s=20,
-            env_overrides={"JAX_PLATFORMS": "cpu"},
+            env_overrides={
+                "ADSB_MCP_CHAINS": str(options.multi_change_point_chains),
+                "ADSB_MAX_WORKERS": str(options.mcmc_worker_cap),
+                "ARENA_MAX_WORKERS": str(options.mcmc_worker_cap),
+            },
             depends_on_outputs=["adsb_daily_summary_v2.csv"],
             expected_outputs=[
                 "change_point/multi_change_points_report.txt",
@@ -569,7 +589,11 @@ def build_stage5_steps(*, dynamic_date: str, full_mode: bool, options: PipelineB
             label="Single change point detection (standard deliverables: change_point/change_point_*)",
             timeout_s=300,
             est_s=20,
-            env_overrides={"JAX_PLATFORMS": "cpu"},
+            env_overrides={
+                "ADSB_CP_CHAINS": str(options.change_point_chains),
+                "ADSB_MAX_WORKERS": str(options.mcmc_worker_cap),
+                "ARENA_MAX_WORKERS": str(options.mcmc_worker_cap),
+            },
             depends_on_outputs=["adsb_daily_summary_v2.csv"],
             expected_outputs=[
                 "change_point/change_point_report.txt",
@@ -687,6 +711,24 @@ def build_stage8_steps(*, options: PipelineBuildOptions) -> list[Step]:
     ]
 
 
+def build_stage9_steps() -> list[Step]:
+    return [
+        Step(
+            stage=9,
+            script_rel="adsb/analysis/meta/adsb_model_evidence_synthesizer.py",
+            label="Model evidence synthesis (→ performance/model_evidence_*)",
+            timeout_s=180,
+            est_s=10,
+            expected_outputs=[
+                "performance/model_evidence_matrix.csv",
+                "performance/model_evidence_summary.json",
+                "performance/model_disagreement_report.md",
+            ],
+            expected_min_bytes=20,
+        )
+    ]
+
+
 def build_pipeline(
     dynamic_date: str,
     full_mode: bool,
@@ -705,6 +747,8 @@ def build_pipeline(
       5: Bayesian / Change Points — PyMC, NumPyro DiscreteHMCGibbs
       6: Final Reports
       7: PLAO — independent data source (plao_distance_auc_eval.py)
+      8: OpenSky comparison — external traffic proxy comparison
+      9: Evidence synthesis — EvidenceRow matrix + claim routing
     """
     opts = options or resolve_pipeline_build_options()
     steps: list[Step] = []
@@ -717,6 +761,7 @@ def build_pipeline(
     if not skip_plao:
         steps.extend(build_stage7_steps(options=opts))
     steps.extend(build_stage8_steps(options=opts))
+    steps.extend(build_stage9_steps())
 
     stage_seq: dict[int, int] = {}
     for st in steps:

@@ -331,7 +331,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--workers",
         type=int,
         default=0,
-        help="Parallelism degree (0=auto: number of logical CPUs). Used for step parallelism in stage 2/3/5 and the number of ProcessPool/ThreadPool/Bayesian chains in each script",
+        help=(
+            "Pipeline step parallelism (0=auto: logical CPU count). "
+            "MCMC chains are controlled separately by ADSB_PHASE_CHAINS, "
+            "ADSB_BAYES_PHASE_CHAINS, ADSB_CP_CHAINS, and ADSB_MCP_CHAINS."
+        ),
     )
     p_run.set_defaults(func=cmd_run)
 

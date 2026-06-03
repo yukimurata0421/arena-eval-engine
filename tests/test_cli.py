@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -631,6 +632,43 @@ def test_cmd_sync_rpi_logs_builds_expected_cli_args(monkeypatch, tmp_path: Path)
         "--skip-plao-sync",
     ]:
         assert expected in cmd
+
+
+def test_rpi_log_sync_backs_up_local_file_when_remote_is_smaller(monkeypatch, tmp_path: Path) -> None:
+    from scripts.adsb.ops import rpi_log_sync
+
+    local_file = tmp_path / "dist_1m.jsonl"
+    local_file.write_text("0123456789", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run_cmd(cmd: list[str], use_wsl: bool) -> subprocess.CompletedProcess:
+        calls.append(cmd)
+        if cmd[0] == "ssh":
+            return subprocess.CompletedProcess(cmd, 0, stdout="5\n", stderr="")
+        if cmd[0] == "rsync":
+            return subprocess.CompletedProcess(cmd, 0, stdout="synced\n", stderr="")
+        raise AssertionError(cmd)
+
+    monkeypatch.setattr(rpi_log_sync, "_run_cmd", fake_run_cmd)
+
+    rc, msg = rpi_log_sync._rsync_one(
+        host="rpi.local",
+        user="pi",
+        port=22,
+        ssh_key="",
+        strict="accept-new",
+        remote_file="/remote/dist_1m.jsonl",
+        local_file=local_file,
+        use_wsl=False,
+        dry_run=False,
+    )
+
+    assert rc == 0
+    assert "local file larger than remote" in msg
+    backups = list(tmp_path.glob("dist_1m.jsonl.local-larger-*.bak"))
+    assert len(backups) == 1
+    assert backups[0].read_text(encoding="utf-8") == "0123456789"
+    assert any(cmd[0] == "rsync" for cmd in calls)
 
 
 def test_expand_synthesis_shorthand_defaults() -> None:

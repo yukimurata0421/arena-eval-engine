@@ -237,7 +237,7 @@ This makes it possible to do more than look up old results. It allows later anal
 
 The longer-term goal is to feed this structured layer back into AI-assisted workflows so that the model can help prioritize claims with stronger support, unresolved items worth re-checking, and viewpoints with higher potential analytical value. The purpose is not to replace human judgment. The purpose is to reduce human review burden while accelerating movement toward better-grounded inference.
 
-As of `v0.3.1`, this database layer is included in the public release layer through the synthesis subsystem. It is still an evolving review-oriented layer rather than a public automation endpoint. Therefore, current public-facing AI-assisted analysis in ARENA should still be understood as centered on:
+Since `v0.3.1`, this database layer is included in the public release layer through the synthesis subsystem. As of `v0.4.0`, Stage 9 evidence synthesis can also feed this review-oriented layer with model-family support, counter-evidence, caveats, and validation targets. It is still an evolving review-oriented layer rather than a public automation endpoint. Therefore, current public-facing AI-assisted analysis in ARENA should still be understood as centered on:
 
 - artifact-mediated input control,
 - explicit re-validation,

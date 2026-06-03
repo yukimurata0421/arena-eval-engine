@@ -90,3 +90,28 @@ def test_detect_gpu_jax_handles_timeout(monkeypatch, tmp_path: Path) -> None:
     info = be.detect_gpu_jax(b, env={})
     assert info["available"] is False
     assert "CPU" in str(info["device"])
+    assert "TimeoutExpired" in info["reason"]
+
+
+def test_detect_gpu_jax_reports_nvidia_hardware_without_jax_cuda(monkeypatch, tmp_path: Path) -> None:
+    scripts_root = tmp_path / "scripts"
+    out = tmp_path / "out"
+    data = tmp_path / "data"
+    scripts_root.mkdir()
+    out.mkdir()
+    data.mkdir()
+    b = be.Backend(kind="native", scripts_root_native=scripts_root, output_root_native=out, data_root_native=data)
+
+    proc = subprocess.CompletedProcess(
+        args=["python"],
+        returncode=0,
+        stdout="0\nnone\nNVIDIA GeForce GTX 1070\n",
+        stderr="",
+    )
+    monkeypatch.setattr(b, "run_python_snippet", lambda *_args, **_kwargs: proc)
+
+    info = be.detect_gpu_jax(b, env={})
+    assert info["available"] is False
+    assert info["jax"] is True
+    assert info["device"] == "NVIDIA GeForce GTX 1070"
+    assert "JAX did not expose" in info["reason"]

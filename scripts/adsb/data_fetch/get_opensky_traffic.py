@@ -9,7 +9,7 @@ Credentials:
     OPENSKY_CLIENT_SECRET
 
   Alternative path (PowerShell):
-    $env:OPENSKY_CREDENTIALS_JSON = "<path>\opensky_credentials.json"
+    $env:OPENSKY_CREDENTIALS_JSON = "<path>\\opensky_credentials.json"
 
   JSON key examples (optional fallback file):
     {"clientId":"xxx","clientSecret":"yyy"}
