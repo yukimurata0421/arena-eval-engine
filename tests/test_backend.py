@@ -46,7 +46,7 @@ def test_backend_build_script_cmd_wsl_includes_pythonpath(monkeypatch, tmp_path:
     )
     cmd, cwd = b.build_script_cmd("adsb/x.py", extra_args=["--a", "1"])
     assert cmd[:3] == ["wsl", "-e", "bash"]
-    assert cwd is None
+    assert cwd == be._safe_wsl_cwd()
     assert "PYTHONPATH=" in cmd[-1]
     assert "python3" in cmd[-1]
     assert "--a" in cmd[-1]
