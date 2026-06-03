@@ -4,8 +4,8 @@ Convert the Phase 1 structured claim output into a DB-ingestable JSON array.
 
 ## Goal
 
-Transform claims without losing information.
-Keep exploration metadata (`exploration_axes`, `baseline_candidate`) intact.
+Transform claims without losing information. Keep exploration metadata (`exploration_axes`,
+`baseline_candidate`) intact.
 
 ## Critical Rules
 
@@ -80,6 +80,5 @@ Keep exploration metadata (`exploration_axes`, `baseline_candidate`) intact.
 
 ## Output
 
-Return a JSON array only, starting with `[` and ending with `]`.
-Do not add explanations.
+Return a JSON array only, starting with `[` and ending with `]`. Do not add explanations.
 

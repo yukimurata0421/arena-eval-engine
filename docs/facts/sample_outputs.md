@@ -2,13 +2,14 @@
 
 This document describes the current public smoke-output contract.
 
-`output/sample/` and `sample_*` prefixed committed output files are no longer part of the current public tree.
-Smoke reproducibility is now verified through normalized expected artifacts under `sample_data/smoke/expected/`.
+`output/sample/` and `sample_*` prefixed committed output files are no longer part of the current
+public tree. Smoke reproducibility is now verified through normalized expected artifacts under
+`sample_data/smoke/expected/`.
 
 ## Versioned Expected Outputs (Smoke Contract)
 
-`python scripts/tools/sample_data/freeze_expected_outputs.py --force`
-writes deterministic expected files:
+`python scripts/tools/sample_data/freeze_expected_outputs.py --force` writes deterministic expected
+files:
 
 | File | Description |
 |---|---|
@@ -16,8 +17,8 @@ writes deterministic expected files:
 | `merged_for_ai.normalized.md` | Normalized merged markdown export (absolute paths normalized) |
 | `merged_for_ai.zip.normalized.json` | Hash/size summary of `merged_for_ai.zip` entries after normalization |
 
-`python scripts/tools/sample_data/verify_sample_outputs.py`
-re-runs the same deterministic flow and compares against the three files above.
+`python scripts/tools/sample_data/verify_sample_outputs.py` re-runs the same deterministic flow and
+compares against the three files above.
 
 ## Runtime Outputs Generated During Freeze/Verify
 

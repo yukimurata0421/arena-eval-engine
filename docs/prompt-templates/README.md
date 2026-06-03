@@ -1,7 +1,7 @@
 # Synthesis Prompt Templates
 
-These templates are optional operator-facing prompts for the AI-assisted synthesis workflow.
-They are not loaded by `arena synthesis` runtime code directly.
+These templates are optional operator-facing prompts for the AI-assisted synthesis workflow. They
+are not loaded by `arena synthesis` runtime code directly.
 
 Use them when you want a reproducible manual path from raw analysis text to schema-ready claim JSON.
 

@@ -1,15 +1,14 @@
 # Evidence Synthesis Stage Contract
 
-Status: accepted
-Decision date: 2026-06-03 JST
-Scope: `arena run` Stage 9, evidence matrix, claim routing, disagreement report
-Source of truth: `src/arena/pipeline/stages.py`, `src/arena/evidence/`
+Status: accepted Decision date: 2026-06-03 JST Scope: `arena run` Stage 9, evidence matrix, claim
+routing, disagreement report Source of truth: `src/arena/pipeline/stages.py`, `src/arena/evidence/`
 
 ## Purpose
 
 Stage 9 turns the output of multiple statistical stages into a reviewable evidence structure.
 
-It does not replace the statistical models. It runs after the existing analysis stages and preserves their agreement, disagreement, caveats, and validation needs.
+It does not replace the statistical models. It runs after the existing analysis stages and preserves
+their agreement, disagreement, caveats, and validation needs.
 
 ## Pipeline Position
 
@@ -27,7 +26,8 @@ Current public `arena run` has 9 stages:
 9 Evidence synthesis
 ```
 
-Stage 9 is deliberately placed after Stage 8 so it can read local metrics, Bayesian results, change-point diagnostics, PLAO outputs, and OpenSky proxy outputs together.
+Stage 9 is deliberately placed after Stage 8 so it can read local metrics, Bayesian results,
+change-point diagnostics, PLAO outputs, and OpenSky proxy outputs together.
 
 ## Outputs
 

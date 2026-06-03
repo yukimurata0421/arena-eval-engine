@@ -2,18 +2,22 @@
 
 ## What ARENA Is
 
-ARENA is an **evaluation runtime and reproducibility surface** for the public release layer.
-It is not only a collection of research scripts.
+ARENA is an **evaluation runtime and reproducibility surface** for the public release layer. It is
+not only a collection of research scripts.
 
 This document is the canonical architecture description for the current public repository state.
-Detailed release evolution from `v0.2.9` to `v0.3.0` is documented in `docs/evolution/v0.2.9-to-v0.3.0.md`.
+Detailed release evolution from `v0.2.9` to `v0.3.0` is documented in
+`docs/evolution/v0.2.9-to-v0.3.0.md`.
 
 This document does not replace:
 
-- `docs/principles/artifact-design.md` (why artifact control exists and what responsibilities it carries)
+- `docs/principles/artifact-design.md` (why artifact control exists and what responsibilities it
+  carries)
 - `docs/principles/ai-assisted-analysis.md` (how AI is used and what is not trusted automatically)
-- `docs/principles/evidence-synthesis-stage.md` (how Stage 9 preserves cross-model support, disagreement, and validation targets)
-- `docs/principles/why-not-weighted-ensemble.md` (why model-family outputs are not averaged into one score)
+- `docs/principles/evidence-synthesis-stage.md` (how Stage 9 preserves cross-model support,
+  disagreement, and validation targets)
+- `docs/principles/why-not-weighted-ensemble.md` (why model-family outputs are not averaged into one
+  score)
 - `docs/facts/reproducibility.md` (public smoke reproducibility contract)
 - `docs/facts/synthesis.md` (synthesis path-isolated ingest/triage/review workflow)
 
@@ -23,15 +27,18 @@ In the broader stack, ARENA is positioned as the evaluation/reproducibility laye
 
 - PLAO: raw position logging
 - adsb-eval: edge-side metric/telemetry generation
-- ARENA: orchestration, statistical evaluation runtime, artifact control, and public reproducibility surface
+- ARENA: orchestration, statistical evaluation runtime, artifact control, and public reproducibility
+  surface
 
-This architecture document focuses on ARENA's public-layer responsibilities, not upstream system internals.
+This architecture document focuses on ARENA's public-layer responsibilities, not upstream system
+internals.
 
 ## Design Goals
 
 The public architecture prioritizes:
 
-1. Clear responsibility boundaries between orchestration, payload execution, runtime support, and artifact control.
+1. Clear responsibility boundaries between orchestration, payload execution, runtime support, and
+   artifact control.
 2. Explicit execution auditability for each run.
 3. Explicit config resolution and validation before execution.
 4. Reproducibility contracts that can be checked in CI and smoke flows.
@@ -95,7 +102,8 @@ Boundary:
 `scripts/` is responsible for:
 
 - stage payloads used by `arena run` (`adsb/`, `signals/`, `plao/`)
-- release/runtime support tools (`tools/sample_data/`, `tools/artifacts/`, `tools/merge_output_for_ai/`)
+- release/runtime support tools (`tools/sample_data/`, `tools/artifacts/`,
+  `tools/merge_output_for_ai/`)
 - runtime configuration assets (`config/`)
 - compatibility entrypoints (`master.py`, `phase_config.py`)
 
@@ -147,8 +155,9 @@ Boundary:
 
 ### Artifact / reproducibility layer
 
-In this public architecture, artifact/reproducibility is not a peripheral export helper.
-It is part of the control surface that carries execution-side consistency into AI-assisted interpretation, auditability, and re-validation.
+In this public architecture, artifact/reproducibility is not a peripheral export helper. It is part
+of the control surface that carries execution-side consistency into AI-assisted interpretation,
+auditability, and re-validation.
 
 Confirmed public implementation surfaces:
 
@@ -165,8 +174,8 @@ Boundary:
 
 ### Evidence synthesis layer
 
-`src/arena/evidence/` and `scripts/adsb/analysis/meta/adsb_model_evidence_synthesizer.py`
-are responsible for converting completed model outputs into reviewable evidence rows.
+`src/arena/evidence/` and `scripts/adsb/analysis/meta/adsb_model_evidence_synthesizer.py` are
+responsible for converting completed model outputs into reviewable evidence rows.
 
 Confirmed public implementation surfaces:
 
@@ -178,8 +187,10 @@ Confirmed public implementation surfaces:
 Boundary:
 
 - Evidence synthesis reads existing outputs and preserves disagreements.
-- It does not replace model fitting, rerun statistical stages, or average model families into one weighted ensemble result.
-- It is separate from LLM synthesis; it prepares evidence artifacts that humans and downstream tools can review.
+- It does not replace model fitting, rerun statistical stages, or average model families into one
+  weighted ensemble result.
+- It is separate from LLM synthesis; it prepares evidence artifacts that humans and downstream tools
+  can review.
 
 ### Tests / CI / smoke / verification surface
 
@@ -206,14 +217,14 @@ Public release-layer flow:
 4. Execute payload steps according to orchestration policy.
 5. Validate expected outputs and apply fail/soft-fail policy.
 6. Persist run/config records for audit.
-7. Synthesize row-level model evidence into support, counter-evidence, caveats, and validation targets.
+7. Synthesize row-level model evidence into support, counter-evidence, caveats, and validation
+   targets.
 8. Build artifact bundles for structured review/revalidation.
 9. Verify/replay artifact bundles when required.
 10. Feed AI-assisted outputs into human-managed validation loops.
 
-Detailed version-to-version execution changes belong in `docs/evolution/`, with
-the Stage 9 evidence synthesis release captured in
-`docs/evolution/v0.3.1-to-v0.4.0.md`.
+Detailed version-to-version execution changes belong in `docs/evolution/`, with the Stage 9 evidence
+synthesis release captured in `docs/evolution/v0.3.1-to-v0.4.0.md`.
 
 ## Reproducibility and Auditability Model
 
@@ -244,7 +255,8 @@ Boundary:
 - This document defines system position.
 - `docs/principles/ai-assisted-analysis.md` defines detailed operating/trust rules.
 - `docs/principles/artifact-design.md` defines why artifact control is required for that model.
-- `docs/principles/evidence-synthesis-stage.md` defines how model disagreement is preserved before AI-assisted interpretation.
+- `docs/principles/evidence-synthesis-stage.md` defines how model disagreement is preserved before
+  AI-assisted interpretation.
 
 ## Public Release Boundary vs Development Boundary
 
@@ -256,8 +268,11 @@ Public release layer centers on:
 - artifact verify/replay-capable subsystem
 - public verification surface
 
-Development boundary:
-Since v0.3.1, the synthesis subsystem (claim ingestion, triage, proposition review) is part of the public release layer. As of v0.4.0, Stage 9 evidence synthesis is also part of the public release layer. Their database, evidence, and review workflows are still evolving; breaking changes may occur in future releases. Experimental extensions not exposed through public CLI surfaces remain development-side.
+Development boundary: Since v0.3.1, the synthesis subsystem (claim ingestion, triage, proposition
+review) is part of the public release layer. As of v0.4.0, Stage 9 evidence synthesis is also part
+of the public release layer. Their database, evidence, and review workflows are still evolving;
+breaking changes may occur in future releases. Experimental extensions not exposed through public
+CLI surfaces remain development-side.
 
 ## Reading Guide
 
@@ -272,6 +287,7 @@ Recommended reading order:
 7. `tests/` and `.github/workflows/`
 8. `docs/facts/reproducibility.md`
 9. `docs/facts/synthesis.md`
-10. `docs/principles/artifact-design.md`, `docs/principles/evidence-synthesis-stage.md`, and `docs/principles/ai-assisted-analysis.md`
+10. `docs/principles/artifact-design.md`, `docs/principles/evidence-synthesis-stage.md`, and
+    `docs/principles/ai-assisted-analysis.md`
 11. `docs/evolution/v0.3.1-to-v0.4.0.md` for current release-evolution details
 12. `docs/evolution/v0.2.9-to-v0.3.0.md` for earlier synthesis release-evolution details

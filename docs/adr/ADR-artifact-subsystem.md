@@ -6,9 +6,9 @@ Accepted
 
 ## Context
 
-`merge_output_for_ai.py` originally started as a small utility script for merging text outputs.
-Over time, its responsibilities expanded significantly and it effectively became the entry point
-for producing research artifact bundles used in evaluation and review workflows.
+`merge_output_for_ai.py` originally started as a small utility script for merging text outputs. Over
+time, its responsibilities expanded significantly and it effectively became the entry point for
+producing research artifact bundles used in evaluation and review workflows.
 
 The workflow now needs to support:
 
@@ -24,9 +24,11 @@ Keeping all of this functionality inside a single script created several problem
 - responsibilities were tightly coupled
 - regression testing boundaries were unclear
 - artifact lifecycle stages were difficult to reason about
-- extending the system toward evaluation artifacts or reproducibility bundles became increasingly complex
+- extending the system toward evaluation artifacts or reproducibility bundles became increasingly
+  complex
 
-To support long-term maintainability and extensibility, the artifact workflow needs explicit lifecycle boundaries.
+To support long-term maintainability and extensibility, the artifact workflow needs explicit
+lifecycle boundaries.
 
 ## Decision
 
@@ -34,7 +36,8 @@ The implementation is reorganized as an artifact subsystem located under:
 
 `scripts/tools/artifacts/`
 
-The subsystem is structured around the lifecycle stages of research artifacts rather than around a single CLI script.
+The subsystem is structured around the lifecycle stages of research artifacts rather than around a
+single CLI script.
 
 The following lifecycle stages define the subsystem boundaries:
 
@@ -45,7 +48,8 @@ The following lifecycle stages define the subsystem boundaries:
 - artifact documentation
 - artifact integrity
 
-Each stage is implemented as a dedicated module to make responsibilities explicit and independently testable.
+Each stage is implemented as a dedicated module to make responsibilities explicit and independently
+testable.
 
 The original CLI path is preserved through a thin compatibility wrapper located at:
 
@@ -58,34 +62,38 @@ This wrapper forwards execution to the new subsystem while preserving existing C
 The subsystem modules reflect the artifact lifecycle stages.
 
 - `policies.py`
-  Defines required and recommended targets, fallback rules, exclusion rules, category mappings, and AI pack policies.
+Defines required and recommended targets, fallback rules, exclusion rules, category mappings, and AI
+pack policies.
 
 - `models.py`
-  Defines dataclasses used to transport audited state between lifecycle stages.
+Defines dataclasses used to transport audited state between lifecycle stages.
 
 - `discovery.py`
-  Resolves source paths, search roots, glob fallbacks, and priority-based discovery candidates.
+Resolves source paths, search roots, glob fallbacks, and priority-based discovery candidates.
 
 - `selection.py`
-  Produces the ordered artifact list from required, recommended, candidate, and discovered inputs.
+Produces the ordered artifact list from required, recommended, candidate, and discovered inputs.
 
 - `manifest.py`
-  Builds manifest records, copies selected files into the export bundle, and writes manifest-related CSV outputs.
+Builds manifest records, copies selected files into the export bundle, and writes manifest-related
+CSV outputs.
 
 - `packaging.py`
-  Builds Gemini, GPT, and Grok packs, preserves relative layout where required, and emits pack manifests.
+Builds Gemini, GPT, and Grok packs, preserves relative layout where required, and emits pack
+manifests.
 
 - `documentation.py`
-  Generates summary reports, settings snapshots, methodology notes, hardware/date notes, and change-point notes.
+Generates summary reports, settings snapshots, methodology notes, hardware/date notes, and
+change-point notes.
 
 - `integrity.py`
-  Evaluates exported output consistency while preserving failure signals for auditability.
+Evaluates exported output consistency while preserving failure signals for auditability.
 
 - `app.py`
-  Orchestrates the lifecycle workflow and preserves the existing "normal merge" execution path.
+Orchestrates the lifecycle workflow and preserves the existing "normal merge" execution path.
 
 - `cli.py`
-  Owns argument parsing (`argparse`) and delegates execution to the application layer.
+Owns argument parsing (`argparse`) and delegates execution to the application layer.
 
 ## Compatibility Policy
 
@@ -128,16 +136,16 @@ They must remain observable through:
 - documentation summaries
 - integrity checks
 
-The goal is not merely successful export.
-The goal is producing reproducible review bundles with enough trace information to re-evaluate missing,
-excluded, duplicated, or failed artifacts at a later time.
+The goal is not merely successful export. The goal is producing reproducible review bundles with
+enough trace information to re-evaluate missing, excluded, duplicated, or failed artifacts at a
+later time.
 
 ## Testing Strategy
 
 Regression tests prioritize filesystem-realistic end-to-end behavior over isolated mocking.
 
-This reflects the nature of the artifact subsystem, where correctness depends on file layout,
-export behavior, and lifecycle ordering.
+This reflects the nature of the artifact subsystem, where correctness depends on file layout, export
+behavior, and lifecycle ordering.
 
 Current tests cover:
 
@@ -165,7 +173,8 @@ Rejected because:
 - responsibilities were tightly coupled
 - testing boundaries were unclear
 - artifact lifecycle stages were difficult to isolate
-- extending the system toward provenance, lineage, or replay workflows would further increase complexity
+- extending the system toward provenance, lineage, or replay workflows would further increase
+  complexity
 
 ### Convert the script into a monolithic CLI tool
 
@@ -185,7 +194,8 @@ The chosen design organizes modules around artifact lifecycle stages, enabling:
 
 ## Trade-offs
 
-Introducing a subsystem increases the number of modules and may initially increase navigation complexity.
+Introducing a subsystem increases the number of modules and may initially increase navigation
+complexity.
 
 However, this trade-off was accepted because:
 
@@ -193,7 +203,8 @@ However, this trade-off was accepted because:
 - explicit lifecycle boundaries improve maintainability
 - lifecycle modules allow independent testing and evolution
 
-In practice, the subsystem reduces long-term complexity despite increasing short-term structural overhead.
+In practice, the subsystem reduces long-term complexity despite increasing short-term structural
+overhead.
 
 ## Deferred Changes
 
@@ -204,8 +215,8 @@ The following changes were intentionally postponed:
 - redesigning print/log output formatting
 - optimizing discovery and selection ordering
 
-These changes were deferred because they carry higher compatibility risk
-than the current subsystem hardening step.
+These changes were deferred because they carry higher compatibility risk than the current subsystem
+hardening step.
 
 ## Future Extensions
 
@@ -217,5 +228,5 @@ Likely future artifact bundle types include:
 - evaluation artifact bundles
 - reproducibility bundles
 
-The subsystem is therefore organized around artifact lifecycle stages
-rather than around a single consumer or export script.
+The subsystem is therefore organized around artifact lifecycle stages rather than around a single
+consumer or export script.

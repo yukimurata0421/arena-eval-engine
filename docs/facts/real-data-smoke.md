@@ -1,7 +1,7 @@
 # Real-Data Docker Validation
 
-This repository keeps real-data execution opt-in.
-Use Docker with local mounts so private data and credentials never need to be copied into this repo.
+This repository keeps real-data execution opt-in. Use Docker with local mounts so private data and
+credentials never need to be copied into this repo.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ Use Docker with local mounts so private data and credentials never need to be co
 3. Optionally use repository templates in `real-settings/` as a starting point:
    - `real-settings/settings.toml`
    - `real-settings/phases.txt`
-   Then copy them to a private path and point `docker/.env` to that private copy.
+Then copy them to a private path and point `docker/.env` to that private copy.
 
 `docker/.env` is ignored by Git.
 
@@ -39,8 +39,8 @@ docker compose --env-file docker/.env -f docker/docker-compose.yml --profile rea
 docker compose --env-file docker/.env -f docker/docker-compose.yml --profile real run --rm arena-real-full
 ```
 
-Stage 9 writes the evidence synthesis artifacts after the statistical, PLAO,
-and OpenSky comparison stages complete:
+Stage 9 writes the evidence synthesis artifacts after the statistical, PLAO, and OpenSky comparison
+stages complete:
 
 - `performance/model_evidence_matrix.csv`
 - `performance/model_evidence_summary.json`
@@ -48,8 +48,8 @@ and OpenSky comparison stages complete:
 
 ## Native Real-Data Validation
 
-Docker is the preferred public validation surface, but the same path-isolated
-contract applies to native execution:
+Docker is the preferred public validation surface, but the same path-isolated contract applies to
+native execution:
 
 ```bash
 arena run \
@@ -61,9 +61,8 @@ arena run \
   --workers <logical_cpu_count>
 ```
 
-Keep `<private_data_root>`, settings, phase definitions, and credentials
-outside this repository. Runtime outputs should go to a scratch directory that
-is ignored by Git.
+Keep `<private_data_root>`, settings, phase definitions, and credentials outside this repository.
+Runtime outputs should go to a scratch directory that is ignored by Git.
 
 ## Cleanup
 

@@ -1,13 +1,13 @@
 # MCMC Parallelism and GPU Policy
 
-Status: accepted
-Decision date: 2026-06-03 JST
-Scope: Dell real-data workstation, Stage 4/5 probabilistic workloads, public `arena run`
-Source of truth: `src/arena/lib/platform_setup.py`, `src/arena/pipeline/stages.py`, `src/arena/pipeline/backend.py`
+Status: accepted Decision date: 2026-06-03 JST Scope: Dell real-data workstation, Stage 4/5
+probabilistic workloads, public `arena run` Source of truth: `src/arena/lib/platform_setup.py`,
+`src/arena/pipeline/stages.py`, `src/arena/pipeline/backend.py`
 
 ## Purpose
 
-This document fixes how ARENA handles pipeline workers, MCMC chains, CPU/GPU selection, and current hardware notes.
+This document fixes how ARENA handles pipeline workers, MCMC chains, CPU/GPU selection, and current
+hardware notes.
 
 ## Current Hardware
 
@@ -23,11 +23,14 @@ GPU memory: 8192 MiB
 driver: 580.159.03
 ```
 
-Older benchmark notes referred to a Core i7-class workstation with GTX 1060. The current real-data workstation is the Xeon E5-2695 v4 / GTX 1070 machine above, so old wall-clock expectations should not be reused without re-measurement.
+Older benchmark notes referred to a Core i7-class workstation with GTX 1060. The current real-data
+workstation is the Xeon E5-2695 v4 / GTX 1070 machine above, so old wall-clock expectations should
+not be reused without re-measurement.
 
 ## JAX / GPU State
 
-The current machine has NVIDIA hardware, but JAX does not expose a CUDA backend in the current Python runtime.
+The current machine has NVIDIA hardware, but JAX does not expose a CUDA backend in the current
+Python runtime.
 
 Observed state:
 
@@ -108,7 +111,8 @@ These are different controls:
 | MCMC chains | posterior sampling chains | 4 |
 | JAX host devices | CPU device parallelism for JAX/NumPyro | capped at 12 |
 
-Letting pipeline workers flow directly into MCMC chains made small-N probabilistic stages slower without improving decision quality enough to justify the cost.
+Letting pipeline workers flow directly into MCMC chains made small-N probabilistic stages slower
+without improving decision quality enough to justify the cost.
 
 ## Real-Data Measurement
 
@@ -124,10 +128,9 @@ Measured on the current Dell real-data workstation:
 
 The full run improved by about 26%.
 
-Public-repo verification on 2026-06-03 completed the full Stage 1-9 real-data
-pipeline with 37 OK in 174 s (2.9 min). That run used the same Xeon E5-2695 v4
-host, GTX 1070 hardware, JAX CPU fallback, `--workers 36`, and default 4-chain
-MCMC policy.
+Public-repo verification on 2026-06-03 completed the full Stage 1-9 real-data pipeline with 37 OK in
+174 s (2.9 min). That run used the same Xeon E5-2695 v4 host, GTX 1070 hardware, JAX CPU fallback,
+`--workers 36`, and default 4-chain MCMC policy.
 
 ## Accuracy Check
 
@@ -144,7 +147,8 @@ Traffic elasticity: 0.0053 both
 Minutes elasticity: 0.5097 vs 0.5100
 ```
 
-This does not prove `chains=4` is always enough. It means the current real-data comparison did not change ARENA's decision.
+This does not prove `chains=4` is always enough. It means the current real-data comparison did not
+change ARENA's decision.
 
 ## Follow-up
 

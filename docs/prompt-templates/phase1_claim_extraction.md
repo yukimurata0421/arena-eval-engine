@@ -14,8 +14,8 @@ Preserve complete metadata. Do not drop supporting context.
 
 ## Role
 
-Read the provided analysis artifacts and extract claims.
-Do not produce a loose summary. Produce structured, traceable claims.
+Read the provided analysis artifacts and extract claims. Do not produce a loose summary. Produce
+structured, traceable claims.
 
 ## Claim Types (`claim_type`)
 

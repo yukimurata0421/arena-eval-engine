@@ -1,15 +1,17 @@
 # Why ARENA Does Not Use Weighted Ensemble
 
-Status: accepted
-Decision date: 2026-06-03 JST
-Scope: Stage 9 evidence synthesis, ADS-B receiver performance claims
-Source of truth: `src/arena/evidence/`, `scripts/adsb/analysis/meta/adsb_model_evidence_synthesizer.py`
+Status: accepted Decision date: 2026-06-03 JST Scope: Stage 9 evidence synthesis, ADS-B receiver
+performance claims Source of truth: `src/arena/evidence/`,
+`scripts/adsb/analysis/meta/adsb_model_evidence_synthesizer.py`
 
 ## Purpose
 
-This document fixes the design reason why ARENA does not average model outputs into one weighted score.
+This document fixes the design reason why ARENA does not average model outputs into one weighted
+score.
 
-ARENA's job is not to hide disagreement behind a clean number. Its job is to preserve support, counter-evidence, caveats, validation targets, and next-data-needed fields so a reviewer can see what is supported and what still needs verification.
+ARENA's job is not to hide disagreement behind a clean number. Its job is to preserve support,
+counter-evidence, caveats, validation targets, and next-data-needed fields so a reviewer can see
+what is supported and what still needs verification.
 
 ## Context
 
@@ -23,7 +25,8 @@ ARENA evaluates receiver changes with several metric families.
 | `posterior_ratio` | Bayesian phase ratio | depends on priors, sampling, convergence |
 | `capture_ratio` | OpenSky-normalized proxy capture | depends on OpenSky coverage and distance-bin normalization |
 
-These metrics can all point toward "improvement", but they do not measure the same target. Weighted averaging would erase the different assumptions and failure modes.
+These metrics can all point toward "improvement", but they do not measure the same target. Weighted
+averaging would erase the different assumptions and failure modes.
 
 ## Decision
 
@@ -38,7 +41,8 @@ model output
   -> support / counter_evidence / caveat / validation_target / next_data_needed
 ```
 
-`evidence_score` is not a final truth score. It is a routing and review-priority aid with component breakdowns.
+`evidence_score` is not a final truth score. It is a routing and review-priority aid with component
+breakdowns.
 
 ## Why Averaging Fails Here
 
@@ -49,7 +53,8 @@ coverage_auc: positive
 capture_ratio: negative
 ```
 
-A weighted ensemble might turn this into a weak positive or neutral score. That is the wrong behavior. The important fact is the disagreement itself:
+A weighted ensemble might turn this into a weak positive or neutral score. That is the wrong
+behavior. The important fact is the disagreement itself:
 
 ```text
 local coverage improved, but OpenSky proxy capture moved the other way

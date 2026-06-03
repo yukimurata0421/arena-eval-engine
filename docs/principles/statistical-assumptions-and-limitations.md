@@ -1,17 +1,11 @@
 # Statistical Assumptions, Limitations, and Evidence Boundaries
 
-> This document is not a user guide.
-> It is a methodological reference describing how ARENA interprets
-> statistical evidence, where each model is reliable, and where
-> conclusions must be qualified.
->
-> Last updated: 2026-06-03
-> Primary evaluation window: 2025-12-26 to 2026-03-08  
-> (Some sections use 73 raw calendar days, 68 quality-filtered days, or 61 strictly filtered days as noted below.)
->
-> All numerical results in this document are dataset-dependent and should
-> be interpreted as versioned evidence summaries rather than permanent
-> properties of the system.
+> This document is not a user guide. > It is a methodological reference describing how ARENA
+interprets > statistical evidence, where each model is reliable, and where > conclusions must be
+qualified. > > Last updated: 2026-06-03 > Primary evaluation window: 2025-12-26 to 2026-03-08 >
+(Some sections use 73 raw calendar days, 68 quality-filtered days, or 61 strictly filtered days as
+noted below.) > > All numerical results in this document are dataset-dependent and should > be
+interpreted as versioned evidence summaries rather than permanent > properties of the system.
 
 ---
 
@@ -45,39 +39,35 @@
 
 ## 1. Overview
 
-ARENA evaluates receiver performance changes using multiple statistical
-approaches in parallel. No single model is treated as authoritative.
-Instead, conclusions are drawn from the **convergence or divergence**
-across models.
+ARENA evaluates receiver performance changes using multiple statistical approaches in parallel. No
+single model is treated as authoritative. Instead, conclusions are drawn from the **convergence or
+divergence** across models.
 
 This document is structured around a simple principle:
 
-> Every statistical model makes assumptions.
-> When assumptions hold, the model's conclusions are defensible.
-> When they don't, the conclusions must be qualified or withdrawn.
+> Every statistical model makes assumptions. > When assumptions hold, the model's conclusions are
+defensible. > When they don't, the conclusions must be qualified or withdrawn.
 
-The dataset covers 73 calendar days (68 after quality exclusions for the
-baseline NB-GLM; 61 for the phase evaluator after stricter filtering).
-Hardware changes span five phases: RTL-SDR baseline, Airspy Mini introduction,
-5D-FB cable upgrade, indoor cable change (2.5DS-QFB), and adapter change
+The dataset covers 73 calendar days (68 after quality exclusions for the baseline NB-GLM; 61 for the
+phase evaluator after stricter filtering). Hardware changes span five phases: RTL-SDR baseline,
+Airspy Mini introduction, 5D-FB cable upgrade, indoor cable change (2.5DS-QFB), and adapter change
 (NM-SM50+).
 
 ### 1.1 Scope of This Document
 
-This document covers: (a) the statistical assumptions underlying each
-model, (b) where those assumptions hold or fail against the observed
-data, and (c) the boundaries of what can and cannot be concluded from
-the current evidence.
+This document covers: (a) the statistical assumptions underlying each model, (b) where those
+assumptions hold or fail against the observed data, and (c) the boundaries of what can and cannot be
+concluded from the current evidence.
 
-It does **not** cover: pipeline architecture (see README), data
-collection methodology (see PLAO documentation), or how to run ARENA
-(see CLI usage guide).
+It does **not** cover: pipeline architecture (see README), data collection methodology (see PLAO
+documentation), or how to run ARENA (see CLI usage guide).
 
 Three dataset scopes appear throughout this document:
 
 - **73 calendar days**: raw observation window (2025-12-26 to 2026-03-08)
 - **68 days**: usable days for the baseline NB-GLM after quality exclusions
-- **61 days**: usable days for the phase evaluator after stricter filtering (AUC<5000: 1 day excluded, minutes<1296: 2 days excluded)
+- **61 days**: usable days for the phase evaluator after stricter filtering (AUC<5000: 1 day
+  excluded, minutes<1296: 2 days excluded)
 
 ---
 
@@ -101,14 +91,13 @@ The change log reveals extensive soft-parameter tuning within Phase 1:
 - **Decoder flags:** -e (30–60), -f (1–2), -m (12–20), -w (3–4), -C 80 removed
 - **Night gain schedule:** Gain auto → 21 → 19 → guard script on/off
 
-These intra-phase changes inflate day-to-day variance within Phase 1,
-which makes it harder to detect small inter-phase effects (Phases 2–4).
-ARENA evaluates at the hardware-phase level and does not isolate
-individual soft-parameter effects.
+These intra-phase changes inflate day-to-day variance within Phase 1, which makes it harder to
+detect small inter-phase effects (Phases 2–4). ARENA evaluates at the hardware-phase level and does
+not isolate individual soft-parameter effects.
 
-Additionally, Phase 2 includes a decoder parameter revert on 2026-02-27
-(-m 12, -f 1, -e 60), meaning the last day of Phase 2 and all of Phase 3/4
-run under different decoder settings than the rest of Phase 2.
+Additionally, Phase 2 includes a decoder parameter revert on 2026-02-27 (-m 12, -f 1, -e 60),
+meaning the last day of Phase 2 and all of Phase 3/4 run under different decoder settings than the
+rest of Phase 2.
 
 ---
 
@@ -116,11 +105,9 @@ run under different decoder settings than the rest of Phase 2.
 
 ### 3.1 Negative Binomial GLM (Baseline)
 
-**General assumptions:**
-The NB-GLM assumes count data (auc_n_used) follows a Negative Binomial
-distribution with log link. Observations are assumed independent conditional
-on covariates, and the mean-variance relationship is quadratic
-(Var = μ + αμ²).
+**General assumptions:** The NB-GLM assumes count data (auc_n_used) follows a Negative Binomial
+distribution with log link. Observations are assumed independent conditional on covariates, and the
+mean-variance relationship is quadratic (Var = μ + αμ²).
 
 **Model specification:**
 ```
@@ -138,35 +125,31 @@ Family: NegativeBinomial, Link: Log, Method: IRLS
 
 Key findings:
 - The post effect (+72.5%) narrowly misses significance at α=0.05 (p=0.053).
-  The 95% CI for the improvement percentage is [-0.62%, +199.41%],
-  spanning zero.
+The 95% CI for the improvement percentage is [-0.62%, +199.41%], spanning zero.
 - The traffic elasticity is effectively zero (0.023, p=0.921).
-  hnd_nrt_movements does not predict local reception counts.
+hnd_nrt_movements does not predict local reception counts.
 - Deviance = 2.09 with 65 df, Pearson χ² = 2.42. The NB family
-  adequately controls overdispersion.
+adequately controls overdispersion.
 - Pseudo R² = 0.049, meaning 95% of variance is unexplained.
-  The model captures the phase shift, but explains little of the
-  remaining day-to-day variance.
+The model captures the phase shift, but explains little of the remaining day-to-day variance.
 
 **Limitations specific to this data:**
 - N=68 total, with only 8 days in the baseline. The short baseline
-  inflates standard errors for the post coefficient.
+inflates standard errors for the post coefficient.
 - The model treats all post-change days as a single group, ignoring
-  the five-phase structure. This dilutes the Airspy effect with
-  potentially different cable/adapter effects.
+the five-phase structure. This dilutes the Airspy effect with potentially different cable/adapter
+effects.
 - log_traffic (hnd_nrt_movements) proved to be a poor proxy.
-  See [Section 5](#5-proxy-variable-limitations).
+See [Section 5](#5-proxy-variable-limitations).
 
 ---
 
 ### 3.2 Bayesian Phase Evaluation (NumPyro / NUTS)
 
-**General assumptions:**
-Bayesian NB-GLM with weakly informative priors, estimated via NUTS
-(No-U-Turn Sampler). The model assumes the same NB data-generating
-process as Section 3.1, but estimates full posterior distributions
-for phase effects. Conclusions are based on 94% Highest Density
-Intervals (HDI) and P(effect > 0).
+**General assumptions:** Bayesian NB-GLM with weakly informative priors, estimated via NUTS
+(No-U-Turn Sampler). The model assumes the same NB data-generating process as Section 3.1, but
+estimates full posterior distributions for phase effects. Conclusions are based on 94% Highest
+Density Intervals (HDI) and P(effect > 0).
 
 **Model specification (Phase Evaluator v3.1):**
 ```
@@ -175,10 +158,9 @@ Family: NegBin, MCMC: warmup=1000, samples=2000, chains=4 by default
 Dual baseline: Phase 0 (RTL-SDR) and Phase 1 (Airspy Mini)
 ```
 
-The current runtime separates pipeline workers from MCMC chains. A 36-worker
-pipeline on the Xeon workstation does not imply 36 chains. The default
-4-chain run is treated as the production path; 8- or 12-chain reruns are
-reserved for poor convergence diagnostics or sensitivity checks.
+The current runtime separates pipeline workers from MCMC chains. A 36-worker pipeline on the Xeon
+workstation does not imply 36 chains. The default 4-chain run is treated as the production path; 8-
+or 12-chain reruns are reserved for poor convergence diagnostics or sensitivity checks.
 
 **What the data showed (vs Original Baseline, Phase 0):**
 
@@ -220,53 +202,46 @@ reserved for poor convergence diagnostics or sensitivity checks.
 
 #### Why the estimated effect size changes across Bayesian models
 
-The Phase Evaluator (with traffic + minutes control) estimates Airspy
-improvement at +45.0%. The simple Bayesian 2-group model (no controls)
-estimates +69.7%. This 25-point gap is not a contradiction — it shows
-that controlling for operational time (minutes_covered) absorbs part of
-what the uncontrolled model attributes to the hardware change. The
-minutes elasticity (β=0.38, HDI [-1.77, +0.98]) is estimated but the HDI
-spans zero in this dataset, meaning the offset adjustment is directionally
-plausible but not individually significant.
+The Phase Evaluator (with traffic + minutes control) estimates Airspy improvement at +45.0%. The
+simple Bayesian 2-group model (no controls) estimates +69.7%. This 25-point gap is not a
+contradiction — it shows that controlling for operational time (minutes_covered) absorbs part of
+what the uncontrolled model attributes to the hardware change. The minutes elasticity (β=0.38, HDI
+[-1.77, +0.98]) is estimated but the HDI spans zero in this dataset, meaning the offset adjustment
+is directionally plausible but not individually significant.
 
-The implication is that the estimated hardware effect is sensitive to
-model specification. The controlled model is more conservative and more
-interpretable for this dataset, while the uncontrolled model likely
-absorbs part of the uptime variation into the hardware coefficient.
+The implication is that the estimated hardware effect is sensitive to model specification. The
+controlled model is more conservative and more interpretable for this dataset, while the
+uncontrolled model likely absorbs part of the uptime variation into the hardware coefficient.
 
 #### Phase 2 HDI anomaly
 
-Phase 2 vs baseline shows +100.7% with an extremely wide HDI upper bound
-of +701.4%. This asymmetric posterior reflects the combination of (a) a
-genuine large improvement from baseline, (b) intra-phase variance driven
-by the decoder parameter revert on 2026-02-27, and (c) the NB model's
-log-link exponentiation amplifying right-tail uncertainty. The mean
-estimate is meaningful but the upper HDI bound should not be
-over-interpreted.
+Phase 2 vs baseline shows +100.7% with an extremely wide HDI upper bound of +701.4%. This asymmetric
+posterior reflects the combination of (a) a genuine large improvement from baseline, (b) intra-phase
+variance driven by the decoder parameter revert on 2026-02-27, and (c) the NB model's log-link
+exponentiation amplifying right-tail uncertainty. The mean estimate is meaningful but the upper HDI
+bound should not be over-interpreted.
 
 **Limitations specific to this data:**
 - Phase 3 has N=3 days. The posterior is strongly influenced by the
-  prior rather than the data. ARENA flags this as `[prelim: low N]`.
+prior rather than the data. ARENA flags this as `[prelim: low N]`.
 - Adjacent-phase comparisons (vs_previous) all have P(>0) < 67%,
-  meaning the model cannot distinguish cable/adapter effects from noise.
+meaning the model cannot distinguish cable/adapter effects from noise.
 - A chains=4 vs chains=12 sensitivity check did not change the supported /
-  unclear judgment on the current real-data comparison. This is not a universal
-  proof that chains=4 is always sufficient; future runs should check R-hat,
-  ESS, and divergences before raising chains adaptively.
+unclear judgment on the current real-data comparison. This is not a universal proof that chains=4 is
+always sufficient; future runs should check R-hat, ESS, and divergences before raising chains
+adaptively.
 - Traffic elasticity is β = -0.015 (HDI: [-0.185, +0.138]), consistent
-  with the frequentist result: the traffic proxy has no predictive power.
+with the frequentist result: the traffic proxy has no predictive power.
 
 ---
 
 ### 3.3 Mann-Whitney U + Hodges-Lehmann CI
 
-**General assumptions:**
-MWU is a non-parametric rank test that assumes independent observations
-and tests whether one distribution stochastically dominates another.
-It makes no distributional assumptions. The current runtime pairs MWU with
-a Hodges-Lehmann location-shift estimate and confidence interval, because this
-keeps the non-parametric effect estimate aligned with the rank-based test and
-is less sensitive to tail behavior than a bootstrapped mean difference.
+**General assumptions:** MWU is a non-parametric rank test that assumes independent observations and
+tests whether one distribution stochastically dominates another. It makes no distributional
+assumptions. The current runtime pairs MWU with a Hodges-Lehmann location-shift estimate and
+confidence interval, because this keeps the non-parametric effect estimate aligned with the
+rank-based test and is less sensitive to tail behavior than a bootstrapped mean difference.
 
 **What the data showed (OpenSky minute-level capture ratio):**
 
@@ -281,15 +256,14 @@ is less sensitive to tail behavior than a bootstrapped mean difference.
 
 **Limitations specific to this data:**
 - **Large-sample inflation:** With n > 7000 per group, trivial differences
-  (Δ ≈ 0.04 on a scale of ~1.2) produce extreme p-values (10⁻¹⁶⁴).
-  Statistical significance ≠ practical significance.
+(Δ ≈ 0.04 on a scale of ~1.2) produce extreme p-values (10⁻¹⁶⁴). Statistical significance ≠
+practical significance.
 - **Minute-level non-independence:** Consecutive minutes within the same
-  day are autocorrelated (same weather, same aircraft tracks). MWU
-  assumes independence, so p-values are likely biased downward.
+day are autocorrelated (same weather, same aircraft tracks). MWU assumes independence, so p-values
+are likely biased downward.
 - **Direction contradicts other models:** MWU shows capture ratio
-  *decreasing* from Airspy Mini to Cable/Adapter phases. This conflicts
-  with AUC-based models showing improvement. See
-  [Section 4](#4-cross-model-consistency).
+*decreasing* from Airspy Mini to Cable/Adapter phases. This conflicts with AUC-based models showing
+improvement. See [Section 4](#4-cross-model-consistency).
 
 **Daily-level comparison (MWU on daily median_capture_ratio):**
 
@@ -300,19 +274,17 @@ is less sensitive to tail behavior than a bootstrapped mean difference.
 | Airspy+Cable vs airspy_adapter | 9 | 5 | 0.423 | +0.007 | [-0.004, +0.019] |
 | Airspy+Cable vs airspy_cable_v2 | 9 | 3 | 0.194 | +0.016 | [+0.006, +0.025] |
 
-At the daily level, only the Airspy Mini vs Airspy+Cable comparison
-reaches p < 0.05. The remaining comparisons are non-significant with
-very small effect sizes, consistent with the phase evaluator's finding
-that post-Airspy incremental changes are not individually detectable.
+At the daily level, only the Airspy Mini vs Airspy+Cable comparison reaches p < 0.05. The remaining
+comparisons are non-significant with very small effect sizes, consistent with the phase evaluator's
+finding that post-Airspy incremental changes are not individually detectable.
 
 ---
 
 ### 3.4 Distance-bin NB-GLM with OpenSky Offset
 
-**General assumptions:**
-NB-GLM with `local_count ~ phase + offset(log(os_bin))`, estimating
-phase effects on local reception at each distance band while controlling
-for OpenSky traffic as an exposure variable.
+**General assumptions:** NB-GLM with `local_count ~ phase + offset(log(os_bin))`, estimating phase
+effects on local reception at each distance band while controlling for OpenSky traffic as an
+exposure variable.
 
 **What the data showed:**
 
@@ -324,32 +296,27 @@ for OpenSky traffic as an exposure variable.
 | 150–200 km | -0.067 | <0.001 | -0.082 | <0.001 | -0.092 | <0.001 |
 | 200+ km | -0.094 | <0.001 | -0.133 | <0.001 | -0.152 | <0.001 |
 
-**Key finding:** At 150+ km, phase coefficients are significantly
-*negative* — later phases capture proportionally *fewer* aircraft
-relative to OpenSky. This is counterintuitive given other metrics
-showing improvement. The effect is monotonically stronger with
-distance: the further from the station, the larger the relative
-decline against the OpenSky denominator.
+**Key finding:** At 150+ km, phase coefficients are significantly *negative* — later phases capture
+proportionally *fewer* aircraft relative to OpenSky. This is counterintuitive given other metrics
+showing improvement. The effect is monotonically stronger with distance: the further from the
+station, the larger the relative decline against the OpenSky denominator.
 
-At 0–100 km, no phase shows significant effects (all p > 0.29),
-confirming that near-field reception is structurally determined
-and insensitive to the hardware changes evaluated.
+At 0–100 km, no phase shows significant effects (all p > 0.29), confirming that near-field reception
+is structurally determined and insensitive to the hardware changes evaluated.
 
 **Limitations specific to this data:**
 - Pseudo R² ranges from 0.00006 to 0.002 across bins. Phase explains
-  almost nothing about minute-level variation, even when statistically
-  significant.
+almost nothing about minute-level variation, even when statistically significant.
 - The 0–50 km bin shows capture ratios consistently < 1.0 (mean ≈ 0.56–0.58),
-  indicating a structural near-field deficit unrelated to hardware changes.
+indicating a structural near-field deficit unrelated to hardware changes.
 - The offset assumes OpenSky's per-bin counts are proportional to true
-  traffic, which may not hold at the extremes of distance.
+traffic, which may not hold at the extremes of distance.
 
 ---
 
 ### 3.5 Binomial GLM (Quality)
 
-**General assumptions:**
-Binomial GLM with logit link, modeling a success/failure ratio as a
+**General assumptions:** Binomial GLM with logit link, modeling a success/failure ratio as a
 function of traffic and post-change indicator.
 
 **What the data showed:**
@@ -362,70 +329,62 @@ IRLS iterations: 33
 Deviance: 3.83e-09
 ```
 
-**This model failed completely.** The coefficients are astronomically
-large with equally large standard errors, and the deviance is
-effectively zero. This is a textbook case of **complete separation**:
-the response variable is so extreme (nearly all successes or all failures)
-that the logistic curve cannot find a finite maximum likelihood estimate.
+**This model failed completely.** The coefficients are astronomically large with equally large
+standard errors, and the deviance is effectively zero. This is a textbook case of **complete
+separation**: the response variable is so extreme (nearly all successes or all failures) that the
+logistic curve cannot find a finite maximum likelihood estimate.
 
-**Conclusion:** Results from this model must not be cited or used.
-The binomial specification is inappropriate for this data structure.
+**Conclusion:** Results from this model must not be cited or used. The binomial specification is
+inappropriate for this data structure.
 
 ---
 
 ### 3.6 Change-Point Detection
 
-**General assumptions:**
-Bayesian change-point models (single and multi-point, K=3) estimate
-the posterior probability of structural breaks in the time series.
-They assume piecewise-constant or piecewise-linear regimes with
-abrupt transitions.
+**General assumptions:** Bayesian change-point models (single and multi-point, K=3) estimate the
+posterior probability of structural breaks in the time series. They assume piecewise-constant or
+piecewise-linear regimes with abrupt transitions.
 
 **What the data showed:**
 - Pipeline runs completed successfully (single: 317s, multi K=3: 1377s).
 - CPU execution is preferred for small-N Bayesian/change-point models. Earlier
-  GTX 1060 benchmarks showed 38–50× slower GPU execution for these small
-  workloads; the current Xeon E5-2695 v4 / GTX 1070 workstation must be
-  interpreted through the current JAX runtime, which exposes CPU only unless
-  CUDA is available to JAX.
+GTX 1060 benchmarks showed 38–50× slower GPU execution for these small workloads; the current Xeon
+E5-2695 v4 / GTX 1070 workstation must be interpreted through the current JAX runtime, which exposes
+CPU only unless CUDA is available to JAX.
 
 #### GPU vs CPU Performance on Small Datasets
 
-During development, Bayesian/change-point scripts were initially run on GPU
-(NVIDIA GTX 1060 6GB). Benchmarking revealed a dramatic inversion:
+During development, Bayesian/change-point scripts were initially run on GPU (NVIDIA GTX 1060 6GB).
+Benchmarking revealed a dramatic inversion:
 
 | Script | GPU (GTX 1060) | CPU (i7-8700K) | Ratio |
 |--------|---------------|----------------|-------|
 | Bayesian phase comparison (4 chains × 3000 draws) | 658 s | 17 s | GPU 38× slower |
 | Multi change-point K=3 (1 chain × 4500 draws) | 748 s | 15 s | GPU 50× slower |
 
-The root cause is that `DiscreteHMCGibbs` (used for change-point
-location sampling) performs inherently sequential discrete variable
-updates. With N=59 data points, the GPU kernel launch overhead and
-host-device data transfer cost dominate the computation. The GPU's
-parallel execution units remain underutilized because the workload
-is too small and too sequential to benefit from parallelism.
+The root cause is that `DiscreteHMCGibbs` (used for change-point location sampling) performs
+inherently sequential discrete variable updates. With N=59 data points, the GPU kernel launch
+overhead and host-device data transfer cost dominate the computation. The GPU's parallel execution
+units remain underutilized because the workload is too small and too sequential to benefit from
+parallelism.
 
-Based on these benchmarks, ARENA defaults to CPU execution for small datasets
-below a configurable GPU threshold (currently N <= 5000 unless overridden by
-`ADSB_GPU_MIN_N` / `ARENA_GPU_MIN_N`). This decision is recorded in the
-pipeline execution log, together with whether physical NVIDIA hardware and
-JAX CUDA are both available.
+Based on these benchmarks, ARENA defaults to CPU execution for small datasets below a configurable
+GPU threshold (currently N <= 5000 unless overridden by `ADSB_GPU_MIN_N` / `ARENA_GPU_MIN_N`). This
+decision is recorded in the pipeline execution log, together with whether physical NVIDIA hardware
+and JAX CUDA are both available.
 
 **Limitations specific to this data:**
 - The RTL-SDR → Airspy transition (Jan 10–14) involved simultaneous
-  antenna + SDR + gain changes over multiple days, creating a gradual
-  rather than abrupt transition. Change-point models assume sharp breaks,
-  which may mislocate the transition.
+antenna + SDR + gain changes over multiple days, creating a gradual rather than abrupt transition.
+Change-point models assume sharp breaks, which may mislocate the transition.
 - With only 61 days, K=3 change points means each segment averages ~15
-  days, approaching the minimum for stable estimation.
+days, approaching the minimum for stable estimation.
 
 ---
 
 ### 3.7 Time-Resolved Evaluation
 
-**General assumptions:**
-Two-hour time bins are compared across old (Phase 0) and new (Phase 1+)
+**General assumptions:** Two-hour time bins are compared across old (Phase 0) and new (Phase 1+)
 periods using t-tests or MWU per bin.
 
 **What the data showed:**
@@ -445,46 +404,44 @@ periods using t-tests or MWU per bin.
 | 20–22 | 3400 | 4211 | +23.8% | 3.1e-4 |
 | 22–24 | 1542 | 1703 | +10.5% | 0.054 |
 
-11 of 12 time bins show significant improvement (p < 0.05). The 22–24
-bin is borderline (p = 0.054). Night hours (02–06) show the largest
-relative gains, likely because low-traffic periods amplify the hardware
-sensitivity difference.
+11 of 12 time bins show significant improvement (p < 0.05). The 22–24 bin is borderline (p = 0.054).
+Night hours (02–06) show the largest relative gains, likely because low-traffic periods amplify the
+hardware sensitivity difference.
 
 **Limitations:**
 - "Old" vs "New" groups this as a binary split, collapsing all five
-  phases into two groups. It cannot distinguish cable/adapter effects.
+phases into two groups. It cannot distinguish cable/adapter effects.
 - Day-of-week confounding within time bins is not controlled.
 
 ---
 
 ## 4. Cross-Model Consistency
 
-The critical test of any multi-model framework is whether models agree.
-ARENA's models show **partial convergence with one notable contradiction**.
+The critical test of any multi-model framework is whether models agree. ARENA's models show
+**partial convergence with one notable contradiction**.
 
 ### Where models agree
 
-All models agree that the RTL-SDR → Airspy transition produced a large,
-real improvement:
+All models agree that the RTL-SDR → Airspy transition produced a large, real improvement:
 - Phase evaluator: +45.0% (traffic + minutes controlled)
 - Bayesian 2-group: +69.7% (uncontrolled)
 - Time-resolved: +15–62% across all time bins
 - Coverage P95: 188–191 km → 201–209 km
 - LOS efficiency: 56.5% → 60.3%
 
-The magnitude differs by model specification (controlled vs uncontrolled),
-but the direction and significance are unanimous.
+The magnitude differs by model specification (controlled vs uncontrolled), but the direction and
+significance are unanimous.
 
-All models also agree that individual cable/adapter effects are not
-individually distinguishable from noise at this sample size:
+All models also agree that individual cable/adapter effects are not individually distinguishable
+from noise at this sample size:
 - Phase evaluator vs alt baseline: P(>0) = 67%, 68%, 79%
 - Bayesian CUDA adjacent comparisons: P(>0) = 56–66%
 - Daily MWU for post-Airspy phases: p > 0.05 except one borderline case
 
 ### Where models disagree
 
-**OpenSky capture ratio decreases in later phases**, while AUC, coverage,
-and LOS metrics increase. Specifically:
+**OpenSky capture ratio decreases in later phases**, while AUC, coverage, and LOS metrics increase.
+Specifically:
 
 | Metric | Airspy Mini | Airspy+Cable | airspy_cable_v2 | Adapter |
 |--------|-------------|--------------|-----------------|---------|
@@ -493,34 +450,30 @@ and LOS metrics increase. Specifically:
 | P95 distance (km) | ~190 | ~195 | ~205 | ~208 |
 | LOS efficiency (%) | ~57.8 | ~58.5 | — | ~60.0 |
 
-Three independent metrics (AUC, P95, LOS) show improvement while the
-capture ratio shows decline. The distance-bin NB-GLM (Section 3.4)
-provides additional specificity: the decline is concentrated at 150+ km,
-where later phases show significantly negative coefficients (p < 0.001),
-while 0–100 km shows no significant phase effects.
+Three independent metrics (AUC, P95, LOS) show improvement while the capture ratio shows decline.
+The distance-bin NB-GLM (Section 3.4) provides additional specificity: the decline is concentrated
+at 150+ km, where later phases show significantly negative coefficients (p < 0.001), while 0–100 km
+shows no significant phase effects.
 
-This suggests the capture ratio is not a
-reliable improvement indicator in this context. Possible explanations:
+This suggests the capture ratio is not a reliable improvement indicator in this context. Possible
+explanations:
 
 1. **Near-field bias:** The 0–50 km capture ratio is consistently < 1.0
-   (mean ≈ 0.56–0.58 across all phases), pulling the overall ratio down.
-   Hardware changes that improve far-field reception may not
-   proportionally improve near-field.
+(mean ≈ 0.56–0.58 across all phases), pulling the overall ratio down. Hardware changes that improve
+far-field reception may not proportionally improve near-field.
 2. **OpenSky coverage changes:** If OpenSky's own coverage improved
-   during the study period, the denominator grows faster than local
-   improvement, deflating the ratio. The monotonic decline of capture
-   ratio with increasing distance (150–200 km: -0.067 to -0.092;
-   200+ km: -0.094 to -0.152) is consistent with this hypothesis.
+during the study period, the denominator grows faster than local improvement, deflating the ratio.
+The monotonic decline of capture ratio with increasing distance (150–200 km: -0.067 to -0.092; 200+
+km: -0.094 to -0.152) is consistent with this hypothesis.
 3. **Schema migration:** The transition to PLAO pos schema_ver=1 may
-   have changed how local unique aircraft are counted.
+have changed how local unique aircraft are counted.
 4. **Distance-dependent effect direction:** NB-GLM shows non-significant
-   positive coefficients at 50–100 km but increasingly negative at
-   150+ km, suggesting the effect varies with distance in complex ways
-   that a single overall capture ratio cannot represent.
+positive coefficients at 50–100 km but increasingly negative at 150+ km, suggesting the effect
+varies with distance in complex ways that a single overall capture ratio cannot represent.
 
-**Working interpretation:** The capture ratio should be treated as a
-supplementary diagnostic, not a primary improvement metric, until the
-near-field bias mechanism and the far-field decline are better understood.
+**Working interpretation:** The capture ratio should be treated as a supplementary diagnostic, not a
+primary improvement metric, until the near-field bias mechanism and the far-field decline are better
+understood.
 
 ---
 
@@ -528,40 +481,33 @@ near-field bias mechanism and the far-field decline are better understood.
 
 ### Traffic Proxy: hnd_nrt_movements
 
-ARENA uses Haneda/Narita airport movement counts as a proxy for overhead
-traffic. This proxy has two documented failures:
+ARENA uses Haneda/Narita airport movement counts as a proxy for overhead traffic. This proxy has two
+documented failures:
 
-**Failure 1: Zero predictive power.**
-In both the frequentist NB-GLM (β=0.023, p=0.921) and the Bayesian
-model (β=-0.015, HDI [-0.185, +0.138]), the traffic variable explains
-no variance in local AUC. Airport departures/arrivals do not correlate
-with the number of aircraft flying over a ground station located ~60 km
-from the airports.
+**Failure 1: Zero predictive power.** In both the frequentist NB-GLM (β=0.023, p=0.921) and the
+Bayesian model (β=-0.015, HDI [-0.185, +0.138]), the traffic variable explains no variance in local
+AUC. Airport departures/arrivals do not correlate with the number of aircraft flying over a ground
+station located ~60 km from the airports.
 
-**Failure 2: Missing data for key periods.**
-Several days show anomalous traffic values: 2026-01-02 (111), 2026-01-24
-(167), 2026-03-05 (467). These appear to be data fetch failures rather
-than true traffic dips, introducing noise. Traffic data is entirely
-missing for 2026-03-06 and 2026-03-07.
+**Failure 2: Missing data for key periods.** Several days show anomalous traffic values: 2026-01-02
+(111), 2026-01-24 (167), 2026-03-05 (467). These appear to be data fetch failures rather than true
+traffic dips, introducing noise. Traffic data is entirely missing for 2026-03-06 and 2026-03-07.
 
-**Implication:** The traffic covariate does not confound the phase
-estimates (because it has no effect), but it also does not add any
-explanatory power. Claims of "traffic-controlled analysis" remain
-technically correct, but in practice the control adds little
-explanatory power in this dataset.
+**Implication:** The traffic covariate does not confound the phase estimates (because it has no
+effect), but it also does not add any explanatory power. Claims of "traffic-controlled analysis"
+remain technically correct, but in practice the control adds little explanatory power in this
+dataset.
 
 ### Local Traffic Proxy (unique_hex_50km)
 
-Available only from 2026-01-24 onward (no data for RTL-SDR Phase 0
-or early Phase 1). This limits any normalized comparison that requires
-a consistent denominator across all phases.
+Available only from 2026-01-24 onward (no data for RTL-SDR Phase 0 or early Phase 1). This limits
+any normalized comparison that requires a consistent denominator across all phases.
 
 ### OpenSky n_used as Offset
 
-Using `offset(log(os_n_used))` in the NB-GLM assumes OpenSky counts
-are a good measure of true overhead traffic per minute. This assumption
-is weaker at distance extremes (0–50 km where terrain/altitude limits
-OpenSky coverage, and 200+ km where both systems approach their range
+Using `offset(log(os_n_used))` in the NB-GLM assumes OpenSky counts are a good measure of true
+overhead traffic per minute. This assumption is weaker at distance extremes (0–50 km where
+terrain/altitude limits OpenSky coverage, and 200+ km where both systems approach their range
 limits).
 
 ---
@@ -570,107 +516,82 @@ limits).
 
 ### 6.1 What the Data Confirms
 
-**The Airspy Mini introduction was a decisive improvement.**
-Phase evaluator: +45.0% [HDI +16.9, +84.0], P(>0)=99.9%.
-Bayesian CUDA: +69.7% [HDI +44.7, +94.5], P(>0)=100%.
-The difference between estimates (45.0% vs 69.7%) reflects the impact
-of controlling for operational minutes, not a contradiction.
-Every model — frequentist, Bayesian, time-resolved, coverage, LOS — agrees.
+**The Airspy Mini introduction was a decisive improvement.** Phase evaluator: +45.0% [HDI +16.9,
++84.0], P(>0)=99.9%. Bayesian CUDA: +69.7% [HDI +44.7, +94.5], P(>0)=100%. The difference between
+estimates (45.0% vs 69.7%) reflects the impact of controlling for operational minutes, not a
+contradiction. Every model — frequentist, Bayesian, time-resolved, coverage, LOS — agrees.
 
-**Improvement spans all hours of the day.**
-11 of 12 two-hour bins show p < 0.05, with night hours (02–06) showing
-the largest relative gains (+45–62%). This rules out the hypothesis
-that improvement is an artifact of time-of-day sampling bias.
+**Improvement spans all hours of the day.** 11 of 12 two-hour bins show p < 0.05, with night hours
+(02–06) showing the largest relative gains (+45–62%). This rules out the hypothesis that improvement
+is an artifact of time-of-day sampling bias.
 
-**Coverage area expanded measurably.**
-Average P95 distance grew from ~188–191 km (Phase 1 early) to ~201–209 km
-(Phase 4). Area_p95 increased correspondingly from ~117,000 km² to
-~142,000 km².
+**Coverage area expanded measurably.** Average P95 distance grew from ~188–191 km (Phase 1 early) to
+~201–209 km (Phase 4). Area_p95 increased correspondingly from ~117,000 km² to ~142,000 km².
 
-**LOS efficiency improved progressively.**
-From 56.5% (Phase 0) to 60.3% (Phase 4), with a visible step at the
-cable change (Phase 2). This is an independent physical metric
-consistent with the AUC-based evaluation.
+**LOS efficiency improved progressively.** From 56.5% (Phase 0) to 60.3% (Phase 4), with a visible
+step at the cable change (Phase 2). This is an independent physical metric consistent with the
+AUC-based evaluation.
 
-**Cumulative improvement from RTL-SDR baseline is confirmed for all
-post-Airspy phases.**
-vs Phase 0: Phase 2 +100.7% (P=99.9%), Phase 4 +54.6% (P=100%).
-The cumulative hardware stack (Airspy + cable + adapter) produces a
-clear and statistically significant improvement over the original system.
+**Cumulative improvement from RTL-SDR baseline is confirmed for all post-Airspy phases.** vs Phase
+0: Phase 2 +100.7% (P=99.9%), Phase 4 +54.6% (P=100%). The cumulative hardware stack (Airspy + cable
++ adapter) produces a clear and statistically significant improvement over the original system.
 
 ### 6.2 What the Data Rejects
 
-**"Traffic increased, not receiver performance."**
-The traffic proxy has zero explanatory power (p=0.921 in frequentist,
-HDI spanning zero in Bayesian). Including or excluding it does not
-change the phase estimates. While the proxy itself may be flawed,
-the phase effect persists regardless of traffic specification.
+**"Traffic increased, not receiver performance."** The traffic proxy has zero explanatory power
+(p=0.921 in frequentist, HDI spanning zero in Bayesian). Including or excluding it does not change
+the phase estimates. While the proxy itself may be flawed, the phase effect persists regardless of
+traffic specification.
 
-**"Cable and adapter changes each produced individually significant
-improvement."**
-Against the Airspy Mini alt-baseline: 5D-FB +31.1% (P=67%),
-Indoor cable +6.1% (P=68%), Adapter +8.0% (P=79%). All 94% HDIs include zero.
-Adjacent-phase comparisons (vs_previous) are all below P=67%.
+**"Cable and adapter changes each produced individually significant improvement."** Against the
+Airspy Mini alt-baseline: 5D-FB +31.1% (P=67%), Indoor cable +6.1% (P=68%), Adapter +8.0% (P=79%).
+All 94% HDIs include zero. Adjacent-phase comparisons (vs_previous) are all below P=67%.
 
-**"The capture ratio validates the improvement."**
-OpenSky capture ratio *decreases* from 1.21 to 1.16–1.17, contradicting
-AUC, coverage, and LOS metrics. The distance-bin NB-GLM further shows
-that this decline is concentrated at 150+ km (p < 0.001) while near-field
-(0–100 km) is unaffected. The capture ratio is not a reliable
-improvement indicator in this dataset.
+**"The capture ratio validates the improvement."** OpenSky capture ratio *decreases* from 1.21 to
+1.16–1.17, contradicting AUC, coverage, and LOS metrics. The distance-bin NB-GLM further shows that
+this decline is concentrated at 150+ km (p < 0.001) while near-field (0–100 km) is unaffected. The
+capture ratio is not a reliable improvement indicator in this dataset.
 
-**"The binomial quality model supports the conclusions."**
-The binomial GLM suffered complete separation (coefficients ±10⁵, p≈1.0).
-Its results are invalid and must not be cited.
+**"The binomial quality model supports the conclusions."** The binomial GLM suffered complete
+separation (coefficients ±10⁵, p≈1.0). Its results are invalid and must not be cited.
 
 ### 6.3 What the Data Cannot Determine
 
-**Individual cable/adapter effects.**
-The five phases were applied sequentially with no reversal.
-A/B testing (temporarily reverting to the old cable) would be needed
-to isolate individual effects, but is impractical.
+**Individual cable/adapter effects.** The five phases were applied sequentially with no reversal.
+A/B testing (temporarily reverting to the old cable) would be needed to isolate individual effects,
+but is impractical.
 
-**Indoor cable change (2.5DS-QFB) impact.**
-N=3 days. ARENA's own reliability tag marks this as `[prelim: low N]`.
-The +6.1% estimate (P=68%) is a directional hint, not evidence.
+**Indoor cable change (2.5DS-QFB) impact.** N=3 days. ARENA's own reliability tag marks this as
+`[prelim: low N]`. The +6.1% estimate (P=68%) is a directional hint, not evidence.
 
-**Soft parameter contributions.**
-Gain (13–21), decoder flags (-e, -f, -m, -w), and night-time schedules
-were changed multiple times within Phase 1. ARENA evaluates at the
-hardware-phase level and cannot attribute effects to individual parameters.
+**Soft parameter contributions.** Gain (13–21), decoder flags (-e, -f, -m, -w), and night-time
+schedules were changed multiple times within Phase 1. ARENA evaluates at the hardware-phase level
+and cannot attribute effects to individual parameters.
 
-**The cause of near-field capture deficit.**
-The 0–50 km capture ratio is consistently ~0.56–0.58 (local sees ~57% of
-what OpenSky sees at close range) across all phases. The distance-bin
-NB-GLM confirms no phase has a significant effect at 0–50 km (all p > 0.32).
-Whether this is antenna directivity, readsb filtering, terrain masking,
-or low-altitude aircraft exclusion is undetermined.
+**The cause of near-field capture deficit.** The 0–50 km capture ratio is consistently ~0.56–0.58
+(local sees ~57% of what OpenSky sees at close range) across all phases. The distance-bin NB-GLM
+confirms no phase has a significant effect at 0–50 km (all p > 0.32). Whether this is antenna
+directivity, readsb filtering, terrain masking, or low-altitude aircraft exclusion is undetermined.
 
 ### 6.4 What Remains Open
 
-**Long-term stability and seasonal effects.**
-The 61-day window (late December to early March) covers only winter
-conditions. Atmospheric propagation, humidity, and temperature inversions
-may affect ADS-B reception differently in summer.
+**Long-term stability and seasonal effects.** The 61-day window (late December to early March)
+covers only winter conditions. Atmospheric propagation, humidity, and temperature inversions may
+affect ADS-B reception differently in summer.
 
-**Achieving P(>0) ≥ 95% for the adapter change.**
-Currently at P=79% (vs Airspy Mini baseline) with N=7 days. As data
-accumulates, this may cross the 80% or 95% thresholds, but the rate
-of convergence depends on day-to-day variance (CV ≈ 15–20%)
-and is unreliable to extrapolate. A single low-value day (e.g., the
-Feb 25 outlier with AUC=33,229) can significantly delay convergence.
+**Achieving P(>0) ≥ 95% for the adapter change.** Currently at P=79% (vs Airspy Mini baseline) with
+N=7 days. As data accumulates, this may cross the 80% or 95% thresholds, but the rate of convergence
+depends on day-to-day variance (CV ≈ 15–20%) and is unreliable to extrapolate. A single low-value
+day (e.g., the Feb 25 outlier with AUC=33,229) can significantly delay convergence.
 
-**Reconciling the capture ratio contradiction.**
-Why does the OpenSky-relative metric decline while absolute and
-coverage-based metrics improve? The distance-bin analysis narrows the
-problem: the decline is at 150+ km. Until the mechanism (OpenSky
-denominator growth, atmospheric effects, or schema differences) is
-identified, the capture ratio cannot be used as a primary evaluation metric.
+**Reconciling the capture ratio contradiction.** Why does the OpenSky-relative metric decline while
+absolute and coverage-based metrics improve? The distance-bin analysis narrows the problem: the
+decline is at 150+ km. Until the mechanism (OpenSky denominator growth, atmospheric effects, or
+schema differences) is identified, the capture ratio cannot be used as a primary evaluation metric.
 
-**Phase 0 normalization quality.**
-RTL-SDR period data lacks local_traffic_proxy, pos_records, and
-unique_hex counts. Comparisons involving Phase 0 rely solely on
-auc_n_used and hnd_nrt_movements (which has zero predictive power).
+**Phase 0 normalization quality.** RTL-SDR period data lacks local_traffic_proxy, pos_records, and
+unique_hex counts. Comparisons involving Phase 0 rely solely on auc_n_used and hnd_nrt_movements
+(which has zero predictive power).
 
 ---
 
@@ -679,55 +600,49 @@ auc_n_used and hnd_nrt_movements (which has zero predictive power).
 ### 7.1 Operational Next Steps
 
 1. **Accumulate data for Phase 4.** The adapter change shows P(>0)=79%
-   with 7 days. Continue monitoring without further changes until the
-   estimate stabilizes (target: 21+ days to allow for weekly cycles).
+with 7 days. Continue monitoring without further changes until the estimate stabilizes (target: 21+
+days to allow for weekly cycles).
 
 2. **Stabilize the traffic data pipeline.** Address the fetch failures
-   producing anomalous values (e.g., 2026-01-02: 111, 2026-03-05: 467)
-   and fill the missing days (2026-03-06, 2026-03-07).
+producing anomalous values (e.g., 2026-01-02: 111, 2026-03-05: 467) and fill the missing days
+(2026-03-06, 2026-03-07).
 
 ### 7.2 Model / Method Improvements
 
 3. **Improve the traffic proxy.** Consider using OpenSky's per-minute
-   n_used directly (already available for 22 usable days) rather than
-   airport-level movement counts. Alternatively, use unique_hex_50km
-   from PLAO data once the coverage gap for Phase 0 is addressed.
+n_used directly (already available for 22 usable days) rather than airport-level movement counts.
+Alternatively, use unique_hex_50km from PLAO data once the coverage gap for Phase 0 is addressed.
 
 4. **Retire the binomial quality model.** Replace with a beta-regression
-   or quasi-binomial approach that can handle extreme success rates
-   without separation.
+or quasi-binomial approach that can handle extreme success rates without separation.
 
 5. **Analyze soft-parameter sensitivity.** Use the change log timestamps
-   to create sub-phases within Phase 1 (e.g., gain 13–15 vs 17–19,
-   -e 30 vs -e 60) and test whether any soft parameter produced
-   detectable effects.
+to create sub-phases within Phase 1 (e.g., gain 13–15 vs 17–19, -e 30 vs -e 60) and test whether any
+soft parameter produced detectable effects.
 
 ### 7.3 Open Research Questions
 
 6. **Investigate the capture ratio anomaly.** Decompose the 0–50 km
-   deficit by analyzing aircraft altitude distributions and comparing
-   local vs OpenSky detection by altitude band. Also investigate whether
-   the monotonic far-field decline (150–200 km, 200+ km) reflects
-   OpenSky denominator growth over the study period.
+deficit by analyzing aircraft altitude distributions and comparing local vs OpenSky detection by
+altitude band. Also investigate whether the monotonic far-field decline (150–200 km, 200+ km)
+reflects OpenSky denominator growth over the study period.
 
 7. **Add seasonal monitoring.** Extend the dataset through at least one
-   full season change (June–August) before drawing long-term conclusions.
+full season change (June–August) before drawing long-term conclusions.
 
 8. **Characterize the GPU/CPU crossover point.** The current threshold
-   (datasets at or below N <= 5000 default to CPU execution) is based on
-   empirical benchmarking on small datasets, including the N=59
-   development case. As data accumulates, re-benchmark to find the
-   dataset size where GPU parallelism begins to outperform CPU
-   sequential execution for DiscreteHMCGibbs and NUTS on this hardware.
+(datasets at or below N <= 5000 default to CPU execution) is based on empirical benchmarking on
+small datasets, including the N=59 development case. As data accumulates, re-benchmark to find the
+dataset size where GPU parallelism begins to outperform CPU sequential execution for
+DiscreteHMCGibbs and NUTS on this hardware.
 
 ---
 
 ## 8. Appendix: Decision Criteria Reference
 
-These thresholds are ARENA's operational interpretation rules,
-not universal statistical standards. They were chosen to balance
-sensitivity with the practical constraint of small sample sizes
-in a single-station observation study.
+These thresholds are ARENA's operational interpretation rules, not universal statistical standards.
+They were chosen to balance sensitivity with the practical constraint of small sample sizes in a
+single-station observation study.
 
 For phases with `definitive` reliability (N ≥ 7):
 
@@ -738,5 +653,5 @@ For phases with `definitive` reliability (N ≥ 7):
 | P(>0) < 80% | Effect unclear (more data needed) |
 | 94% HDI excludes 0 | Statistically significant |
 
-For phases with `[reference: N<3]`: no statistical judgment is made.
-For phases with `[prelim: low N]` (3 ≤ N < 7): trend indication only.
+For phases with `[reference: N<3]`: no statistical judgment is made. For phases with `[prelim: low
+N]` (3 ≤ N < 7): trend indication only.

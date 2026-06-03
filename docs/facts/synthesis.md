@@ -3,7 +3,8 @@
 ## Purpose
 
 `arena synthesis` is the claim-ingest and proposition-review layer for AI-assisted analysis outputs.
-It is designed to run in a repository-local or fully overridden path configuration without depending on sibling clones.
+It is designed to run in a repository-local or fully overridden path configuration without depending
+on sibling clones.
 
 ## Path Isolation
 

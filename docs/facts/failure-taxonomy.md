@@ -1,7 +1,7 @@
 # Failure Taxonomy
 
-ARENA classifies failures into two categories: pipeline execution failures and artifact integrity failures.
-Both categories are designed to be visible, structured, and non-fatal.
+ARENA classifies failures into two categories: pipeline execution failures and artifact integrity
+failures. Both categories are designed to be visible, structured, and non-fatal.
 
 ---
 
@@ -23,8 +23,8 @@ Every pipeline step produces a status recorded in `pipeline_runs.jsonl`.
 
 ### Error Codes
 
-The error policy module (`src/arena/pipeline/error_policy.py`) assigns structured error codes
-using the pattern `S{stage}-{step}-{code}`:
+The error policy module (`src/arena/pipeline/error_policy.py`) assigns structured error codes using
+the pattern `S{stage}-{step}-{code}`:
 
 | Code pattern | Category | Examples |
 |---|---|---|
@@ -46,17 +46,17 @@ using the pattern `S{stage}-{step}-{code}`:
 
 ### Dependency-Aware Skip Logic
 
-`--skip-existing` does not just check if output files exist.
-`decision.py` compares `latest_dependency_mtime` (the newest modification time
-among a step's declared `depends_on_outputs`) against the step's own output timestamps.
-If any dependency is newer than the existing output, the step re-runs.
+`--skip-existing` does not just check if output files exist. `decision.py` compares
+`latest_dependency_mtime` (the newest modification time among a step's declared
+`depends_on_outputs`) against the step's own output timestamps. If any dependency is newer than the
+existing output, the step re-runs.
 
 ---
 
 ## Artifact Integrity Failures
 
-The artifact verification system (`arena artifacts verify`) checks exported bundles
-without re-running the pipeline. Failures are reported as structured results, never exceptions.
+The artifact verification system (`arena artifacts verify`) checks exported bundles without
+re-running the pipeline. Failures are reported as structured results, never exceptions.
 
 | Failure type | What it means | What `verify` checks |
 |---|---|---|
@@ -84,9 +84,9 @@ The artifact subsystem preserves the following states in manifests and candidate
 - `duplicate_source_skipped` — the same source file was already selected under a different target
 - `copy_failed` — file copy to the export directory failed
 
-These states are part of the audit trail. They are never smoothed away or hidden.
-A bundle that contains `missing_required` entries still exports successfully —
-the failure is visible in the manifest rather than causing a silent incomplete export.
+These states are part of the audit trail. They are never smoothed away or hidden. A bundle that
+contains `missing_required` entries still exports successfully — the failure is visible in the
+manifest rather than causing a silent incomplete export.
 
 ---
 
@@ -94,9 +94,9 @@ the failure is visible in the manifest rather than causing a silent incomplete e
 
 The error policy module generates actionable recovery suggestions for known failure patterns.
 
-Example: when OpenSky API rate limits are hit (`S1-06-W02` or `S1-06-E12`),
-the recommended action includes the specific environment variables and commands
-to retry the fetch and refresh the comparison stage.
+Example: when OpenSky API rate limits are hit (`S1-06-W02` or `S1-06-E12`), the recommended action
+includes the specific environment variables and commands to retry the fetch and refresh the
+comparison stage.
 
 ```
 OpenSky API rate limit reached. Wait 10-15 minutes and rerun only the OpenSky fetch:

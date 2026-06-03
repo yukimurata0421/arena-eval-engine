@@ -1,19 +1,19 @@
 # ARENA System Context (Reference)
 
-This document preserves the broader three-repository context and an execution-context reference.
-The canonical public architecture document is `docs/facts/architecture.md`.
+This document preserves the broader three-repository context and an execution-context reference. The
+canonical public architecture document is `docs/facts/architecture.md`.
 
 ## System Context
 
-ARENA is the statistical evaluation layer in a telemetry stack.
-It does not collect raw telemetry on edge devices.
+ARENA is the statistical evaluation layer in a telemetry stack. It does not collect raw telemetry on
+edge devices.
 
 Current edge-side flow (operational view):
 
 - `readsb` feeds both `PLAO` and `adsb-eval` in parallel (not a PLAO -> adsb-eval chain)
 
-Data is then synchronized/pulled into the analysis side where ARENA runs.
-Operationally, pull/rsync is initiated from the ARENA side.
+Data is then synchronized/pulled into the analysis side where ARENA runs. Operationally, pull/rsync
+is initiated from the ARENA side.
 
 ```text
 Raspberry Pi (edge)                    WSL2 / Linux (analysis)
@@ -58,7 +58,8 @@ flowchart LR
 
 Current `scripts/` groups in this repository:
 
-- `scripts/adsb/`: aggregation, statistical evaluation, change-point, report, heatmap, and ops payloads
+- `scripts/adsb/`: aggregation, statistical evaluation, change-point, report, heatmap, and ops
+  payloads
 - `scripts/signals/`: signal aggregation/evaluation payloads
 - `scripts/plao/`: PLAO distance-AUC payloads
 - `scripts/tools/`: smoke reproducibility and artifact compatibility tools
@@ -66,19 +67,24 @@ Current `scripts/` groups in this repository:
 
 ## Repository Roles
 
-- [PLAO](https://github.com/yukimurata0421/plao-pos-collector) — per-aircraft position logging on the Pi
+- [PLAO](https://github.com/yukimurata0421/plao-pos-collector) — per-aircraft position logging on
+  the Pi
 - [adsb-eval](https://github.com/yukimurata0421/adsb-eval) — edge-side distance/signal aggregation
-- **ARENA** (this repository) — orchestration, evaluation, artifact control, and public reproducibility surface
+- **ARENA** (this repository) — orchestration, evaluation, artifact control, and public
+  reproducibility surface
 
 ## Execution Model Note (ARENA)
 
-ARENA keeps logical stages in step definitions, but runtime execution is not a simple stage-by-stage serial flow:
+ARENA keeps logical stages in step definitions, but runtime execution is not a simple stage-by-stage
+serial flow:
 
 - Stage 1 is executed with wave-based parallel scheduling (`STAGE1_WAVES`).
-- Selected stages are executed with cross-stage parallel groups where allowed (`PARALLEL_STAGE_GROUPS`).
+- Selected stages are executed with cross-stage parallel groups where allowed
+  (`PARALLEL_STAGE_GROUPS`).
 - Early launch is used for independent stages (`EARLY_LAUNCH_STAGES`).
-- Stage 3 is intentionally separated from the cross-stage parallel group because it consumes Stage 2 outputs.
+- Stage 3 is intentionally separated from the cross-stage parallel group because it consumes Stage 2
+  outputs.
 
-For authoritative architecture boundaries, see `docs/facts/architecture.md`.
-For release evolution details from `v0.2.9` to `v0.3.0`, see `docs/evolution/v0.2.9-to-v0.3.0.md`.
+For authoritative architecture boundaries, see `docs/facts/architecture.md`. For release evolution
+details from `v0.2.9` to `v0.3.0`, see `docs/evolution/v0.2.9-to-v0.3.0.md`.
 

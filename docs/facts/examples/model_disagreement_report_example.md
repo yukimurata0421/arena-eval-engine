@@ -1,14 +1,14 @@
 # Model Disagreement Report Example
 
-Status: example snapshot
-Snapshot date: 2026-06-03 JST
-Generated artifact path: `output/performance/model_disagreement_report.md`
+Status: example snapshot Snapshot date: 2026-06-03 JST Generated artifact path:
+`output/performance/model_disagreement_report.md`
 
 ## Purpose
 
 This example shows how ARENA preserves model disagreement instead of averaging it away.
 
-`output/` is ignored by Git, so this tracked example documents how reviewers should read the generated artifact.
+`output/` is ignored by Git, so this tracked example documents how reviewers should read the
+generated artifact.
 
 ## Example
 
